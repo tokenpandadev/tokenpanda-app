@@ -23,6 +23,10 @@ Every time I looked at a usage percentage I did the same sum in my head. It is T
 
 The menu bar item: the panda and the weekly percentage, dimmed when the figures are older than an hour.
 
+<img src="docs/shots/item-limits.png" width="305" alt="The menu bar item at a limit: x x eyes for the weekly limit, - - eyes for the 5h limit">
+
+When a window is used up, the panda's eyes say so until it resets: x x for the weekly limit, - - for the 5h window.
+
 ![The popover on its three tabs: Claude, Mac and Settings](docs/shots/tabs.png)
 
 The three tabs: Claude, Mac and Settings.
@@ -78,7 +82,7 @@ You need a Mac on macOS 14 or later with the Command Line Tools or Xcode. Swift 
 ```sh
 swift build
 swift test -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
-scripts/build-app.sh 0.1.4
+scripts/build-app.sh 0.1.5
 open build/tokenpanda.app
 ```
 

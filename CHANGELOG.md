@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5, 2026-10-21
+
+- The panda's eyes show a used up window until it resets: x x for the weekly limit, - - for the 5h window, the weekly one when both are. The item's spoken label says which limit was reached.
+
 ## 0.1.4, 2026-10-21
 
 - Settings: under Keep the Mac awake, a second switch, also while a session waits for you, off by default. With both on, any open Claude Code session holds the Mac awake, idle ones too, so it stays reachable through Remote Control from the phone. The row then says "awake" with the number of sessions open.

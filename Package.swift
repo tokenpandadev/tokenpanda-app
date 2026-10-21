@@ -21,7 +21,7 @@ let package = Package(
         .executableTarget(name: "tokenpanda", dependencies: ["UI", "Text", "Pace", "Prices", "Feed", "Transcripts", "MacStats"],
                           path: "Sources/App", swiftSettings: swift6,
                           linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("IOKit"), .linkedFramework("UserNotifications")]),
-        .testTarget(name: "tokenpandaTests", dependencies: ["Text", "Pace", "Prices", "Feed", "Transcripts", "MacStats"],
+        .testTarget(name: "tokenpandaTests", dependencies: ["Text", "Pace", "Prices", "Feed", "Transcripts", "MacStats", "UI"],
                     resources: [.copy("Fixtures")], swiftSettings: swift6),
     ]
 )

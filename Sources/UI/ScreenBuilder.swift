@@ -272,7 +272,29 @@ public enum ScreenBuilder {
         return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: settings)
     }
 
+    /// A window at 100% shows in the panda's eyes until its reset passes, stale or not; the weekly window wins.
+    public static func eyes(_ limits: Limits?, now: Date) -> Eyes {
+        func atLimit(_ key: String) -> Bool {
+            guard let w = limits?.windows[key] else { return false }
+            return w.used >= 100 && now < w.resetsAt
+        }
+        if atLimit("seven_day") { return .weeklyLimit }
+        if atLimit("five_hour") { return .fiveHourLimit }
+        return .normal
+    }
+
     public static func item(_ i: LiveInput) -> ItemState {
+        var st = itemFigures(i)
+        st.eyes = eyes(i.feed.limits, now: i.now)
+        switch st.eyes {
+        case .weeklyLimit: st.label += ", weekly limit reached"
+        case .fiveHourLimit: st.label += ", 5h limit reached"
+        case .normal: break
+        }
+        return st
+    }
+
+    static func itemFigures(_ i: LiveInput) -> ItemState {
         let macText = i.macInBar ? i.mac.map { " CPU \(Int($0.cpuBusy.rounded()))%" } : nil
         guard let limits = i.feed.limits, let rec = limits.windows["seven_day"], !limits.isUnknown("seven_day"),
               let length = WindowKind.length(forKey: "seven_day") else {

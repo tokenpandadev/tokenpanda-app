@@ -346,7 +346,10 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <tr><td>Mac warning</td><td>⚠ appended</td><td>the rule in section 8</td></tr>
 <tr><td>With the Mac figure</td><td>" CPU 9%" appended</td><td>the setting macFiguresInBar</td></tr>
 <tr><td>No snapshot yet</td><td>the panda alone, no figure, at 50% opacity</td><td>no snapshot file, or none with rate_limits</td></tr>
+<tr><td>Weekly limit</td><td>the eyes drawn x x</td><td>seven_day used 100% or more and its reset still ahead, stale or not</td></tr>
+<tr><td>5h limit</td><td>the eyes drawn - -</td><td>five_hour used 100% or more and its reset still ahead; the weekly limit wins when both hold</td></tr>
 </table>
+<p>The limit eyes are holes in the template image like the normal ones, drawn on a 1 pt grid (14 by 14, from the top left): the eye areas are rows 6 to 9, columns 2 to 5 and 8 to 11. x x fills each area and clears its two diagonals; - - fills it and clears row 8. Outline, size and nose stay. The eyes go back to normal once the reset passes; the stale dimming still applies on top. The accessibility label adds "weekly limit reached" or "5h limit reached".</p>
 <p>Click opens the popover; a second click or Esc closes it. The item's accessibility label says the whole state in words (style guide, section 9).</p>
 
 <h2 id="screens">12  Every screen, in order</h2>
@@ -421,9 +424,9 @@ from Claude Code's own status feed on this Mac.</pre>
 
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
-<pre>scripts/build-app.sh 0.1.4   # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
+<pre>scripts/build-app.sh 0.1.5   # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
                              # Contents/Resources (hook.sh, AppIcon.icns), Info.plist (LSUIElement true,
-                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.4.zip and its SHA-256</pre>
+                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.5.zip and its SHA-256</pre>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>
 <p>Ad hoc signing does not satisfy Gatekeeper on a downloaded file, and since macOS Sequoia Control-click no longer overrides it. Apple's current page (published 2026-05-27) gives the flow, which the README repeats:</p>

@@ -6,7 +6,8 @@ import Text
 
 /// The menu bar item as a template image: the panda from the app icon as a 7 by 7 pixel mark, a 5 pt gap, then
 /// the weekly percentage in SF with tabular digits at 13 pt. Monochrome; the OS inverts it on a light menu bar. The
-/// panda's eyes and nose are left open so the mark reads at menu bar size. The semibold figure carries over pace.
+/// panda's eyes and nose are left open so the mark reads at menu bar size; a window at its limit redraws the eyes as
+/// x x (weekly) or - - (5h). The semibold figure carries over pace.
 public enum ItemImage {
     // nonisolated: NSImage and NSFont are usable off the main actor; the item is also drawn by the snapshot flag
     public static let height: CGFloat = 22
@@ -26,6 +27,26 @@ public enum ItemImage {
         ".XXXXX.",
     ]
 
+    /// The panda on a 1 pt grid, 14 by 14, row by row from the top: the 7 by 7 grid doubled, then the two eye areas
+    /// (rows 6 to 9, columns 2 to 5 and 8 to 11) redrawn for a window at its limit. "X" is ink, "." a hole.
+    public static func mask(_ eyes: Eyes) -> [String] {
+        var grid: [[Character]] = panda.flatMap { row -> [[Character]] in
+            let doubled = row.flatMap { [$0, $0] }
+            return [doubled, doubled]
+        }
+        if eyes != .normal {
+            for left in [2, 8] {
+                for r in 6...9 {
+                    for c in 0..<4 {
+                        let hole = eyes == .weeklyLimit ? (c == r - 6 || c == 9 - r) : r == 8
+                        grid[r][left + c] = hole ? "." : "X"
+                    }
+                }
+            }
+        }
+        return grid.map { String($0) }
+    }
+
     static func width(_ s: NSAttributedString) -> CGFloat {
         CTLineGetTypographicBounds(CTLineCreateWithAttributedString(s), nil, nil, nil)
     }
@@ -36,6 +57,7 @@ public enum ItemImage {
         let black = NSColor.black
         let digits = st.used.map { NSAttributedString(string: "\($0)%", attributes: [.font: digitsFont, .foregroundColor: black]) }
         let markW = cell * CGFloat(panda[0].count)
+        let mark = mask(st.eyes)
         let warn = st.warn ? NSAttributedString(string: "\u{26A0}", attributes: [.font: glyphFont, .foregroundColor: black]) : nil
         let mac = st.macText.map { NSAttributedString(string: $0, attributes: [.font: digitsFont, .foregroundColor: black]) }
         var w: CGFloat = 4 + markW
@@ -58,12 +80,12 @@ public enum ItemImage {
                 ctx.restoreGState()
                 x += width(s)
             }
-            // the panda on whole points, centred on the item's height
+            // the panda on whole points, centred on the item's height, one point per mask cell
             let top = ((height - cell * CGFloat(panda.count)) / 2).rounded()
             ctx.setFillColor(black.cgColor)
-            for (r, row) in panda.enumerated() {
+            for (r, row) in mark.enumerated() {
                 for (c, ch) in row.enumerated() where ch == "X" {
-                    ctx.fill(CGRect(x: x + cell * CGFloat(c), y: top + cell * CGFloat(r), width: cell, height: cell))
+                    ctx.fill(CGRect(x: x + CGFloat(c), y: top + CGFloat(r), width: 1, height: 1))
                 }
             }
             x += markW

@@ -266,12 +266,14 @@
 <div class="t"><div id="c-ion"></div><div class="cap">on pace</div></div>
 <div class="t"><div id="c-iahead"></div><div class="cap">ahead</div></div>
 <div class="t"><div id="c-iover"></div><div class="cap">over pace</div></div>
+<div class="t"><div id="c-iweekly"></div><div class="cap">weekly limit  x x</div></div>
+<div class="t"><div id="c-ifive"></div><div class="cap">5h limit  - -</div></div>
 <div class="t"><div id="c-istale"></div><div class="cap">stale</div></div>
 <div class="t"><div id="c-iwarn"></div><div class="cap">Mac warning</div></div>
 <div class="t"><div id="c-imac"></div><div class="cap">with the Mac figure</div></div>
 <div class="t"><div id="c-ilight"></div><div class="cap">light bar  over pace  Mac figure</div></div>
 </div></div>
-<p class="use"><b>Use</b> one item. The panda from the app icon as a 7 by 7 pixel mark, a gap of 5 px, then the weekly percentage in SF with tabular digits, monochrome like Apple's own items (a template image, so it inverts on a light menu bar). Over pace: the digits go semibold. Stale: the whole item at 50% opacity. Mac warning: ⚠ appended. When "Mac figures in the bar" is on, " CPU 9%" is appended.</p>
+<p class="use"><b>Use</b> one item. The panda from the app icon as a 7 by 7 pixel mark, a gap of 5 px, then the weekly percentage in SF with tabular digits, monochrome like Apple's own items (a template image, so it inverts on a light menu bar). Over pace: the digits go semibold. Stale: the whole item at 50% opacity. Mac warning: ⚠ appended. When "Mac figures in the bar" is on, " CPU 9%" is appended. A window at 100% shows in the eyes until it resets: x x for the weekly window, - - for the 5h window, the weekly one when both are; the eyes are redrawn on a 1 pt grid, the rest of the mark stays the 7 by 7 grid.</p>
 <p class="use"><b>Do not</b> use colour in the bar, do not add a second figure by default, do not cram four glyphs into it, do not animate it.</p>
 
 <h3>6.13  Nudge banner</h3>
@@ -347,7 +349,7 @@
 <p>Bars are glyph runs, so each component sets one accessibility label that says the whole thing in words. The Swift build sets these on the row or section element, not on each glyph.</p>
 <table class="nw">
 <tr><th>Component</th><th>Role</th><th>Label</th></tr>
-<tr><td>Menu bar item</td><td>button, "Claude usage"</td><td>"Weekly 61% used, over pace, resets Sunday 18:00"; stale adds "as of 13:05"; Mac warning adds "Mac warning"</td></tr>
+<tr><td>Menu bar item</td><td>button, "Claude usage"</td><td>"Weekly 61% used, over pace, resets Sunday 18:00"; stale adds "as of 13:05"; Mac warning adds "Mac warning"; a window at its limit adds "weekly limit reached" or "5h limit reached"</td></tr>
 <tr><td>Popover</td><td>dialog, "Usage"</td><td></td></tr>
 <tr><td>Tab strip</td><td>tab list; each tab a tab with selected state</td><td>"Claude", "Mac", "Mac, warning", "Settings"</td></tr>
 <tr><td>Window section</td><td>group</td><td>"Weekly, all models. 61% used. Resets Sunday 18:00, in 3 days 3 hours. Over pace, limit Sunday 01:20 at this rate. 0.5% an hour left."</td></tr>
@@ -416,7 +418,7 @@ $('c-mem').innerHTML = memGrid(); $('c-open').innerHTML = R6.openSessions();
 $('c-cb').innerHTML = L(' <button type="button" class="cb" role="checkbox" aria-checked="false">[ ]</button> off   <button type="button" class="cb" role="checkbox" aria-checked="true">[x]</button> on');
 $('c-settings').innerHTML = cbRow('Mac figures in the bar', false) + cbRow('Nudge at 80% and before the 5h end', true, null, {hover:true}) + cbRow('List price equivalent', true, 'tokens at list prices, not the plan price') + BL + R6.hookRow(true) + BL + L(' ' + sp('This app makes no network calls. Usage comes', 'd')) + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd')) + BL + L(' Quit' + rcol('⌘Q', R6.POP - 5));
 $('c-tip1').innerHTML = L(' <span class="tip show">1.02B tokens  49% of 7 days</span>'); $('c-tip2').innerHTML = L(' <span class="tip show">Week of 28 Sep  hit Thu 16:10</span>'); $('c-tip3').innerHTML = L(' <span class="tip show">14:19  last snapshot</span>');
-$('c-ion').innerHTML = L(strip(item(57, 55))); $('c-iahead').innerHTML = L(strip(item(24, 32))); $('c-iover').innerHTML = L(strip(item(61, 55, {over:true}))); $('c-istale').innerHTML = L(strip(item(61, 55, {stale:true}))); $('c-iwarn').innerHTML = L(strip(item(61, 55, {warn:true}))); $('c-imac').innerHTML = L(strip(item(61, 55, {mac:true}))); $('c-ilight').innerHTML = L(strip(item(61, 55, {over:true, mac:true}), true));
+$('c-ion').innerHTML = L(strip(item(57, 55))); $('c-iahead').innerHTML = L(strip(item(24, 32))); $('c-iover').innerHTML = L(strip(item(61, 55, {over:true}))); $('c-iweekly').innerHTML = L(strip(item(100, 55, {over:true, eyes:'weekly'}))); $('c-ifive').innerHTML = L(strip(item(61, 55, {over:true, eyes:'five'}))); $('c-istale').innerHTML = L(strip(item(61, 55, {stale:true}))); $('c-iwarn').innerHTML = L(strip(item(61, 55, {warn:true}))); $('c-imac').innerHTML = L(strip(item(61, 55, {mac:true}))); $('c-ilight').innerHTML = L(strip(item(61, 55, {over:true, mac:true}), true));
 $('c-nb1').innerHTML = '<div class="nb" role="status"><span class="tx"><b>Weekly at 80%</b><p>2 days 4 h to the reset. At this pace the limit lands Saturday 09:00.</p></span><time>now</time></div>';
 $('c-nb2').innerHTML = '<div class="nb" role="status"><span class="tx"><b>5h window ends in 15 min</b><p>34% used.</p></span><time>now</time></div>';
 $('c-pop1').innerHTML = popover(1, {weekly:61, five:24});

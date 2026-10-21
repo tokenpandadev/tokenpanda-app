@@ -30,6 +30,9 @@ if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             ("item-stale", ScreenBuilder.item(Fixtures.input(weekly: 61, stale: true))),
             ("item-warning", ScreenBuilder.item(Fixtures.input(weekly: 61, warn: true))),
             ("item-nofeed", ScreenBuilder.item(Fixtures.input(feedState: .init()))),
+            ("item-weekly-limit", ScreenBuilder.item(Fixtures.input(weekly: 100))),
+            ("item-five-limit", ScreenBuilder.item(Fixtures.input(feedState: .init(limits: Fixtures.limits(weekly: 61, five: 100), sessions: Fixtures.openSessions,
+                                                                                   lastWriteAt: Fixtures.now.addingTimeInterval(-2))))),
         ]
         for (name, st) in items {
             do { try SnapshotWriter.writeItem(st, to: dir.appendingPathComponent(name + ".png")); written.append(name) } catch { print("failed \(name): \(error)") }

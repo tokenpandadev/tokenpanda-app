@@ -159,6 +159,13 @@ public struct Screen: Sendable, Equatable {
     }
 }
 
+/// The panda's eyes: a window at its limit shows in them until it resets. Weekly wins over the 5h window.
+public enum Eyes: Sendable, Equatable {
+    case normal          // the open eye patches of the app icon
+    case weeklyLimit     // x x
+    case fiveHourLimit   // - -
+}
+
 /// The menu bar item, as data.
 public struct ItemState: Sendable, Equatable {
     public var used: Int?           // nil: no figure, the track alone
@@ -168,7 +175,9 @@ public struct ItemState: Sendable, Equatable {
     public var warn: Bool
     public var macText: String?     // " CPU 9%"
     public var label: String        // the accessibility label
-    public init(used: Int?, elapsed: Double?, over: Bool, stale: Bool, warn: Bool, macText: String?, label: String) {
+    public var eyes: Eyes
+    public init(used: Int?, elapsed: Double?, over: Bool, stale: Bool, warn: Bool, macText: String?, label: String, eyes: Eyes = .normal) {
         self.used = used; self.elapsed = elapsed; self.over = over; self.stale = stale; self.warn = warn; self.macText = macText; self.label = label
+        self.eyes = eyes
     }
 }

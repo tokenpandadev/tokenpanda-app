@@ -3,6 +3,8 @@
 import Testing
 import Foundation
 import Text
+import Feed
+import UI
 
 /// The bar builder against the spec's test plan, and the grammar components against golden strings.
 struct BarTests {
@@ -204,5 +206,53 @@ struct BarTests {
         #expect(Format.contextTokens(1_000_000, decimal: false) == "1M")
         #expect(Format.usd(1140, cents: false) == "USD 1,140")
         #expect(Format.usd(38.2, cents: true) == "USD 38.20")
+    }
+
+    // MARK: the panda's eyes
+
+    func limits(weekly: Double, five: Double, now: Date) -> Limits {
+        Limits(windows: ["seven_day": .init(used: weekly, resetsAt: now.addingTimeInterval(3600)),
+                         "five_hour": .init(used: five, resetsAt: now.addingTimeInterval(600))], asOf: now)
+    }
+
+    @Test func eyesAtTheLimit() {
+        let now = Date(timeIntervalSince1970: 1791900000)
+        #expect(ScreenBuilder.eyes(limits(weekly: 99.9, five: 99.9, now: now), now: now) == .normal)
+        #expect(ScreenBuilder.eyes(limits(weekly: 100, five: 40, now: now), now: now) == .weeklyLimit)
+        #expect(ScreenBuilder.eyes(limits(weekly: 61, five: 100, now: now), now: now) == .fiveHourLimit)
+        #expect(ScreenBuilder.eyes(nil, now: now) == .normal)
+    }
+
+    @Test func weeklyWinsOverTheFiveHourWindow() {
+        let now = Date(timeIntervalSince1970: 1791900000)
+        #expect(ScreenBuilder.eyes(limits(weekly: 100, five: 100, now: now), now: now) == .weeklyLimit)
+    }
+
+    @Test func eyesComeBackAfterTheReset() {
+        let now = Date(timeIntervalSince1970: 1791900000)
+        let l = limits(weekly: 100, five: 100, now: now)
+        // the 5h window resets after 600 s: the weekly still holds; after 3600 s both have reset
+        #expect(ScreenBuilder.eyes(l, now: now.addingTimeInterval(700)) == .weeklyLimit)
+        #expect(ScreenBuilder.eyes(l, now: now.addingTimeInterval(3600)) == .normal)
+        let five = limits(weekly: 61, five: 100, now: now)
+        #expect(ScreenBuilder.eyes(five, now: now.addingTimeInterval(600)) == .normal)
+    }
+
+    @Test func itemLabelSaysTheLimit() {
+        let weekly = ScreenBuilder.item(Fixtures.input(weekly: 100))
+        #expect(weekly.eyes == .weeklyLimit)
+        #expect(weekly.label.hasSuffix(", weekly limit reached"))
+        let five = ScreenBuilder.item(Fixtures.input(feedState: FeedState(limits: Fixtures.limits(weekly: 61, five: 100), sessions: [], lastWriteAt: Fixtures.now)))
+        #expect(five.eyes == .fiveHourLimit)
+        #expect(five.label.hasSuffix(", 5h limit reached"))
+        #expect(ScreenBuilder.item(Fixtures.input(weekly: 61)).eyes == .normal)
+    }
+
+    @Test func pandaMasks() {
+        let head = ["XXXX......XXXX", "XXXX......XXXX"] + Array(repeating: "XXXXXXXXXXXXXX", count: 4)
+        let foot = ["XXXXXX..XXXXXX", "XXXXXX..XXXXXX", "..XXXXXXXXXX..", "..XXXXXXXXXX.."]
+        #expect(ItemImage.mask(.normal) == head + ["XX....XX....XX", "XX....XX....XX", "XX..XXXXXX..XX", "XX..XXXXXX..XX"] + foot)
+        #expect(ItemImage.mask(.weeklyLimit) == head + ["XX.XX.XX.XX.XX", "XXX..XXXX..XXX", "XXX..XXXX..XXX", "XX.XX.XX.XX.XX"] + foot)
+        #expect(ItemImage.mask(.fiveHourLimit) == head + ["XXXXXXXXXXXXXX", "XXXXXXXXXXXXXX", "XX....XX....XX", "XXXXXXXXXXXXXX"] + foot)
     }
 }

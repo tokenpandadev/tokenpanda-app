@@ -169,9 +169,14 @@ function cbRow(label, on, sub, o = {}) {
 
 /* menu bar item (0.1.2): the panda as a 7 by 7 pixel mark, a 5 px gap, SF digits, monochrome */
 const PANDA = '<svg class="pnd" viewBox="0 0 64 64" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M4 4h16v8H4zM44 4h16v8H44zM4 12h8v8H4zM52 12h8v8h-8zM12 12h40v8H12zM4 20h56v8H4zM4 28h8v8H4zM28 28h8v8h-8zM52 28h8v8h-8zM4 36h8v8H4zM20 36h24v8H20zM52 36h8v8h-8zM4 44h24v8H4zM36 44h24v8H36zM12 52h40v8H12z"/></svg>';
+/* 0.1.5: a window at 100% redraws the eyes on a 1 pt grid, x x for the week, - - for the 5h window; the week wins */
+const pandaPath = (d) => '<svg class="pnd" viewBox="0 0 64 64" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="' + d + '"/></svg>';
+const PANDA_X = pandaPath('M4 4h16v4H4zM44 4h16v4H44zM4 8h16v4H4zM44 8h16v4H44zM4 12h56v4H4zM4 16h56v4H4zM4 20h56v4H4zM4 24h56v4H4zM4 28h8v4H4zM16 28h8v4H16zM28 28h8v4H28zM40 28h8v4H40zM52 28h8v4H52zM4 32h12v4H4zM24 32h16v4H24zM48 32h12v4H48zM4 36h12v4H4zM24 36h16v4H24zM48 36h12v4H48zM4 40h8v4H4zM16 40h8v4H16zM28 40h8v4H28zM40 40h8v4H40zM52 40h8v4H52zM4 44h24v4H4zM36 44h24v4H36zM4 48h24v4H4zM36 48h24v4H36zM12 52h40v4H12zM12 56h40v4H12z');
+const PANDA_DASH = pandaPath('M4 4h16v4H4zM44 4h16v4H44zM4 8h16v4H4zM44 8h16v4H44zM4 12h56v4H4zM4 16h56v4H4zM4 20h56v4H4zM4 24h56v4H4zM4 28h56v4H4zM4 32h56v4H4zM4 36h8v4H4zM28 36h8v4H28zM52 36h8v4H52zM4 40h56v4H4zM4 44h24v4H4zM36 44h24v4H36zM4 48h24v4H4zM36 48h24v4H36zM12 52h40v4H12zM12 56h40v4H12z');
 function item(used, E, o = {}) {
   const cls = 'mbi' + (o.over ? ' over' : '') + (o.stale ? ' stale' : '');
-  return '<span class="' + cls + '">' + PANDA + (used == null ? '' : used + '%')
+  const mark = o.eyes === 'weekly' ? PANDA_X : o.eyes === 'five' ? PANDA_DASH : PANDA;
+  return '<span class="' + cls + '">' + mark + (used == null ? '' : used + '%')
     + (o.warn ? '<span class="g">⚠</span>' : '') + (o.mac ? '<span> CPU 9%</span>' : '') + '</span>';
 }
 const strip = (html, light) => '<span class="strip' + (light ? ' light' : '') + '">' + html + '</span>';
@@ -252,7 +257,7 @@ function popover(tab, st, o = {}) {
   return '<div class="popover" role="dialog" aria-label="Usage"><div class="arrow"></div>' + body + '</div>';
 }
 
-return {EIGHTHS, NOW, WIN, STATES, L, BL, sp, col, rcol, esc, POP, POPBAR, probe, pace, bar, pct, windowSection, paceLines, header, row, rows, MODELS, PROJECTS, SESSIONS, PROCS, OPEN, openSession, openSessions, subTabs, week, memGrid, cbRow, item, strip, claudeTab, macTab, settingsTab, hookRow, foot, popover};
+return {PANDA_X, PANDA_DASH, EIGHTHS, NOW, WIN, STATES, L, BL, sp, col, rcol, esc, POP, POPBAR, probe, pace, bar, pct, windowSection, paceLines, header, row, rows, MODELS, PROJECTS, SESSIONS, PROCS, OPEN, openSession, openSessions, subTabs, week, memGrid, cbRow, item, strip, claudeTab, macTab, settingsTab, hookRow, foot, popover};
 })();
 
 /* documentation chrome: a box wider than its column scrolls inside itself and shows its edge (.xs in docs.css) */
