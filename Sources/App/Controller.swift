@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 tokenpanda
 // SPDX-License-Identifier: MIT
 import AppKit
+import IOKit.pwr_mgt
 import os
 import Text
 import Pace
@@ -21,6 +22,7 @@ enum Rules {
     static let fiveHourNudgeLead: TimeInterval = 15 * 60      // before the 5h window resets
     static let hogSustained: TimeInterval = 60                // one process over the hog threshold this long
     static let pressureWarn = 2                               // kern.memorystatus_vm_pressure_level: 2 warn, 4 critical
+    static let keepAwakeGrace: TimeInterval = 10 * 60         // a session works while its figures moved this recently
 }
 
 /// The main actor state: the status item, the popover, the timers, and the readers it asks.
@@ -50,6 +52,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var lastScreen: Screen? = nil
     var transcriptsVersion = -1
     var tokensDay: Date? = nil
+    var working = WorkingSessions()
+    var awakeAssertion: IOPMAssertionID? = nil   // held only while the setting is on and a session works
+    var awakeSessions = 0
 
     var item: NSStatusItem!
     let popover = NSPopover()
@@ -132,6 +137,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         feedTimer?.cancel(); macTimer?.cancel(); transcriptTimer?.cancel(); dirSource?.cancel()
+        releaseAwake()
     }
 
     // MARK: timers
@@ -173,6 +179,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func refreshFeed() async {
         let now = Date()
         feedState = await feed.scan(now: now)
+        working.apply(feedState.sessions)
+        updateAwake(now: now)
         if hook.settingsModified() != settingsModified { readHookStatus() }
         if let l = feedState.limits, let w = l.windows["seven_day"] {
             var ws = weeks
@@ -226,6 +234,28 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         return m.pressureLevel >= Rules.pressureWarn || hog
     }
 
+    // MARK: keep awake
+
+    /// One power assertion against idle system sleep while the setting is on and a session works; the display may still sleep.
+    /// Never a second one while one is held; released as soon as nothing works.
+    func updateAwake(now: Date) {
+        let n = Settings.bool(Settings.keepAwake) ? working.count(now: now, grace: Rules.keepAwakeGrace) : 0
+        if n > 0, awakeAssertion == nil {
+            var id = IOPMAssertionID(0)
+            let r = IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
+                                                "tokenpanda: Claude Code is working" as CFString, &id)
+            if r == kIOReturnSuccess { awakeAssertion = id }
+        } else if n == 0 {
+            releaseAwake()
+        }
+        awakeSessions = awakeAssertion == nil ? 0 : n
+    }
+
+    func releaseAwake() {
+        if let id = awakeAssertion { IOPMAssertionRelease(id); awakeAssertion = nil }
+        awakeSessions = 0
+    }
+
     // MARK: nudges
 
     func checkNudges(now: Date) {
@@ -250,7 +280,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         LiveInput(feed: feedState, hook: hookStatus, tokens: tokens, transcriptsRootsExist: transcriptsRootsExist, transcriptsError: transcriptsError,
                   mac: mac, weeks: weeks, macInBar: Settings.bool(Settings.macFiguresInBar), nudges: Settings.bool(Settings.nudges),
                   listPrice: Settings.bool(Settings.listPriceEquivalent), nudgeNote: notifier.noteForSettings, hookError: hookError,
-                  warn: warning, tab: tab, section: section, now: Date())
+                  keepAwake: Settings.bool(Settings.keepAwake), awakeSessions: awakeSessions, warn: warning, tab: tab, section: section, now: Date())
     }
 
     func render() {
@@ -280,6 +310,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case .toggle(let key):
             Settings.toggle(key)
             if key == Settings.nudges, Settings.bool(key) { notifier.requestIfNeeded() }
+            if key == Settings.keepAwake { updateAwake(now: Date()) }
         case .install:
             do {
                 let st = try hook.install()

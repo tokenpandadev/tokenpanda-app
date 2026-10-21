@@ -9,12 +9,13 @@ enum Settings {
     static let macFiguresInBar = "macFiguresInBar"
     static let nudges = "nudges"
     static let listPriceEquivalent = "listPriceEquivalent"
+    static let keepAwake = "keepAwake"
     static let hookPreviousCommand = "hookPreviousCommand"
     static let nudgedWeeklyWindow = "nudgedWeeklyWindow"
     static let nudgedFiveHourWindow = "nudgedFiveHourWindow"
 
     static func register() {
-        defaults.register(defaults: [macFiguresInBar: false, nudges: true, listPriceEquivalent: true])
+        defaults.register(defaults: [macFiguresInBar: false, nudges: true, listPriceEquivalent: true, keepAwake: false])
     }
 
     static func bool(_ key: String) -> Bool { defaults.bool(forKey: key) }

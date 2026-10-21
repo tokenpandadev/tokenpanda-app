@@ -262,4 +262,66 @@ struct FeedTests {
         for k in 1...5 { w.apply(LimitWindow(key: "seven_day", usedPercentage: 50, resetsAt: reset.addingTimeInterval(Double(k) * 604800)), at: reset) }
         #expect(w.records.count == 4)
     }
+
+    // MARK: working sessions, for keep awake
+
+    func session(_ sid: String, at t: Date, tokens: Int? = 44_815, cost: Double = 0.35, added: Int = 0, removed: Int = 0, used: Double = 4) -> OpenSession {
+        var s = Snapshot(sessionId: sid, writtenAt: t)
+        s.currentUsageTokens = tokens; s.totalCostUSD = cost; s.linesAdded = added; s.linesRemoved = removed; s.contextUsedPercentage = used
+        return OpenSession(snapshot: s)
+    }
+
+    @Test func firstSnapshotCountsAsWorking() {
+        let t0 = Date(timeIntervalSince1970: 1791900000)
+        var w = WorkingSessions()
+        w.apply([session("a", at: t0, tokens: nil)])
+        #expect(w.count(now: t0, grace: 600) == 1)
+    }
+
+    @Test func idleRepeatsDoNotKeepASessionWorking() {
+        // an idle terminal writes the same figures every 5 s; the grace runs from the first of them
+        let t0 = Date(timeIntervalSince1970: 1791900000)
+        var w = WorkingSessions()
+        for k in 0...130 { w.apply([session("a", at: t0.addingTimeInterval(Double(k) * 5))]) }
+        let now = t0.addingTimeInterval(650)
+        #expect(w.count(now: now, grace: 600) == 0)
+    }
+
+    @Test func eachFigureThatMovesCountsAsAChange() {
+        let t0 = Date(timeIntervalSince1970: 1791900000)
+        let later = t0.addingTimeInterval(590)
+        let now = t0.addingTimeInterval(650)
+        let moves: [OpenSession] = [session("a", at: later, tokens: 50_000), session("a", at: later, cost: 0.40), session("a", at: later, added: 3),
+                                    session("a", at: later, removed: 1), session("a", at: later, used: 5)]
+        for m in moves {
+            var w = WorkingSessions()
+            w.apply([session("a", at: t0)])
+            #expect(w.count(now: now, grace: 600) == 0)
+            w.apply([m])
+            #expect(w.count(now: now, grace: 600) == 1)
+        }
+    }
+
+    @Test func graceExpires() {
+        let t0 = Date(timeIntervalSince1970: 1791900000)
+        var w = WorkingSessions()
+        w.apply([session("a", at: t0)])
+        w.apply([session("a", at: t0.addingTimeInterval(300))])   // a repeat: the change stays at t0
+        #expect(w.count(now: t0.addingTimeInterval(600), grace: 600) == 1)
+        #expect(w.count(now: t0.addingTimeInterval(601), grace: 600) == 0)
+    }
+
+    @Test func closedSessionDrops() {
+        let t0 = Date(timeIntervalSince1970: 1791900000)
+        var w = WorkingSessions()
+        w.apply([session("a", at: t0), session("b", at: t0)])
+        #expect(w.count(now: t0, grace: 600) == 2)
+        w.apply([session("b", at: t0.addingTimeInterval(5))])
+        #expect(w.count(now: t0.addingTimeInterval(5), grace: 600) == 1)
+        w.apply([])
+        #expect(w.count(now: t0.addingTimeInterval(10), grace: 600) == 0)
+        // back after a gap: its first snapshot counts again
+        w.apply([session("a", at: t0.addingTimeInterval(700))])
+        #expect(w.count(now: t0.addingTimeInterval(700), grace: 600) == 1)
+    }
 }

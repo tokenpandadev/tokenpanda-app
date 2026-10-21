@@ -277,6 +277,7 @@ public enum Grammar {
         var out = cbRow("macFiguresInBar", "Mac figures in the bar", s.macInBar, nil)
         out += cbRow("nudges", "Nudge at 80% and before the 5h end", s.nudges, s.nudgeNote)
         out += cbRow("listPriceEquivalent", "List price equivalent", s.listPrice, "tokens at list prices, not the plan price")
+        out += cbRow("keepAwake", "Keep the Mac awake while Claude works", s.keepAwake, s.awakeNote)
         out.append(blank)
         out += hookRow(installed: s.hookInstalled, error: s.hookError)
         out.append(blank)

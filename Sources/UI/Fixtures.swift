@@ -114,6 +114,8 @@ public enum Fixtures {
                                               asOf: date(2026, 10, 11, 13, 5)), sessions: [], lastWriteAt: date(2026, 10, 11, 13, 5))
         var resetPassed = input(feedState: passed)
         resetPassed.weeks = passedWeeks
+        var settings = input(tab: 2)
+        settings.keepAwake = true; settings.awakeSessions = 2   // the sample's two open sessions, both working
         return [
             ("claude-overpace", input(weekly: 61)),
             ("claude-ahead", input(weekly: 45)),
@@ -128,7 +130,7 @@ public enum Fixtures {
             ("mac", input(tab: 1)),
             ("mac-warning", input(warn: true, tab: 1)),
             ("mac-health-na", input(tab: 1, healthKnown: false)),
-            ("settings", input(tab: 2)),
+            ("settings", settings),
         ]
     }
 }

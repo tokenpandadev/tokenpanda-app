@@ -81,3 +81,45 @@ public enum OpenSessionsRule {
     public static func shouldDelete(writtenAt: Date, now: Date) -> Bool { now.timeIntervalSince(writtenAt) > dropAfter }
     public static func isStale(asOf: Date, now: Date) -> Bool { now.timeIntervalSince(asOf) > staleAfter }
 }
+
+/// Which open sessions are working, for the keep awake setting. An idle session keeps writing the same figures
+/// every refresh interval, so a session works only while its figures move: a change counts, a repeat does not.
+public struct WorkingSessions: Sendable, Equatable {
+    /// The figures that move while Claude works and stand still while the terminal waits.
+    struct Figures: Sendable, Equatable {
+        var tokens: Int?
+        var cost: Double?
+        var added: Int?
+        var removed: Int?
+        var context: Double?
+        init(_ s: Snapshot) {
+            tokens = s.currentUsageTokens; cost = s.totalCostUSD; added = s.linesAdded; removed = s.linesRemoved; context = s.contextUsedPercentage
+        }
+    }
+    struct Entry: Sendable, Equatable {
+        var figures: Figures
+        var changedAt: Date
+    }
+    var entries: [String: Entry] = [:]   // session id to its last figures and when they last changed
+
+    public init() {}
+
+    /// Applies one scan's open sessions. A session's first snapshot counts as a change; a session no longer open is dropped.
+    public mutating func apply(_ sessions: [OpenSession]) {
+        var next: [String: Entry] = [:]
+        for s in sessions {
+            let f = Figures(s.snapshot)
+            if let old = entries[s.snapshot.sessionId], old.figures == f {
+                next[s.snapshot.sessionId] = old
+            } else {
+                next[s.snapshot.sessionId] = Entry(figures: f, changedAt: s.snapshot.writtenAt)
+            }
+        }
+        entries = next
+    }
+
+    /// The number of open sessions whose figures changed within the grace.
+    public func count(now: Date, grace: TimeInterval) -> Int {
+        entries.values.filter { now.timeIntervalSince($0.changedAt) <= grace }.count
+    }
+}

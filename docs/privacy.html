@@ -76,9 +76,10 @@
 <li><code>~/Library/Application Support/dev.tokenpanda.app/statusline-before.json</code>: your <code>statusLine</code> entry as it was before the install, so removing the hook can put it back exactly; deleted on removal</li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/limits.json</code>: the last two plan windows (used percent and reset time) and the time they were read, so the figures outlive the session files; no path, no model, no session id</li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/weeks.json</code>: four small records of past weekly windows, for the week over week rows</li>
-<li>your preferences (three switches and two timestamps the nudges use) in the app's preferences file under <code>~/Library/Preferences</code></li>
+<li>your preferences (four switches and two timestamps the nudges use) in the app's preferences file under <code>~/Library/Preferences</code></li>
 </ul>
 <p>No log file. No cache of transcripts. No copy of anything you wrote. If installing or removing the hook fails, the error is shown in Settings and written to the macOS unified log, with the message marked private.</p>
+<p>With "Keep the Mac awake while Claude works" on, the app holds one power assertion against idle sleep, and only while a Claude Code session is working, which means its figures moved in the last ten minutes. It writes no file for this; <code>pmset -g assertions</code> in Terminal shows it as "tokenpanda: Claude Code is working" while it is held. The display may still sleep, and a closed lid on battery still sleeps the Mac: this keeps it from idle sleep only.</p>
 
 <h2 id="network">5  What leaves your Mac</h2>
 <p>Nothing. The app has no network code. It does not check for updates, does not fetch prices, does not send crash reports, does not send usage statistics, and does not call any Anthropic endpoint. The prices it uses for the "list price equivalent" figure are a table inside the app, updated with releases.</p>
@@ -98,6 +99,7 @@
 <li>Run a network monitor such as Little Snitch, or <code>nettop</code> in Terminal filtered to the app, for an hour: zero connections.</li>
 <li>Open the sessions folder in Application Support and read a snapshot file: it is the status line object Claude Code produced, as is.</li>
 <li>Open <code>~/.claude/settings.json</code> and read the <code>statusLine</code> entry: one script path and a refresh interval.</li>
+<li>Run <code>pmset -g assertions</code>: the app appears there only while keep awake is on and a session works.</li>
 </ul>
 
 <h2 id="remove">9  Removing the app</h2>

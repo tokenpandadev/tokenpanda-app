@@ -22,6 +22,8 @@ public struct LiveInput: Sendable {
     public var listPrice: Bool
     public var nudgeNote: String?
     public var hookError: String?
+    public var keepAwake: Bool
+    public var awakeSessions: Int      // the working sessions while the power assertion is held; 0 when it is not
     public var warn: Bool
     public var tab: Int
     public var section: Int
@@ -31,10 +33,11 @@ public struct LiveInput: Sendable {
 
     public init(feed: FeedState, hook: HookStatus, tokens: TokenSummary?, transcriptsRootsExist: Bool, transcriptsError: String?,
                 mac: MacSample?, weeks: WeekRecords, macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String?, hookError: String? = nil,
-                warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current) {
+                keepAwake: Bool = false, awakeSessions: Int = 0, warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current) {
         self.feed = feed; self.hook = hook; self.tokens = tokens; self.transcriptsRootsExist = transcriptsRootsExist
         self.transcriptsError = transcriptsError; self.mac = mac; self.weeks = weeks; self.macInBar = macInBar; self.nudges = nudges
-        self.listPrice = listPrice; self.nudgeNote = nudgeNote; self.hookError = hookError; self.warn = warn; self.tab = tab; self.section = section
+        self.listPrice = listPrice; self.nudgeNote = nudgeNote; self.hookError = hookError; self.warn = warn
+        self.keepAwake = keepAwake; self.awakeSessions = awakeSessions; self.tab = tab; self.section = section
         self.now = now; self.timeZone = timeZone; self.calendar = calendar
     }
 }
@@ -239,6 +242,11 @@ public enum ScreenBuilder {
 
     // MARK: the whole screen and the item
 
+    /// The keep awake row's second line, only while the power assertion is held.
+    public static func awakeNote(_ working: Int) -> String? {
+        working > 0 ? "awake  \(working) session\(working == 1 ? "" : "s") working" : nil
+    }
+
     /// "Usage live" only while a session fed in the last minute; between sessions the time of the last figures;
     /// before any feed arrived, says so.
     public static func headerLine(_ i: LiveInput) -> String {
@@ -251,7 +259,7 @@ public enum ScreenBuilder {
         let (sessions, more) = sessionViews(i)
         let claude = ClaudeTab(limits: limitsView(i), sessions: sessions, moreSessions: more, tokens: tokensView(i), weeks: weekViews(i))
         let settings = SettingsTab(macInBar: i.macInBar, nudges: i.nudges, listPrice: i.listPrice, nudgeNote: i.nudgeNote,
-                                   hookInstalled: i.hook.installed, hookError: i.hookError)
+                                   hookInstalled: i.hook.installed, hookError: i.hookError, keepAwake: i.keepAwake, awakeNote: awakeNote(i.awakeSessions))
         return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: settings)
     }
 

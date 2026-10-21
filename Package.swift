@@ -20,7 +20,7 @@ let package = Package(
                 linkerSettings: [.linkedFramework("AppKit")]),
         .executableTarget(name: "tokenpanda", dependencies: ["UI", "Text", "Pace", "Prices", "Feed", "Transcripts", "MacStats"],
                           path: "Sources/App", swiftSettings: swift6,
-                          linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("UserNotifications")]),
+                          linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("IOKit"), .linkedFramework("UserNotifications")]),
         .testTarget(name: "tokenpandaTests", dependencies: ["Text", "Pace", "Prices", "Feed", "Transcripts", "MacStats"],
                     resources: [.copy("Fixtures")], swiftSettings: swift6),
     ]

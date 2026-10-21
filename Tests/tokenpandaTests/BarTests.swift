@@ -131,23 +131,33 @@ struct BarTests {
         #expect(s[0] == " [ ] Mac figures in the bar")
         #expect(s[1] == " [x] Nudge at 80% and before the 5h end")
         #expect(s[3] == "     tokens at list prices, not the plan price")
-        #expect(s[5] == " Install the status line entry")
-        #expect(s[6] == "     one statusLine entry in ~/.claude/settings.json")
-        #expect(s[8] == " This app makes no network calls. Usage comes")
-        #expect(s[9] == " from Claude Code's own status feed on this Mac.")
-        #expect(s[11] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
+        #expect(s[4] == " [ ] Keep the Mac awake while Claude works")
+        #expect(s[6] == " Install the status line entry")
+        #expect(s[7] == "     one statusLine entry in ~/.claude/settings.json")
+        #expect(s[9] == " This app makes no network calls. Usage comes")
+        #expect(s[10] == " from Claude Code's own status feed on this Mac.")
+        #expect(s[12] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
+    }
+
+    @Test func keepAwakeRowSaysWhenItHoldsTheMacAwake() {
+        let lines = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: true, awakeNote: "awake  2 sessions working"))
+        #expect(lines[4].plain == " [x] Keep the Mac awake while Claude works")
+        #expect(lines[4].pieces[1].action == .toggle("keepAwake"))
+        #expect(lines[4].cells <= Grammar.popCells + 1)
+        #expect(lines[5].plain == "     awake  2 sessions working")
+        #expect(lines[6].plain == "")
     }
 
     @Test func hookRowRemovesWhenInstalledAndShowsTheError() {
         let lines = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: true,
                                                     hookError: "Could not remove the entry: cannot write settings.json: denied"))
-        #expect(lines[5].plain == " Remove the status line entry")
-        #expect(lines[5].pieces[1].action == .uninstall)
-        #expect(lines[6].plain == "     puts back what statusLine held before")
-        #expect(lines[7].plain.hasPrefix("     Could not remove the entry"))
-        #expect(lines[7].cells <= Grammar.popCells + 1)
+        #expect(lines[6].plain == " Remove the status line entry")
+        #expect(lines[6].pieces[1].action == .uninstall)
+        #expect(lines[7].plain == "     puts back what statusLine held before")
+        #expect(lines[8].plain.hasPrefix("     Could not remove the entry"))
+        #expect(lines[8].cells <= Grammar.popCells + 1)
         let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: false))
-        #expect(off[5].pieces[1].action == .install)
+        #expect(off[6].pieces[1].action == .install)
     }
 
     @Test func keyHintsNameMPSOnlyOnTheClaudeTab() {
