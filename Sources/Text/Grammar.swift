@@ -216,10 +216,10 @@ public enum Grammar {
     }
 
     // 6.10 checkbox rows
-    public static func cbRow(_ key: String, _ label: String, _ on: Bool, _ sub: String?) -> [Line] {
-        var out = [Line([sp(" "), Piece(on ? "[x]" : "[ ]", .text, action: .toggle(key)), Piece(" " + label, .text, action: .toggle(key))],
+    public static func cbRow(_ key: String, _ label: String, _ on: Bool, _ sub: String?, indent: String = " ") -> [Line] {
+        var out = [Line([sp(indent), Piece(on ? "[x]" : "[ ]", .text, action: .toggle(key)), Piece(" " + label, .text, action: .toggle(key))],
                         hover: true, label: label)]
-        if let sub { out.append(L(sp("     "), sp(sub, .dim))) }
+        if let sub { out.append(L(sp(indent + "    "), sp(sub, .dim))) }
         return out
     }
 
@@ -277,7 +277,10 @@ public enum Grammar {
         var out = cbRow("macFiguresInBar", "Mac figures in the bar", s.macInBar, nil)
         out += cbRow("nudges", "Nudge at 80% and before the 5h end", s.nudges, s.nudgeNote)
         out += cbRow("listPriceEquivalent", "List price equivalent", s.listPrice, "tokens at list prices, not the plan price")
-        out += cbRow("keepAwake", "Keep the Mac awake while Claude works", s.keepAwake, s.awakeNote)
+        out += cbRow("keepAwake", "Keep the Mac awake while Claude works", s.keepAwake, nil)
+        if s.keepAwake {
+            out += cbRow("keepAwakeWhileOpen", "also while a session waits for you", s.keepAwakeWhileOpen, s.awakeNote, indent: "     ")
+        }
         out.append(blank)
         out += hookRow(installed: s.hookInstalled, error: s.hookError)
         out.append(blank)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4, 2026-10-21
+
+- Settings: under Keep the Mac awake, a second switch, also while a session waits for you, off by default. With both on, any open Claude Code session holds the Mac awake, idle ones too, so it stays reachable through Remote Control from the phone. The row then says "awake" with the number of sessions open.
+
 ## 0.1.3, 2026-10-21
 
 - Settings: Keep the Mac awake while Claude works, off by default. While a session's figures moved in the last ten minutes, the app holds one power assertion against idle sleep and the row says "awake" with the number of sessions working. The display may still sleep, and a closed lid on battery still sleeps the Mac.

@@ -17,7 +17,7 @@ Every time I looked at a usage percentage I did the same sum in my head. It is T
 - Open Claude Code sessions, each with its context window as a bar.
 - Tokens by model, project and session, counted from the transcripts already on the Mac, with the list price equivalent and week over week.
 - The Mac on a second tab: CPU, GPU, memory with pressure and swap, battery, the busiest processes.
-- A switch in Settings, off by default, keeps the Mac from idle sleep while a Claude Code session is working, and says so while it does. It prevents idle sleep only: a closed lid on battery still sleeps the Mac.
+- A switch in Settings, off by default, keeps the Mac from idle sleep while a Claude Code session is working, and says so while it does. A second switch under it keeps it awake while any session is open, idle ones too, so a session stays reachable through Remote Control from the phone. It prevents idle sleep only: a closed lid on battery still sleeps the Mac.
 
 <img src="docs/shots/item-states.png" width="609" alt="The menu bar item in five states: ahead, stale, cpu warning, no feed yet, closed">
 
@@ -67,7 +67,7 @@ Nothing leaves your Mac. In five rules:
 4. It touches `~/.claude/settings.json` only when you click, and only its `statusLine` key. "Remove the status line entry" in Settings puts your previous entry back exactly.
 5. Check it. The source is public; search it for URLSession. Run nettop on the app for an hour: zero connections.
 
-With keep awake on, the app holds a power assertion only while a session is working, and `pmset -g assertions` shows it.
+With keep awake on, the app holds a power assertion only while a session is working, or with the second switch while a session is open, and `pmset -g assertions` shows it.
 
 The [privacy page](docs/privacy.html) names every file it reads and writes. Anthropic documents the status line feed as input for any script you configure. It has written nothing either way about a local tool reading the transcripts on your own Mac. That is silence, not permission, and I would rather say so than claim more.
 
@@ -78,7 +78,7 @@ You need a Mac on macOS 14 or later with the Command Line Tools or Xcode. Swift 
 ```sh
 swift build
 swift test -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
-scripts/build-app.sh 0.1.3
+scripts/build-app.sh 0.1.4
 open build/tokenpanda.app
 ```
 

@@ -115,7 +115,7 @@ public enum Fixtures {
         var resetPassed = input(feedState: passed)
         resetPassed.weeks = passedWeeks
         var settings = input(tab: 2)
-        settings.keepAwake = true; settings.awakeSessions = 2   // the sample's two open sessions, both working
+        settings.keepAwake = true; settings.awake = .working(2)   // the sample's two open sessions, both working
         return [
             ("claude-overpace", input(weekly: 61)),
             ("claude-ahead", input(weekly: 45)),

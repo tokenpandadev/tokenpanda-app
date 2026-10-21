@@ -161,8 +161,9 @@ function memGrid() {
 
 /* checkbox rows */
 function cbRow(label, on, sub, o = {}) {
-  let s = L(' <button type="button" class="cb" role="checkbox" aria-checked="' + on + '">[' + (on ? 'x' : ' ') + ']</button> ' + label, 'srow' + (o.hover ? ' is-hover' : ''));
-  if (sub) s += L('     ' + sp(sub, 'd'));
+  const ind = o.indent || ' ';
+  let s = L(ind + '<button type="button" class="cb" role="checkbox" aria-checked="' + on + '">[' + (on ? 'x' : ' ') + ']</button> ' + label, 'srow' + (o.hover ? ' is-hover' : ''));
+  if (sub) s += L(ind + '    ' + sp(sub, 'd'));
   return s;
 }
 
@@ -228,6 +229,7 @@ function settingsTab(st) {
     + cbRow('Nudge at 80% and before the 5h end', st.nudge)
     + cbRow('List price equivalent', st.price, 'tokens at list prices, not the plan price')
     + cbRow('Keep the Mac awake while Claude works', !!st.awake)
+    + (st.awake ? cbRow('also while a session waits for you', !!st.awakeOpen, null, {indent: '     '}) : '')
     + BL
     + hookRow(st.hook !== false)
     + BL

@@ -53,8 +53,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var transcriptsVersion = -1
     var tokensDay: Date? = nil
     var working = WorkingSessions()
-    var awakeAssertion: IOPMAssertionID? = nil   // held only while the setting is on and a session works
-    var awakeSessions = 0
+    var awakeAssertion: IOPMAssertionID? = nil   // held only while the setting is on and a session works, or is open with the second switch
+    var awake: KeepAwake? = nil                  // why it is held
 
     var item: NSStatusItem!
     let popover = NSPopover()
@@ -236,24 +236,32 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     // MARK: keep awake
 
-    /// One power assertion against idle system sleep while the setting is on and a session works; the display may still sleep.
-    /// Never a second one while one is held; released as soon as nothing works.
+    /// One power assertion against idle system sleep while the setting is on and a session works, or with the second switch
+    /// while a session is open; the display may still sleep. Never a second one while one is held: when the reason changes,
+    /// the held one is released before the one with the new name is made. Released as soon as nothing holds the Mac awake.
     func updateAwake(now: Date) {
-        let n = Settings.bool(Settings.keepAwake) ? working.count(now: now, grace: Rules.keepAwakeGrace) : 0
-        if n > 0, awakeAssertion == nil {
-            var id = IOPMAssertionID(0)
-            let r = IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
-                                                "tokenpanda: Claude Code is working" as CFString, &id)
-            if r == kIOReturnSuccess { awakeAssertion = id }
-        } else if n == 0 {
-            releaseAwake()
+        let next = KeepAwake.decide(on: Settings.bool(Settings.keepAwake), whileOpen: Settings.bool(Settings.keepAwakeWhileOpen),
+                                    working: working.count(now: now, grace: Rules.keepAwakeGrace), open: feedState.sessions.count)
+        guard let next else { releaseAwake(); return }
+        let held = awake.map { Self.assertionName($0) }
+        if awakeAssertion != nil, held == Self.assertionName(next) { awake = next; return }
+        releaseAwake()
+        var id = IOPMAssertionID(0)
+        let r = IOPMAssertionCreateWithName(kIOPMAssertionTypePreventUserIdleSystemSleep as CFString, IOPMAssertionLevel(kIOPMAssertionLevelOn),
+                                            Self.assertionName(next) as CFString, &id)
+        if r == kIOReturnSuccess { awakeAssertion = id; awake = next }
+    }
+
+    static func assertionName(_ a: KeepAwake) -> String {
+        switch a {
+        case .working: return "tokenpanda: Claude Code is working"
+        case .open: return "tokenpanda: a Claude Code session is open"
         }
-        awakeSessions = awakeAssertion == nil ? 0 : n
     }
 
     func releaseAwake() {
         if let id = awakeAssertion { IOPMAssertionRelease(id); awakeAssertion = nil }
-        awakeSessions = 0
+        awake = nil
     }
 
     // MARK: nudges
@@ -280,7 +288,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         LiveInput(feed: feedState, hook: hookStatus, tokens: tokens, transcriptsRootsExist: transcriptsRootsExist, transcriptsError: transcriptsError,
                   mac: mac, weeks: weeks, macInBar: Settings.bool(Settings.macFiguresInBar), nudges: Settings.bool(Settings.nudges),
                   listPrice: Settings.bool(Settings.listPriceEquivalent), nudgeNote: notifier.noteForSettings, hookError: hookError,
-                  keepAwake: Settings.bool(Settings.keepAwake), awakeSessions: awakeSessions, warn: warning, tab: tab, section: section, now: Date())
+                  keepAwake: Settings.bool(Settings.keepAwake),
+                  keepAwakeWhileOpen: Settings.bool(Settings.keepAwakeWhileOpen), awake: awake, warn: warning, tab: tab, section: section, now: Date())
     }
 
     func render() {
@@ -310,7 +319,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case .toggle(let key):
             Settings.toggle(key)
             if key == Settings.nudges, Settings.bool(key) { notifier.requestIfNeeded() }
-            if key == Settings.keepAwake { updateAwake(now: Date()) }
+            if key == Settings.keepAwake || key == Settings.keepAwakeWhileOpen { updateAwake(now: Date()) }
         case .install:
             do {
                 let st = try hook.install()

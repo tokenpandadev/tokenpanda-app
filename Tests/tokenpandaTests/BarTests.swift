@@ -144,8 +144,18 @@ struct BarTests {
         #expect(lines[4].plain == " [x] Keep the Mac awake while Claude works")
         #expect(lines[4].pieces[1].action == .toggle("keepAwake"))
         #expect(lines[4].cells <= Grammar.popCells + 1)
-        #expect(lines[5].plain == "     awake  2 sessions working")
-        #expect(lines[6].plain == "")
+        #expect(lines[5].plain == "     [ ] also while a session waits for you")
+        #expect(lines[5].pieces[1].action == .toggle("keepAwakeWhileOpen"))
+        #expect(lines[6].plain == "         awake  2 sessions working")
+        #expect(lines[7].plain == "")
+        let open = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: true, keepAwakeWhileOpen: true,
+                                                   awakeNote: "awake  1 session open"))
+        #expect(open[5].plain == "     [x] also while a session waits for you")
+        #expect(open[6].plain == "         awake  1 session open")
+        // with the first switch off the second row is not drawn, whatever it holds
+        let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: false, keepAwakeWhileOpen: true))
+        #expect(off[4].plain == " [ ] Keep the Mac awake while Claude works")
+        #expect(off[5].plain == "")
     }
 
     @Test func hookRowRemovesWhenInstalledAndShowsTheError() {

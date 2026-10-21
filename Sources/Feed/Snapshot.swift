@@ -123,3 +123,22 @@ public struct WorkingSessions: Sendable, Equatable {
         entries.values.filter { now.timeIntervalSince($0.changedAt) <= grace }.count
     }
 }
+
+/// Why the keep awake assertion is held, and for how many sessions.
+public enum KeepAwake: Sendable, Equatable {
+    case working(Int)   // sessions whose figures moved within the grace
+    case open(Int)      // open sessions, idle ones too: the second switch, so a session stays reachable from the phone
+
+    /// nil when nothing holds the Mac awake. The second switch counts only while the first is on.
+    public static func decide(on: Bool, whileOpen: Bool, working: Int, open: Int) -> KeepAwake? {
+        guard on else { return nil }
+        if whileOpen, open > 0 { return .open(open) }
+        return working > 0 ? .working(working) : nil
+    }
+
+    public var sessions: Int {
+        switch self {
+        case .working(let n), .open(let n): return n
+        }
+    }
+}

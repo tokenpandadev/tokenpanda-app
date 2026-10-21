@@ -23,7 +23,8 @@ public struct LiveInput: Sendable {
     public var nudgeNote: String?
     public var hookError: String?
     public var keepAwake: Bool
-    public var awakeSessions: Int      // the working sessions while the power assertion is held; 0 when it is not
+    public var keepAwakeWhileOpen: Bool
+    public var awake: KeepAwake?       // why the power assertion is held; nil when it is not
     public var warn: Bool
     public var tab: Int
     public var section: Int
@@ -33,11 +34,11 @@ public struct LiveInput: Sendable {
 
     public init(feed: FeedState, hook: HookStatus, tokens: TokenSummary?, transcriptsRootsExist: Bool, transcriptsError: String?,
                 mac: MacSample?, weeks: WeekRecords, macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String?, hookError: String? = nil,
-                keepAwake: Bool = false, awakeSessions: Int = 0, warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current) {
+                keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awake: KeepAwake? = nil, warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current) {
         self.feed = feed; self.hook = hook; self.tokens = tokens; self.transcriptsRootsExist = transcriptsRootsExist
         self.transcriptsError = transcriptsError; self.mac = mac; self.weeks = weeks; self.macInBar = macInBar; self.nudges = nudges
         self.listPrice = listPrice; self.nudgeNote = nudgeNote; self.hookError = hookError; self.warn = warn
-        self.keepAwake = keepAwake; self.awakeSessions = awakeSessions; self.tab = tab; self.section = section
+        self.keepAwake = keepAwake; self.keepAwakeWhileOpen = keepAwakeWhileOpen; self.awake = awake; self.tab = tab; self.section = section
         self.now = now; self.timeZone = timeZone; self.calendar = calendar
     }
 }
@@ -242,9 +243,16 @@ public enum ScreenBuilder {
 
     // MARK: the whole screen and the item
 
-    /// The keep awake row's second line, only while the power assertion is held.
-    public static func awakeNote(_ working: Int) -> String? {
-        working > 0 ? "awake  \(working) session\(working == 1 ? "" : "s") working" : nil
+    /// The keep awake rows' note, only while the power assertion is held.
+    public static func awakeNote(_ awake: KeepAwake?) -> String? {
+        guard let awake, awake.sessions > 0 else { return nil }
+        let n = awake.sessions
+        let what: String
+        switch awake {
+        case .working: what = "working"
+        case .open: what = "open"
+        }
+        return "awake  \(n) session\(n == 1 ? "" : "s") " + what
     }
 
     /// "Usage live" only while a session fed in the last minute; between sessions the time of the last figures;
@@ -259,7 +267,8 @@ public enum ScreenBuilder {
         let (sessions, more) = sessionViews(i)
         let claude = ClaudeTab(limits: limitsView(i), sessions: sessions, moreSessions: more, tokens: tokensView(i), weeks: weekViews(i))
         let settings = SettingsTab(macInBar: i.macInBar, nudges: i.nudges, listPrice: i.listPrice, nudgeNote: i.nudgeNote,
-                                   hookInstalled: i.hook.installed, hookError: i.hookError, keepAwake: i.keepAwake, awakeNote: awakeNote(i.awakeSessions))
+                                   hookInstalled: i.hook.installed, hookError: i.hookError, keepAwake: i.keepAwake,
+                                   keepAwakeWhileOpen: i.keepAwakeWhileOpen, awakeNote: awakeNote(i.awake))
         return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: settings)
     }
 

@@ -137,11 +137,13 @@ public struct SettingsTab: Sendable, Equatable {
     public var hookInstalled: Bool  // the row reads "Remove the status line entry" when true, "Install the status line entry" when false
     public var hookError: String?   // the last install or remove error, shown under the row
     public var keepAwake: Bool
-    public var awakeNote: String?   // "awake  2 sessions working", only while the power assertion is held
+    public var keepAwakeWhileOpen: Bool   // the indented second row, shown only while keepAwake is on
+    public var awakeNote: String?   // "awake  2 sessions working" or "awake  1 session open", only while the power assertion is held
     public init(macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String? = nil, hookInstalled: Bool = false, hookError: String? = nil,
-                keepAwake: Bool = false, awakeNote: String? = nil) {
+                keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awakeNote: String? = nil) {
         self.macInBar = macInBar; self.nudges = nudges; self.listPrice = listPrice; self.nudgeNote = nudgeNote
-        self.hookInstalled = hookInstalled; self.hookError = hookError; self.keepAwake = keepAwake; self.awakeNote = awakeNote
+        self.hookInstalled = hookInstalled; self.hookError = hookError; self.keepAwake = keepAwake
+        self.keepAwakeWhileOpen = keepAwakeWhileOpen; self.awakeNote = awakeNote
     }
 }
 

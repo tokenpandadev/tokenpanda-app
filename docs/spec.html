@@ -162,6 +162,7 @@ exit 0</pre>
 <ul>
 <li>An open session is working while its figures move: <code>current_usage</code> summed, <code>total_cost_usd</code>, <code>total_lines_added</code>, <code>total_lines_removed</code> and <code>used_percentage</code>. The app remembers per session when they last changed; a session counts as working for 10 minutes after that (<code>Rules.keepAwakeGrace</code>). The first snapshot of a session counts as a change. An idle session writes the same figures every 5 s, and a repeat is not a change, so an idle terminal does not count. A session that leaves the open list is forgotten.</li>
 <li>With the setting keepAwake on and at least one session working, the app holds one IOKit power assertion, <code>IOPMAssertionCreateWithName</code> with <code>kIOPMAssertionTypePreventUserIdleSystemSleep</code>, named "tokenpanda: Claude Code is working". The display may still sleep. Never a second assertion while one is held. Released as soon as no session works, when the setting is turned off, and when the app quits. <code>pmset -g assertions</code> shows it.</li>
+<li>With the second setting keepAwakeWhileOpen on as well, any open session holds the same one assertion, idle or working, for Remote Control from the phone: a session waiting for a prompt keeps writing every 5 s, so it stays open (the 10 s rule above) and needs no grace. The assertion is then named "tokenpanda: a Claude Code session is open"; when the reason changes, the held one is released before the one with the other name is made. keepAwakeWhileOpen counts only while keepAwake is on.</li>
 <li>Limits, said plainly: it prevents idle sleep only, so a closed lid on battery still sleeps the Mac. A single step that runs longer than 10 minutes without moving the figures lets the Mac sleep as usual.</li>
 </ul>
 
@@ -326,7 +327,8 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <tr><td>macFiguresInBar</td><td>bool</td><td>false</td><td>Mac figures in the bar</td></tr>
 <tr><td>nudges</td><td>bool</td><td>true</td><td>Nudge at 80% and before the 5h end</td></tr>
 <tr><td>listPriceEquivalent</td><td>bool</td><td>true</td><td>List price equivalent (second line: tokens at list prices, not the plan price)</td></tr>
-<tr><td>keepAwake</td><td>bool</td><td>false</td><td>Keep the Mac awake while Claude works (second line, only while the assertion is held: "awake  2 sessions working")</td></tr>
+<tr><td>keepAwake</td><td>bool</td><td>false</td><td>Keep the Mac awake while Claude works</td></tr>
+<tr><td>keepAwakeWhileOpen</td><td>bool</td><td>false</td><td>also while a session waits for you (indented under keepAwake, drawn only while keepAwake is on; the note under it, only while the assertion is held: "awake  2 sessions working" or "awake  1 session open")</td></tr>
 <tr><td>hookPreviousCommand</td><td>string</td><td>none</td><td>the status line command that was in settings.json before install, for uninstall; internal</td></tr>
 <tr><td>nudgedWeeklyWindow</td><td>epoch seconds</td><td>none</td><td>the resets_at of the weekly window last nudged; internal</td></tr>
 <tr><td>nudgedFiveHourWindow</td><td>epoch seconds</td><td>none</td><td>the resets_at of the 5h window last nudged; internal</td></tr>
@@ -381,7 +383,7 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <li>"[ ] Mac figures in the bar".</li>
 <li>"[x] Nudge at 80% and before the 5h end".</li>
 <li>"[x] List price equivalent", second line "tokens at list prices, not the plan price".</li>
-<li>"[ ] Keep the Mac awake while Claude works"; while the power assertion is held, second line "awake  2 sessions working" dim (section 4).</li>
+<li>"[ ] Keep the Mac awake while Claude works"; while it is on, the indented row "[ ] also while a session waits for you" under it; while the power assertion is held, "awake  2 sessions working" or "awake  1 session open" dim under that (section 4).</li>
 <li>Blank. "Install the status line entry" with "one statusLine entry in ~/.claude/settings.json" dim under it, or, once installed, "Remove the status line entry" with "puts back what statusLine held before". An error from either click follows as a third dim line.</li>
 <li>Blank. "This app makes no network calls. Usage comes" and "from Claude Code's own status feed on this Mac." dim.</li>
 <li>Blank. "Quit" with "⌘Q" right aligned.</li>
@@ -419,9 +421,9 @@ from Claude Code's own status feed on this Mac.</pre>
 
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
-<pre>scripts/build-app.sh 0.1.3   # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
+<pre>scripts/build-app.sh 0.1.4   # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
                              # Contents/Resources (hook.sh, AppIcon.icns), Info.plist (LSUIElement true,
-                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.3.zip and its SHA-256</pre>
+                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.4.zip and its SHA-256</pre>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>
 <p>Ad hoc signing does not satisfy Gatekeeper on a downloaded file, and since macOS Sequoia Control-click no longer overrides it. Apple's current page (published 2026-05-27) gives the flow, which the README repeats:</p>
@@ -449,7 +451,7 @@ from Claude Code's own status feed on this Mac.</pre>
 <li>Pace model: the worked example of section 7 as fixtures, both branches; the three status words at the thresholds (U = E + 5 is On pace, U = E + 5.01 is Over pace); U = 0; T past R; an unknown key yields "unknown window"; a second resets_at that contradicts the key's length yields "unknown window".</li>
 <li>Feed parser: the captured sample JSON (percentages as integers) and the doc example (23.5) both parse; a first call without rate_limits leaves the windows untouched; unknown keys such as <code>scratchpad_dir</code> are ignored; session_id, project_dir, model, context_window and cost are read; <code>current_usage</code> null is handled.</li>
 <li>Open sessions: a file written 9 s ago is open, 11 s ago is not, 61 s ago is deleted.</li>
-<li>Working sessions: the first snapshot counts; identical repeats every 5 s do not keep a session working; a change in any of the five figures does; the grace ends at 10 minutes; a session no longer open drops.</li>
+<li>Working sessions: the first snapshot counts; identical repeats every 5 s do not keep a session working; a change in any of the five figures does; the grace ends at 10 minutes; a session no longer open drops. Keep awake: the first switch alone counts working sessions only; both switches count every open session; the first switch off disables both.</li>
 <li>Bar builder: 36 cells at 61% is 21 full cells and a full block (22 cells); 50 cells at 9% is four full cells and ▌; the tick at E = 55% of 36 is cell 20; the tick never exceeds N - 1; stale yields no coral.</li>
 <li>Transcript reader: a fixture transcript with one message id written three times with identical usage sums it once; a <code>&lt;synthetic&gt;</code> line is skipped; a malformed line is skipped; a file under <code>subagents/</code> and a line with <code>isSidechain</code> true count as agent share; a file under <code>memory/</code> or <code>tool-results/</code> is never opened (the enumerator is tested against a fixture tree); the sum matches the fixture's <code>cost-state</code> line within rounding.</li>
 <li>Prices: one message per row of the table against a hand computed figure; an unknown id counts tokens and no cost; the Haiku 5.5 tier by input size; the 5m and 1h split.</li>

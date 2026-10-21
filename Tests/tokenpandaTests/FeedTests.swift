@@ -324,4 +324,34 @@ struct FeedTests {
         w.apply([session("a", at: t0.addingTimeInterval(700))])
         #expect(w.count(now: t0.addingTimeInterval(700), grace: 600) == 1)
     }
+
+    @Test func keepAwakeWorksOnly() {
+        // the first switch alone: only working sessions hold the Mac awake, idle open ones do not
+        #expect(KeepAwake.decide(on: true, whileOpen: false, working: 2, open: 3) == .working(2))
+        #expect(KeepAwake.decide(on: true, whileOpen: false, working: 0, open: 3) == nil)
+    }
+
+    @Test func keepAwakeWorksPlusOpen() {
+        // both switches: any open session holds it, idle or not, and the open count is what the row says
+        #expect(KeepAwake.decide(on: true, whileOpen: true, working: 0, open: 1) == .open(1))
+        #expect(KeepAwake.decide(on: true, whileOpen: true, working: 2, open: 3) == .open(3))
+        #expect(KeepAwake.decide(on: true, whileOpen: true, working: 0, open: 0) == nil)
+        #expect(KeepAwake.open(3).sessions == 3)
+    }
+
+    @Test func keepAwakeFirstSwitchOffDisablesBoth() {
+        #expect(KeepAwake.decide(on: false, whileOpen: true, working: 2, open: 3) == nil)
+        #expect(KeepAwake.decide(on: false, whileOpen: false, working: 2, open: 3) == nil)
+    }
+
+    @Test func openRuleFollowsTheFeed() async throws {
+        // an idle session keeps writing every 5 s, so it stays open and counts for the second switch; a quiet one leaves
+        let dir = try tempDir()
+        let now = Date()
+        let reader = FeedReader(dataDir: dir)
+        try write("idle", try fixture("feed-sample"), in: dir, age: 5, now: now)
+        try write("gone", try fixture("feed-sample"), in: dir, age: 11, now: now)
+        let st = await reader.scan(now: now)
+        #expect(KeepAwake.decide(on: true, whileOpen: true, working: 0, open: st.sessions.count) == .open(1))
+    }
 }
