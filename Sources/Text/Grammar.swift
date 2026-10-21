@@ -274,7 +274,8 @@ public enum Grammar {
     }
 
     public static func settingsTab(_ s: SettingsTab) -> [Line] {
-        var out = cbRow("macFiguresInBar", "Mac figures in the bar", s.macInBar, nil)
+        var out = loginRow(s.openAtLogin, error: s.loginError)
+        out += cbRow("macFiguresInBar", "Mac figures in the bar", s.macInBar, nil)
         out += cbRow("nudges", "Nudge at 80% and before the 5h end", s.nudges, s.nudgeNote)
         out += cbRow("listPriceEquivalent", "List price equivalent", s.listPrice, "tokens at list prices, not the plan price")
         out += cbRow("keepAwake", "Keep the Mac awake while Claude works", s.keepAwake, nil)
@@ -290,6 +291,23 @@ public enum Grammar {
                         hover: true, label: "Quit, command Q"))
         return out
     }
+
+    /// Open at login: the box shows what the system says. While the system waits for the user's OK, the box stays empty and
+    /// the note under it opens System Settings, Login Items, on a click, like the row. An error from a click follows as a dim line.
+    public static func loginRow(_ state: LoginItem, error: String?) -> [Line] {
+        var out = cbRow(loginKey, "Open at login", state == .on, nil)
+        if state == .needsApproval {
+            out.append(Line([sp("     "), Piece("click to allow it in Login Items", .dim, action: .toggle(loginKey))],
+                            hover: true, label: "Open at login waits for your OK, click to open Login Items in System Settings"))
+        }
+        if let error {
+            out.append(L(sp("     "), sp(Format.col(error, popCells - 5).trimmingCharacters(in: .whitespaces), .dim)))
+        }
+        return out
+    }
+
+    /// The Open at login row's action key. Not a preference: the state is the system's.
+    public static let loginKey = "openAtLogin"
 
     /// The status line entry: one click installs it, one click removes it and puts the previous entry back.
     public static func hookRow(installed: Bool, error: String?) -> [Line] {

@@ -230,7 +230,8 @@ function macTab(anim) {
   return s;
 }
 function settingsTab(st) {
-  return cbRow('Mac figures in the bar', st.mac)
+  return cbRow('Open at login', !!st.login)
+    + cbRow('Mac figures in the bar', st.mac)
     + cbRow('Nudge at 80% and before the 5h end', st.nudge)
     + cbRow('List price equivalent', st.price, 'tokens at list prices, not the plan price')
     + cbRow('Keep the Mac awake while Claude works', !!st.awake)

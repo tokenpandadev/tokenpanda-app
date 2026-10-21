@@ -5,6 +5,7 @@ import Foundation
 import Text
 import Feed
 import UI
+import ServiceManagement
 
 /// The bar builder against the spec's test plan, and the grammar components against golden strings.
 struct BarTests {
@@ -130,46 +131,86 @@ struct BarTests {
 
     @Test func settingsGolden() {
         let s = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true)).map(\.plain)
-        #expect(s[0] == " [ ] Mac figures in the bar")
-        #expect(s[1] == " [x] Nudge at 80% and before the 5h end")
-        #expect(s[3] == "     tokens at list prices, not the plan price")
-        #expect(s[4] == " [ ] Keep the Mac awake while Claude works")
-        #expect(s[6] == " Install the status line entry")
-        #expect(s[7] == "     one statusLine entry in ~/.claude/settings.json")
-        #expect(s[9] == " This app makes no network calls. Usage comes")
-        #expect(s[10] == " from Claude Code's own status feed on this Mac.")
-        #expect(s[12] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
+        #expect(s[0] == " [ ] Open at login")
+        #expect(s[1] == " [ ] Mac figures in the bar")
+        #expect(s[2] == " [x] Nudge at 80% and before the 5h end")
+        #expect(s[4] == "     tokens at list prices, not the plan price")
+        #expect(s[5] == " [ ] Keep the Mac awake while Claude works")
+        #expect(s[7] == " Install the status line entry")
+        #expect(s[8] == "     one statusLine entry in ~/.claude/settings.json")
+        #expect(s[10] == " This app makes no network calls. Usage comes")
+        #expect(s[11] == " from Claude Code's own status feed on this Mac.")
+        #expect(s[13] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
     }
 
     @Test func keepAwakeRowSaysWhenItHoldsTheMacAwake() {
         let lines = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: true, awakeNote: "awake  2 sessions working"))
-        #expect(lines[4].plain == " [x] Keep the Mac awake while Claude works")
-        #expect(lines[4].pieces[1].action == .toggle("keepAwake"))
-        #expect(lines[4].cells <= Grammar.popCells + 1)
-        #expect(lines[5].plain == "     [ ] also while a session waits for you")
-        #expect(lines[5].pieces[1].action == .toggle("keepAwakeWhileOpen"))
-        #expect(lines[6].plain == "         awake  2 sessions working")
-        #expect(lines[7].plain == "")
+        #expect(lines[5].plain == " [x] Keep the Mac awake while Claude works")
+        #expect(lines[5].pieces[1].action == .toggle("keepAwake"))
+        #expect(lines[5].cells <= Grammar.popCells + 1)
+        #expect(lines[6].plain == "     [ ] also while a session waits for you")
+        #expect(lines[6].pieces[1].action == .toggle("keepAwakeWhileOpen"))
+        #expect(lines[7].plain == "         awake  2 sessions working")
+        #expect(lines[8].plain == "")
         let open = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: true, keepAwakeWhileOpen: true,
                                                    awakeNote: "awake  1 session open"))
-        #expect(open[5].plain == "     [x] also while a session waits for you")
-        #expect(open[6].plain == "         awake  1 session open")
+        #expect(open[6].plain == "     [x] also while a session waits for you")
+        #expect(open[7].plain == "         awake  1 session open")
         // with the first switch off the second row is not drawn, whatever it holds
         let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: false, keepAwakeWhileOpen: true))
-        #expect(off[4].plain == " [ ] Keep the Mac awake while Claude works")
-        #expect(off[5].plain == "")
+        #expect(off[5].plain == " [ ] Keep the Mac awake while Claude works")
+        #expect(off[6].plain == "")
     }
 
     @Test func hookRowRemovesWhenInstalledAndShowsTheError() {
         let lines = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: true,
                                                     hookError: "Could not remove the entry: cannot write settings.json: denied"))
-        #expect(lines[6].plain == " Remove the status line entry")
-        #expect(lines[6].pieces[1].action == .uninstall)
-        #expect(lines[7].plain == "     puts back what statusLine held before")
-        #expect(lines[8].plain.hasPrefix("     Could not remove the entry"))
-        #expect(lines[8].cells <= Grammar.popCells + 1)
+        #expect(lines[7].plain == " Remove the status line entry")
+        #expect(lines[7].pieces[1].action == .uninstall)
+        #expect(lines[8].plain == "     puts back what statusLine held before")
+        #expect(lines[9].plain.hasPrefix("     Could not remove the entry"))
+        #expect(lines[9].cells <= Grammar.popCells + 1)
         let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: false))
-        #expect(off[6].pieces[1].action == .install)
+        #expect(off[7].pieces[1].action == .install)
+    }
+
+    @Test func openAtLoginRowShowsTheSystemsState() {
+        // off: the empty box, no note
+        let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, openAtLogin: .off))
+        #expect(off[0].plain == " [ ] Open at login")
+        #expect(off[0].pieces[1].action == .toggle("openAtLogin"))
+        #expect(off[1].plain == " [ ] Mac figures in the bar")
+        // on: the box ticked, no note
+        let on = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, openAtLogin: .on))
+        #expect(on[0].plain == " [x] Open at login")
+        #expect(on[1].plain == " [ ] Mac figures in the bar")
+        // waiting for the user's OK: the box stays empty, the note under it opens Login Items on a click
+        let wait = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, openAtLogin: .needsApproval))
+        #expect(wait[0].plain == " [ ] Open at login")
+        #expect(wait[1].plain == "     click to allow it in Login Items")
+        #expect(wait[1].pieces[1].action == .toggle("openAtLogin"))
+        #expect(wait[1].cells <= Grammar.popCells + 1)
+        #expect(wait[2].plain == " [ ] Mac figures in the bar")
+        // an error from register(): a dim line under the row, cut to the popover's width
+        let err = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, openAtLogin: .off,
+                                                  loginError: "Could not turn it on: The operation couldn\u{2019}t be completed. Operation not permitted"))
+        #expect(err[0].plain == " [ ] Open at login")
+        #expect(err[1].plain.hasPrefix("     Could not turn it on: The operation"))
+        #expect(err[1].cells <= Grammar.popCells + 1)
+        #expect(err[2].plain == " [ ] Mac figures in the bar")
+    }
+
+    @Test func loginItemFollowsTheSystemStatus() {
+        #expect(ScreenBuilder.loginItem(.enabled) == .on)
+        #expect(ScreenBuilder.loginItem(.requiresApproval) == .needsApproval)
+        #expect(ScreenBuilder.loginItem(.notRegistered) == .off)
+        #expect(ScreenBuilder.loginItem(.notFound) == .off)
+        // the screen carries what the input says, the error with it
+        var i = Fixtures.input(tab: 2)
+        i.login = .needsApproval; i.loginError = "Could not turn it on: denied"
+        let st = ScreenBuilder.screen(i).settings
+        #expect(st.openAtLogin == .needsApproval)
+        #expect(st.loginError == "Could not turn it on: denied")
     }
 
     @Test func keyHintsNameMPSOnlyOnTheClaudeTab() {

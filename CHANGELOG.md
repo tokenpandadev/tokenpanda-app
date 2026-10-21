@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.6, 2026-10-21
+
+- Settings: Open at login, the first row, off by default. It uses the macOS login item service and stores nothing of its own, so the box always shows what macOS says, also after you remove the app in System Settings, General, Login Items. If macOS waits for your OK, the row says so and a click opens Login Items; if it refuses, the row says why.
+
 ## 0.1.5, 2026-10-21
 
 - The panda's eyes show a used up window until it resets: x x for the weekly limit, - - for the 5h window, the weekly one when both are. The item's spoken label says which limit was reached.

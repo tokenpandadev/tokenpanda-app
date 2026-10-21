@@ -3,6 +3,7 @@
 import Foundation
 
 /// The UserDefaults keys of the spec, section 10. Nothing else is stored in preferences.
+/// Open at login is not among them: its state is the system's, SMAppService.mainApp.status, read each time it is shown.
 @MainActor
 enum Settings {
     static let defaults = UserDefaults.standard

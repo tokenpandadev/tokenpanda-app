@@ -3,6 +3,7 @@
 import AppKit
 import IOKit.pwr_mgt
 import os
+import ServiceManagement
 import Text
 import Pace
 import Feed
@@ -55,6 +56,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var working = WorkingSessions()
     var awakeAssertion: IOPMAssertionID? = nil   // held only while the setting is on and a session works, or is open with the second switch
     var awake: KeepAwake? = nil                  // why it is held
+    var login = LoginItem.off                    // the system's status, read when the popover opens and while Settings shows
+    var loginError: String? = nil                // the last register or unregister error
 
     var item: NSStatusItem!
     let popover = NSPopover()
@@ -264,6 +267,33 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         awake = nil
     }
 
+    // MARK: open at login
+
+    /// The truth is the system: the user can remove the item in System Settings, General, Login Items at any time,
+    /// so nothing of it is stored and the status is read again whenever the row is shown.
+    static func loginStatus() -> LoginItem { ScreenBuilder.loginItem(SMAppService.mainApp.status) }
+
+    /// register() on, unregister() off, through the system's login item service. Returns the error as the row says it.
+    static func setLogin(on: Bool) -> String? {
+        do {
+            if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
+            return nil
+        } catch {
+            return "Could not turn it \(on ? "on" : "off"): " + error.localizedDescription
+        }
+    }
+
+    /// The row's click: while the system waits for the user's OK, it opens Login Items; otherwise it flips the system's state.
+    func clickLogin() {
+        login = Self.loginStatus()
+        if login == .needsApproval {
+            SMAppService.openSystemSettingsLoginItems()
+            return
+        }
+        loginError = Self.setLogin(on: login == .off)
+        login = Self.loginStatus()
+    }
+
     // MARK: nudges
 
     func checkNudges(now: Date) {
@@ -289,10 +319,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                   mac: mac, weeks: weeks, macInBar: Settings.bool(Settings.macFiguresInBar), nudges: Settings.bool(Settings.nudges),
                   listPrice: Settings.bool(Settings.listPriceEquivalent), nudgeNote: notifier.noteForSettings, hookError: hookError,
                   keepAwake: Settings.bool(Settings.keepAwake),
-                  keepAwakeWhileOpen: Settings.bool(Settings.keepAwakeWhileOpen), awake: awake, warn: warning, tab: tab, section: section, now: Date())
+                  keepAwakeWhileOpen: Settings.bool(Settings.keepAwakeWhileOpen), awake: awake, login: login, loginError: loginError, warn: warning, tab: tab, section: section, now: Date())
     }
 
     func render() {
+        if popover.isShown, tab == 2 { login = Self.loginStatus() }
         let i = input
         let st = ScreenBuilder.item(i)
         if st != lastItem {
@@ -316,6 +347,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         switch a {
         case .tab(let t): tab = t
         case .section(let s): section = s
+        case .toggle(let key) where key == Grammar.loginKey: clickLogin()
         case .toggle(let key):
             Settings.toggle(key)
             if key == Settings.nudges, Settings.bool(key) { notifier.requestIfNeeded() }
@@ -356,6 +388,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc func togglePopover() {
         if popover.isShown { popover.performClose(nil); return }
         guard let button = item.button else { return }
+        login = Self.loginStatus()
         let screen = ScreenBuilder.screen(input)
         lastScreen = screen
         lineView.lines = Grammar.popover(screen)

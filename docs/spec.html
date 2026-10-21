@@ -59,7 +59,7 @@
 
 <h2 id="arch">1  Architecture</h2>
 <ul>
-<li><b>Swift Package Manager only.</b> No Xcode project. A package with <code>swift-tools-version 6.0</code>, platform macOS 14, seven library targets, one executable target <code>tokenpanda</code> linking AppKit, IOKit and UserNotifications, and one test target <code>tokenpandaTests</code>. Proven on the build Mac (Command Line Tools only, Swift 6.4, SDK 27.0): a status item plus popover package builds in 32 s with <code>swift build -c release</code>; SwiftPM signs the product ad hoc by itself. <code>xcodebuild</code> is not needed and not available there.</li>
+<li><b>Swift Package Manager only.</b> No Xcode project. A package with <code>swift-tools-version 6.0</code>, platform macOS 14, seven library targets, one executable target <code>tokenpanda</code> linking AppKit, IOKit, ServiceManagement and UserNotifications, and one test target <code>tokenpandaTests</code>. Proven on the build Mac (Command Line Tools only, Swift 6.4, SDK 27.0): a status item plus popover package builds in 32 s with <code>swift build -c release</code>; SwiftPM signs the product ad hoc by itself. <code>xcodebuild</code> is not needed and not available there.</li>
 <li><b>Minimum macOS 14.</b> The widest floor among the AI usage meters; the package declares it. Apple silicon first; a universal binary is a release option, untested until someone tests it.</li>
 <li><b>AppKit status item.</b> <code>NSStatusBar.system.statusItem(withLength: .variableLength)</code> with a custom <code>NSView</code> in the item's button that draws the panda and the digits and marks itself dirty when a value arrives; no redraw timer. SwiftUI's MenuBarExtra is not used: no custom view in the item, no fade on dismiss, no persisted selection.</li>
 <li><b>NSPopover</b> anchored to the item, 380 by 420 points, with an <code>NSVisualEffectView</code> for the glass and an <code>NSHostingController</code> root; the content is SwiftUI text views rendering the lines the Text module produces, or an AppKit text view, the builder's choice. The popover is one monospaced layout of lines, not controls stacked in a grid.</li>
@@ -333,7 +333,15 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <tr><td>nudgedWeeklyWindow</td><td>epoch seconds</td><td>none</td><td>the resets_at of the weekly window last nudged; internal</td></tr>
 <tr><td>nudgedFiveHourWindow</td><td>epoch seconds</td><td>none</td><td>the resets_at of the 5h window last nudged; internal</td></tr>
 </table>
-<p>Stored in UserDefaults (the app's preferences plist in <code>~/Library/Preferences</code>). The week over week records and the session snapshots live in Application Support. Nothing else is stored. The Settings tab also carries the privacy sentence as text and Quit with ⌘Q. There is no launch at login setting in the first version (open item).</p>
+<p>Stored in UserDefaults (the app's preferences plist in <code>~/Library/Preferences</code>). The week over week records and the session snapshots live in Application Support. Nothing else is stored. The Settings tab also carries the privacy sentence as text and Quit with ⌘Q.</p>
+<h3>Open at login</h3>
+<ul>
+<li>The first row of Settings, "Open at login", off by default. It comes first because it is about the app itself, and the rows under it are about what the app shows and does; the keep awake rows grow and shrink, so a row after them would move.</li>
+<li>No key in UserDefaults. The truth is the system: <code>SMAppService.mainApp</code> (ServiceManagement, macOS 13 and later; the package's floor is 14). The box shows <code>SMAppService.mainApp.status</code>, read when the popover opens and on every render while Settings shows, because the user can remove the item in System Settings, General, Login Items at any time. <code>enabled</code> is [x]; <code>notRegistered</code> and <code>notFound</code> are [ ]; <code>requiresApproval</code> is [ ] with "click to allow it in Login Items" dim under it.</li>
+<li>A click calls <code>register()</code> when the box is empty and <code>unregister()</code> when it is ticked. While the status is <code>requiresApproval</code>, a click on the row or on the note calls <code>SMAppService.openSystemSettingsLoginItems()</code> instead.</li>
+<li>An error from <code>register()</code> or <code>unregister()</code> shows under the row, dim, as "Could not turn it on: " or "Could not turn it off: " and the system's own message, cut to the popover's width. It stays until the next click that succeeds. It is not written to the log.</li>
+<li>Seen on the build Mac (macOS 27.0.1, 21 October 2026), with the ad hoc signed bundle run from a folder outside /Applications: <code>register()</code> returned without error and the status went straight to <code>enabled</code>, with no approval step; <code>unregister()</code> returned it to <code>notRegistered</code>. A second copy of the same build in another folder read the same status. Not tested: a copy in /Applications, and an actual log out and log in.</li>
+</ul>
 
 <h2 id="item">11  The menu bar item</h2>
 <p>One item, variable length. A template image drawn by the custom view: the panda from the app icon as a 7 by 7 pixel mark at 2 pt a pixel, a 5 pt gap, then the weekly percentage in the system font with tabular digits at 13 pt. Monochrome; the OS inverts it on a light menu bar. Width changes only when the digit count or the appended figure changes.</p>
@@ -383,6 +391,7 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <h3>Settings tab</h3>
 <ol>
 <li>Header, rule, tab strip, blank.</li>
+<li>"[ ] Open at login"; while the system waits for the user's OK, "click to allow it in Login Items" dim under it; an error from a click follows as a dim line (section 10).</li>
 <li>"[ ] Mac figures in the bar".</li>
 <li>"[x] Nudge at 80% and before the 5h end".</li>
 <li>"[x] List price equivalent", second line "tokens at list prices, not the plan price".</li>
@@ -411,6 +420,8 @@ from Claude Code's own status feed on this Mac.</pre>
 <tr><td>Unknown window</td><td>the window section</td><td>the percent and "unknown window" dim; no tick, no pace lines.</td></tr>
 <tr><td>No transcripts</td><td>the token section</td><td>"No transcripts in ~/.claude/projects" dim; the chips and week over week are omitted.</td></tr>
 <tr><td>Permission denied</td><td>the token section, or the Mac tab</td><td>"Cannot read ~/.claude/projects" or "Cannot read the process list" dim, with the error's own message on the next line, dim. Nothing is retried faster than the normal interval.</td></tr>
+<tr><td>Login item waits for approval</td><td>the Open at login row's second line</td><td>"click to allow it in Login Items" dim; the click opens System Settings, Login Items.</td></tr>
+<tr><td>Login item refused</td><td>the Open at login row's second line</td><td>"Could not turn it on: " and the system's message, dim.</td></tr>
 <tr><td>Notifications denied</td><td>the nudge setting's second line</td><td>"Notifications are off for this app in System Settings" dim.</td></tr>
 <tr><td>GPU, battery or health key missing</td><td>the Mac tab</td><td>the figure is omitted, or "health n/a"; never a dash in its place.</td></tr>
 <tr><td>Unpriced model</td><td>the chip</td><td>"[list price equivalent  USD 1,140  one model unpriced]".</td></tr>
@@ -424,9 +435,9 @@ from Claude Code's own status feed on this Mac.</pre>
 
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
-<pre>scripts/build-app.sh 0.1.5   # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
+<pre>scripts/build-app.sh 0.1.6   # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
                              # Contents/Resources (hook.sh, AppIcon.icns), Info.plist (LSUIElement true,
-                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.5.zip and its SHA-256</pre>
+                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.6.zip and its SHA-256</pre>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>
 <p>Ad hoc signing does not satisfy Gatekeeper on a downloaded file, and since macOS Sequoia Control-click no longer overrides it. Apple's current page (published 2026-05-27) gives the flow, which the README repeats:</p>
@@ -455,6 +466,7 @@ from Claude Code's own status feed on this Mac.</pre>
 <li>Feed parser: the captured sample JSON (percentages as integers) and the doc example (23.5) both parse; a first call without rate_limits leaves the windows untouched; unknown keys such as <code>scratchpad_dir</code> are ignored; session_id, project_dir, model, context_window and cost are read; <code>current_usage</code> null is handled.</li>
 <li>Open sessions: a file written 9 s ago is open, 11 s ago is not, 61 s ago is deleted.</li>
 <li>Working sessions: the first snapshot counts; identical repeats every 5 s do not keep a session working; a change in any of the five figures does; the grace ends at 10 minutes; a session no longer open drops. Keep awake: the first switch alone counts working sessions only; both switches count every open session; the first switch off disables both.</li>
+<li>Open at login: the row against golden strings for on, off, waiting for approval (the note carries the row's action) and an error (cut to the width); the system's statuses <code>enabled</code>, <code>notRegistered</code>, <code>notFound</code> and <code>requiresApproval</code> map to on, off, off and waiting.</li>
 <li>Bar builder: 36 cells at 61% is 21 full cells and a full block (22 cells); 50 cells at 9% is four full cells and ▌; the tick at E = 55% of 36 is cell 20; the tick never exceeds N - 1; stale yields no coral.</li>
 <li>Transcript reader: a fixture transcript with one message id written three times with identical usage sums it once; a <code>&lt;synthetic&gt;</code> line is skipped; a malformed line is skipped; a file under <code>subagents/</code> and a line with <code>isSidechain</code> true count as agent share; a file under <code>memory/</code> or <code>tool-results/</code> is never opened (the enumerator is tested against a fixture tree); the sum matches the fixture's <code>cost-state</code> line within rounding.</li>
 <li>Prices: one message per row of the table against a hand computed figure; an unknown id counts tokens and no cost; the Haiku 5.5 tier by input size; the 5m and 1h split.</li>

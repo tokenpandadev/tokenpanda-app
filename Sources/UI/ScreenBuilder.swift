@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 tokenpanda
 // SPDX-License-Identifier: MIT
 import Foundation
+import ServiceManagement
 import Text
 import Pace
 import Prices
@@ -25,6 +26,8 @@ public struct LiveInput: Sendable {
     public var keepAwake: Bool
     public var keepAwakeWhileOpen: Bool
     public var awake: KeepAwake?       // why the power assertion is held; nil when it is not
+    public var login: LoginItem        // SMAppService.mainApp.status, read when the popover opens and while Settings shows
+    public var loginError: String?
     public var warn: Bool
     public var tab: Int
     public var section: Int
@@ -34,11 +37,12 @@ public struct LiveInput: Sendable {
 
     public init(feed: FeedState, hook: HookStatus, tokens: TokenSummary?, transcriptsRootsExist: Bool, transcriptsError: String?,
                 mac: MacSample?, weeks: WeekRecords, macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String?, hookError: String? = nil,
-                keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awake: KeepAwake? = nil, warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current) {
+                keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awake: KeepAwake? = nil, login: LoginItem = .off, loginError: String? = nil,
+                warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current) {
         self.feed = feed; self.hook = hook; self.tokens = tokens; self.transcriptsRootsExist = transcriptsRootsExist
         self.transcriptsError = transcriptsError; self.mac = mac; self.weeks = weeks; self.macInBar = macInBar; self.nudges = nudges
         self.listPrice = listPrice; self.nudgeNote = nudgeNote; self.hookError = hookError; self.warn = warn
-        self.keepAwake = keepAwake; self.keepAwakeWhileOpen = keepAwakeWhileOpen; self.awake = awake; self.tab = tab; self.section = section
+        self.keepAwake = keepAwake; self.keepAwakeWhileOpen = keepAwakeWhileOpen; self.awake = awake; self.login = login; self.loginError = loginError; self.tab = tab; self.section = section
         self.now = now; self.timeZone = timeZone; self.calendar = calendar
     }
 }
@@ -255,6 +259,16 @@ public enum ScreenBuilder {
         return "awake  \(n) session\(n == 1 ? "" : "s") " + what
     }
 
+    /// The login item's state from the system's status. Not registered, or not found, is off.
+    public static func loginItem(_ status: SMAppService.Status) -> LoginItem {
+        switch status {
+        case .enabled: return .on
+        case .requiresApproval: return .needsApproval
+        case .notRegistered, .notFound: return .off
+        @unknown default: return .off
+        }
+    }
+
     /// "Usage live" only while a session fed in the last minute; between sessions the time of the last figures;
     /// before any feed arrived, says so.
     public static func headerLine(_ i: LiveInput) -> String {
@@ -268,7 +282,7 @@ public enum ScreenBuilder {
         let claude = ClaudeTab(limits: limitsView(i), sessions: sessions, moreSessions: more, tokens: tokensView(i), weeks: weekViews(i))
         let settings = SettingsTab(macInBar: i.macInBar, nudges: i.nudges, listPrice: i.listPrice, nudgeNote: i.nudgeNote,
                                    hookInstalled: i.hook.installed, hookError: i.hookError, keepAwake: i.keepAwake,
-                                   keepAwakeWhileOpen: i.keepAwakeWhileOpen, awakeNote: awakeNote(i.awake))
+                                   keepAwakeWhileOpen: i.keepAwakeWhileOpen, awakeNote: awakeNote(i.awake), openAtLogin: i.login, loginError: i.loginError)
         return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: settings)
     }
 

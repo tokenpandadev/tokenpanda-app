@@ -5,11 +5,13 @@ import Text
 import UI
 import Transcripts
 import MacStats
+import ServiceManagement
 
-// Entry point of tokenpanda. Debug builds also take three flags that print or render and exit:
+// Entry point of tokenpanda. Debug builds also take four flags that print or render and exit:
 //   tokenpanda --snapshot <dir>         every tab and state of the sample data to PNG through the view's bitmap
 //   tokenpanda --read-transcripts       one full pass over the transcripts: counts and seconds
 //   tokenpanda --sample-mac <rounds>    the Mac sampler alone at 2 s, its own CPU time
+//   tokenpanda --login-item on|off|status   the Open at login row's own calls, from inside an app bundle; prints the system's status
 // Release builds contain none of them.
 
 #if DEBUG
@@ -38,6 +40,18 @@ if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
             do { try SnapshotWriter.writeItem(st, to: dir.appendingPathComponent(name + ".png")); written.append(name) } catch { print("failed \(name): \(error)") }
         }
         print("wrote \(written.count) PNGs to \(dir.path)")
+    }
+    exit(0)
+}
+
+if let i = args.firstIndex(of: "--login-item"), i + 1 < args.count {
+    MainActor.assumeIsolated {
+        print("before \(Controller.loginStatus())  raw \(SMAppService.mainApp.status.rawValue)  bundle \(Bundle.main.bundlePath)")
+        let what = args[i + 1]
+        if what == "on" || what == "off" {
+            print(Controller.setLogin(on: what == "on") ?? "no error")
+            print("after \(Controller.loginStatus())  raw \(SMAppService.mainApp.status.rawValue)")
+        }
     }
     exit(0)
 }

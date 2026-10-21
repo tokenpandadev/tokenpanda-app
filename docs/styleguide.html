@@ -246,10 +246,10 @@
 <h3>6.10  Toggle and Settings rows</h3>
 <div class="spec"><div class="wrap">
 <div class="t"><div id="c-cb"></div><div class="cap">off  on  click to toggle</div></div>
-<div class="t pop"><div id="c-settings"></div><div class="cap">settings rows  second row under the pointer</div></div>
+<div class="t pop"><div id="c-settings"></div><div class="cap">settings rows  the nudge row under the pointer</div></div>
 </div></div>
-<p class="use"><b>Use</b> the bracket checkbox, the TUI form, for every setting: "[ ]" off, "[x]" on, the label after it, an explanation on a second dim line indented under the label when needed. Rows highlight on hover like table rows. The privacy sentence stands as two dim lines. Quit is the last row with ⌘Q right aligned.</p>
-<p class="use"><b>Do not</b> use the macOS switch (it is not text) or ● and ○ (● is taken by the Mac warning dot). Do not add settings beyond the three in the spec without a decision. The status line entry row is an action, not a setting: "Install the status line entry" or "Remove the status line entry", one click each, with what it does on a dim second line.</p>
+<p class="use"><b>Use</b> the bracket checkbox, the TUI form, for every setting: "[ ]" off, "[x]" on, the label after it, an explanation on a second dim line indented under the label when needed. Rows highlight on hover like table rows. The privacy sentence stands as two dim lines. Quit is the last row with ⌘Q right aligned. "Open at login" is the first row; its box shows what macOS reports, never a stored copy, and while macOS waits for the user's OK the dim line under it says "click to allow it in Login Items".</p>
+<p class="use"><b>Do not</b> use the macOS switch (it is not text) or ● and ○ (● is taken by the Mac warning dot). Do not add settings beyond those in the spec without a decision. The status line entry row is an action, not a setting: "Install the status line entry" or "Remove the status line entry", one click each, with what it does on a dim second line.</p>
 
 <h3>6.11  Tooltip</h3>
 <div class="spec"><div class="wrap">
@@ -296,7 +296,7 @@
 <div class="stage" style="max-width:none"><div class="cols">
 <div id="c-pop0"></div><div id="c-pop1"></div><div id="c-pop2"></div>
 </div></div>
-<p class="use">Order on the Claude tab: header, blank, weekly section, blank, 5h section, blank, open sessions, blank, the token section title with its switch and rows and chips, blank, week over week, blank, the key hints in quiet. The Mac tab: CPU bar, GPU bar, memory grid, battery bar with its two dim lines, processes by CPU. Settings: three checkbox rows, the status line entry row, the privacy sentence, Quit. The foot line names m p s on the Claude tab only, where those keys work.</p>
+<p class="use">Order on the Claude tab: header, blank, weekly section, blank, 5h section, blank, open sessions, blank, the token section title with its switch and rows and chips, blank, week over week, blank, the key hints in quiet. The Mac tab: CPU bar, GPU bar, memory grid, battery bar with its two dim lines, processes by CPU. Settings: Open at login, Mac figures in the bar, the nudges, the list price equivalent, Keep the Mac awake with its indented second row while it is on, then the status line entry row, the privacy sentence, Quit. The foot line names m p s on the Claude tab only, where those keys work.</p>
 
 <h2 id="copy">7  Copy rules</h2>
 <ul>
@@ -416,7 +416,7 @@ $('c-chip').innerHTML = L(' ' + sp('[list price equivalent  USD 1,140]', 'd') + 
 $('c-chipno').innerHTML = L(' <span class="tab sub" aria-selected="true"> list price equivalent  USD 1,140 </span>  <span class="tab sub" aria-selected="true"> 44% by subagents </span>');
 $('c-mem').innerHTML = memGrid(); $('c-open').innerHTML = R6.openSessions();
 $('c-cb').innerHTML = L(' <button type="button" class="cb" role="checkbox" aria-checked="false">[ ]</button> off   <button type="button" class="cb" role="checkbox" aria-checked="true">[x]</button> on');
-$('c-settings').innerHTML = cbRow('Mac figures in the bar', false) + cbRow('Nudge at 80% and before the 5h end', true, null, {hover:true}) + cbRow('List price equivalent', true, 'tokens at list prices, not the plan price') + BL + R6.hookRow(true) + BL + L(' ' + sp('This app makes no network calls. Usage comes', 'd')) + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd')) + BL + L(' Quit' + rcol('⌘Q', R6.POP - 5));
+$('c-settings').innerHTML = cbRow('Open at login', false) + cbRow('Mac figures in the bar', false) + cbRow('Nudge at 80% and before the 5h end', true, null, {hover:true}) + cbRow('List price equivalent', true, 'tokens at list prices, not the plan price') + cbRow('Keep the Mac awake while Claude works', false) + BL + R6.hookRow(true) + BL + L(' ' + sp('This app makes no network calls. Usage comes', 'd')) + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd')) + BL + L(' Quit' + rcol('⌘Q', R6.POP - 5));
 $('c-tip1').innerHTML = L(' <span class="tip show">1.02B tokens  49% of 7 days</span>'); $('c-tip2').innerHTML = L(' <span class="tip show">Week of 28 Sep  hit Thu 16:10</span>'); $('c-tip3').innerHTML = L(' <span class="tip show">14:19  last snapshot</span>');
 $('c-ion').innerHTML = L(strip(item(57, 55))); $('c-iahead').innerHTML = L(strip(item(24, 32))); $('c-iover').innerHTML = L(strip(item(61, 55, {over:true}))); $('c-iweekly').innerHTML = L(strip(item(100, 55, {over:true, eyes:'weekly'}))); $('c-ifive').innerHTML = L(strip(item(61, 55, {over:true, eyes:'five'}))); $('c-istale').innerHTML = L(strip(item(61, 55, {stale:true}))); $('c-iwarn').innerHTML = L(strip(item(61, 55, {warn:true}))); $('c-imac').innerHTML = L(strip(item(61, 55, {mac:true}))); $('c-ilight').innerHTML = L(strip(item(61, 55, {over:true, mac:true}), true));
 $('c-nb1').innerHTML = '<div class="nb" role="status"><span class="tx"><b>Weekly at 80%</b><p>2 days 4 h to the reset. At this pace the limit lands Saturday 09:00.</p></span><time>now</time></div>';

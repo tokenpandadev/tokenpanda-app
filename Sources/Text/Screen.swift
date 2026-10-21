@@ -129,7 +129,16 @@ public struct MacTab: Sendable, Equatable {
     }
 }
 
+/// The login item as the system reports it (SMAppService.mainApp.status), never a stored setting.
+public enum LoginItem: Sendable, Equatable {
+    case off             // not registered, or the system does not know the app
+    case on              // registered and enabled: the app opens at login
+    case needsApproval   // registered, waiting for the user's OK in System Settings, Login Items
+}
+
 public struct SettingsTab: Sendable, Equatable {
+    public var openAtLogin: LoginItem   // the first row
+    public var loginError: String?      // the last register or unregister error, shown under the row
     public var macInBar: Bool
     public var nudges: Bool
     public var listPrice: Bool
@@ -140,7 +149,8 @@ public struct SettingsTab: Sendable, Equatable {
     public var keepAwakeWhileOpen: Bool   // the indented second row, shown only while keepAwake is on
     public var awakeNote: String?   // "awake  2 sessions working" or "awake  1 session open", only while the power assertion is held
     public init(macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String? = nil, hookInstalled: Bool = false, hookError: String? = nil,
-                keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awakeNote: String? = nil) {
+                keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awakeNote: String? = nil, openAtLogin: LoginItem = .off, loginError: String? = nil) {
+        self.openAtLogin = openAtLogin; self.loginError = loginError
         self.macInBar = macInBar; self.nudges = nudges; self.listPrice = listPrice; self.nudgeNote = nudgeNote
         self.hookInstalled = hookInstalled; self.hookError = hookError; self.keepAwake = keepAwake
         self.keepAwakeWhileOpen = keepAwakeWhileOpen; self.awakeNote = awakeNote
