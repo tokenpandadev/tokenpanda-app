@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 import AppKit
 import IOKit.pwr_mgt
-import Network
 import os
 import ServiceManagement
 import Text
@@ -337,21 +336,35 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 
-    /// Returns once the Mac has a usable network path, or after the timeout. NWPathMonitor reads the interfaces' state;
-    /// it opens no connection.
-    static func waitForNetwork(timeout: TimeInterval) async {
-        let monitor = NWPathMonitor()
-        let online: Bool = await withCheckedContinuation { cont in
-            let once = OSAllocatedUnfairLock(initialState: false)
-            let finish: @Sendable (Bool) -> Void = { ok in
-                if once.withLock({ done in defer { done = true }; return !done }) { cont.resume(returning: ok) }
+    /// Whether an interface other than loopback is up, running and has an address, read with getifaddrs.
+    /// It reads the interfaces' state and opens no connection.
+    static func hasNetworkAddress() -> Bool {
+        var list: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&list) == 0, let first = list else { return false }
+        defer { freeifaddrs(list) }
+        for p in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            let flags = Int32(p.pointee.ifa_flags)
+            guard flags & IFF_UP != 0, flags & IFF_RUNNING != 0, flags & IFF_LOOPBACK == 0, let addr = p.pointee.ifa_addr else { continue }
+            let family = Int32(addr.pointee.sa_family)
+            if family == AF_INET {
+                // a self assigned address (169.254.x.x) means no network answered
+                let v4 = addr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { UInt32(bigEndian: $0.pointee.sin_addr.s_addr) }
+                if v4 >> 16 != 0xA9FE { return true }
+                continue
             }
-            monitor.pathUpdateHandler = { path in if path.status == .satisfied { finish(true) } }
-            monitor.start(queue: DispatchQueue(label: "dev.tokenpanda.network", qos: .utility))
-            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) { finish(false) }
+            if family == AF_INET6 {
+                // a link local address (fe80::) alone does not reach anything
+                let v6 = addr.withMemoryRebound(to: sockaddr_in6.self, capacity: 1) { $0.pointee.sin6_addr }
+                if !(v6.__u6_addr.__u6_addr8.0 == 0xfe && v6.__u6_addr.__u6_addr8.1 & 0xc0 == 0x80) { return true }
+            }
         }
-        _ = online
-        monitor.cancel()
+        return false
+    }
+
+    /// Returns once the Mac has a network address, checked every 2 s, or after the timeout.
+    static func waitForNetwork(timeout: TimeInterval) async {
+        let end = Date().addingTimeInterval(timeout)
+        while !hasNetworkAddress(), Date() < end { try? await Task.sleep(for: .seconds(2)) }
     }
 
     /// Each scan while the setting is on: the open sessions go into the record, written only when the set of ids changes.

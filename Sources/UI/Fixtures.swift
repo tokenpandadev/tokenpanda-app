@@ -117,6 +117,7 @@ public enum Fixtures {
         var settings = input(tab: 2)
         settings.keepAwake = true; settings.awake = .working(2)   // the sample's two open sessions, both working
         settings.login = .on
+        settings.restoreSessions = true
         return [
             ("claude-overpace", input(weekly: 61)),
             ("claude-ahead", input(weekly: 45)),

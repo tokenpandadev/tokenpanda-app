@@ -236,6 +236,7 @@ function settingsTab(st) {
     + cbRow('List price equivalent', st.price, 'tokens at list prices, not the plan price')
     + cbRow('Keep the Mac awake while Claude works', !!st.awake)
     + (st.awake ? cbRow('also while a session waits for you', !!st.awakeOpen, null, {indent: '     '}) : '')
+    + cbRow('Reopen sessions after a restart', !!st.restore, 'asks first, then opens them in Terminal')
     + BL
     + hookRow(st.hook !== false)
     + BL

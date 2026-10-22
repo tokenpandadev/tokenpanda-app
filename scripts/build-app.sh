@@ -6,7 +6,7 @@
 #   scripts/build-app.sh [version]
 set -eu
 cd "$(dirname "$0")/.."
-VERSION="${1:-0.1.6}"
+VERSION="${1:-0.1.7}"
 NAME="tokenpanda"
 BUNDLE_ID="dev.tokenpanda.app"
 BUILD="build"

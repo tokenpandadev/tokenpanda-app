@@ -66,6 +66,7 @@
 <li>your <code>settings.json</code>, except the one status line key the app edits when you ask it to (section 7)</li>
 <li>inside a transcript line: the message content, the tool results, attachments, snapshots and the account ids</li>
 </ul>
+<p>One exception, only with "Reopen sessions after a restart" on and only when you click Reopen: the app looks in each offered session's transcript for the line Claude Code writes when Remote Control was on (<code>"type":"bridge-session"</code>), to know whether to start that session with Remote Control again. It checks that the line is there and reads nothing from it.</p>
 <p>Two things Claude Code shows in its own usage screen are not in the feed and not in the transcripts, so the app does not show them and does not try to work them out: the breakdown of a session's context by category (messages, system tools, memory files, skills, MCP servers) and the token count per MCP tool. Those are computed inside Claude Code.</p>
 <p>The app never reads the Keychain. It never reads the Claude Code credential item, a token, a cookie or a session key. It never asks you to sign in.</p>
 
@@ -76,11 +77,14 @@
 <li><code>~/Library/Application Support/dev.tokenpanda.app/statusline-before.json</code>: your <code>statusLine</code> entry as it was before the install, so removing the hook can put it back exactly; deleted on removal</li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/limits.json</code>: the last two plan windows (used percent and reset time) and the time they were read, so the figures outlive the session files; no path, no model, no session id</li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/weeks.json</code>: four small records of past weekly windows, for the week over week rows</li>
-<li>your preferences (five switches and two timestamps the nudges use) in the app's preferences file under <code>~/Library/Preferences</code></li>
+<li><code>~/Library/Application Support/dev.tokenpanda.app/restore.json</code>, only with "Reopen sessions after a restart" on: the open sessions' ids, folders and transcript paths and when each was last seen, readable only by you; deleted when you turn the switch off</li>
+<li>when you click Reopen: one small script per session in a private folder in your temporary folder, readable only by you, which Terminal runs and which deletes itself as it starts</li>
+<li>your preferences (six switches and two timestamps the nudges use) in the app's preferences file under <code>~/Library/Preferences</code></li>
 </ul>
 <p>No log file. No cache of transcripts. No copy of anything you wrote. If installing or removing the hook fails, the error is shown in Settings and written to the macOS unified log, with the message marked private.</p>
 <p>With "Keep the Mac awake while Claude works" on, the app holds one power assertion against idle sleep, and only while a Claude Code session is working, which means its figures moved in the last ten minutes. With the second switch under it, "also while a session waits for you", it holds the same one assertion while any session is open, idle ones too, so a session stays reachable through Remote Control from the phone. It writes no file for this; <code>pmset -g assertions</code> in Terminal shows it as "tokenpanda: Claude Code is working" or "tokenpanda: a Claude Code session is open" while it is held. The display may still sleep, and a closed lid on battery still sleeps the Mac: this keeps it from idle sleep only.</p>
 <p>With "Open at login" on, the app asks macOS to open it at login through the system's own login item service (<code>SMAppService</code>), only when you click the row. The app writes no file for this and keeps no setting of its own: macOS keeps the record, System Settings, General, Login Items lists it, and you can remove it there. Clicking the row again removes it.</p>
+<p>With "Reopen sessions after a restart" on, the app notes which Claude Code sessions are open, from the same status line feed, and keeps a session on the list for ten minutes after its feed stops, because at a restart Terminal closes the sessions before the app quits. After the Mac starts again, one notification says how many were open, once the Mac has a network address (the app reads the network interfaces' state; it opens no connection). Nothing starts on its own. Only a click on Reopen starts Terminal, with one window per session that is not open already: <code>cd</code> into the session's folder, then <code>claude --resume</code> with the session id, and <code>--remote-control</code> for sessions that had it. Session ids are checked to be ids and folders to exist before anything is written, and both are quoted for the shell. Terminal opens the scripts the same way a double click would, so the app needs no permission to control Terminal. The steps (how many sessions were offered and reopened, no ids or paths) go to the macOS unified log.</p>
 
 <h2 id="network">5  What leaves your Mac</h2>
 <p>Nothing. The app has no network code. It does not check for updates, does not fetch prices, does not send crash reports, does not send usage statistics, and does not call any Anthropic endpoint. The prices it uses for the "list price equivalent" figure are a table inside the app, updated with releases.</p>
@@ -101,6 +105,7 @@
 <li>Open the sessions folder in Application Support and read a snapshot file: it is the status line object Claude Code produced, as is.</li>
 <li>Open <code>~/.claude/settings.json</code> and read the <code>statusLine</code> entry: one script path and a refresh interval.</li>
 <li>Open System Settings, General, Login Items: the app is listed there only while Open at login is on.</li>
+<li>Open <code>restore.json</code> in Application Support while Reopen sessions is on: ids, folders, transcript paths and times, nothing else.</li>
 <li>Run <code>pmset -g assertions</code>: the app appears there only while keep awake is on and a session works, or with the second switch, while a session is open.</li>
 </ul>
 

@@ -329,11 +329,19 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <tr><td>listPriceEquivalent</td><td>bool</td><td>true</td><td>List price equivalent (second line: tokens at list prices, not the plan price)</td></tr>
 <tr><td>keepAwake</td><td>bool</td><td>false</td><td>Keep the Mac awake while Claude works</td></tr>
 <tr><td>keepAwakeWhileOpen</td><td>bool</td><td>false</td><td>also while a session waits for you (indented under keepAwake, drawn only while keepAwake is on; the note under it, only while the assertion is held: "awake  2 sessions working" or "awake  1 session open")</td></tr>
+<tr><td>restoreSessions</td><td>bool</td><td>false</td><td>Reopen sessions after a restart (second line: asks first, then opens them in Terminal)</td></tr>
 <tr><td>hookPreviousCommand</td><td>string</td><td>none</td><td>the status line command that was in settings.json before install, for uninstall; internal</td></tr>
 <tr><td>nudgedWeeklyWindow</td><td>epoch seconds</td><td>none</td><td>the resets_at of the weekly window last nudged; internal</td></tr>
 <tr><td>nudgedFiveHourWindow</td><td>epoch seconds</td><td>none</td><td>the resets_at of the 5h window last nudged; internal</td></tr>
 </table>
 <p>Stored in UserDefaults (the app's preferences plist in <code>~/Library/Preferences</code>). The week over week records and the session snapshots live in Application Support. Nothing else is stored. The Settings tab also carries the privacy sentence as text and Quit with ⌘Q.</p>
+<h3>Reopen sessions after a restart</h3>
+<ul>
+<li>Off by default. While it is on, every feed scan puts the open sessions (id, <code>workspace.project_dir</code> or <code>cwd</code>, <code>transcript_path</code>) into <code>restore.json</code>, mode 0600, written only when the set of ids changes. A session stays on the list for ten minutes after its last feed, because at a restart Terminal closes the sessions before the app quits.</li>
+<li>At launch, before the first scan: if the record's last scan is before <code>kern.boottime</code> and not more than seven days old, the sessions seen within ten minutes of that scan are offered. The notification waits 15 s after launch and until a non loopback interface is up with an address that is not self assigned (<code>getifaddrs</code>, checked every 2 s, at most 120 s), then posts "n Claude Code sessions were open before the restart" with a Reopen action; a click on the notification itself counts as Reopen.</li>
+<li>Reopen skips sessions that are open again, waits for the network the same way, then writes one script per session into a new 0700 folder in the temporary folder (file 0600, then 0700, so only you can read or run it): <code>rm -f -- "$0"</code>, <code>cd</code> to the quoted folder, <code>claude --resume</code> with the quoted id, and <code>--remote-control</code> with a plain resume as fallback when the transcript holds a <code>"type":"bridge-session"</code> line. That line is not documented by Anthropic; without it, sessions still reopen, without Remote Control. Ids must match the UUID shape and folders must exist, or no script is written. The scripts open in Terminal through <code>NSWorkspace</code>, as a double click would, so no Automation permission is asked.</li>
+<li>Turning the switch off deletes <code>restore.json</code>. Terminal only.</li>
+</ul>
 <h3>Open at login</h3>
 <ul>
 <li>The first row of Settings, "Open at login", off by default. It comes first because it is about the app itself, and the rows under it are about what the app shows and does; the keep awake rows grow and shrink, so a row after them would move.</li>
@@ -396,6 +404,7 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <li>"[x] Nudge at 80% and before the 5h end".</li>
 <li>"[x] List price equivalent", second line "tokens at list prices, not the plan price".</li>
 <li>"[ ] Keep the Mac awake while Claude works"; while it is on, the indented row "[ ] also while a session waits for you" under it; while the power assertion is held, "awake  2 sessions working" or "awake  1 session open" dim under that (section 4).</li>
+<li>"[ ] Reopen sessions after a restart", second line "asks first, then opens them in Terminal".</li>
 <li>Blank. "Install the status line entry" with "one statusLine entry in ~/.claude/settings.json" dim under it, or, once installed, "Remove the status line entry" with "puts back what statusLine held before". An error from either click follows as a third dim line.</li>
 <li>Blank. "This app makes no network calls. Usage comes" and "from Claude Code's own status feed on this Mac." dim.</li>
 <li>Blank. "Quit" with "⌘Q" right aligned.</li>
@@ -435,9 +444,9 @@ from Claude Code's own status feed on this Mac.</pre>
 
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
-<pre>scripts/build-app.sh 0.1.6   # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
+<pre>scripts/build-app.sh 0.1.7   # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
                              # Contents/Resources (hook.sh, AppIcon.icns), Info.plist (LSUIElement true,
-                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.6.zip and its SHA-256</pre>
+                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.7.zip and its SHA-256</pre>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>
 <p>Ad hoc signing does not satisfy Gatekeeper on a downloaded file, and since macOS Sequoia Control-click no longer overrides it. Apple's current page (published 2026-05-27) gives the flow, which the README repeats:</p>
@@ -466,6 +475,7 @@ from Claude Code's own status feed on this Mac.</pre>
 <li>Feed parser: the captured sample JSON (percentages as integers) and the doc example (23.5) both parse; a first call without rate_limits leaves the windows untouched; unknown keys such as <code>scratchpad_dir</code> are ignored; session_id, project_dir, model, context_window and cost are read; <code>current_usage</code> null is handled.</li>
 <li>Open sessions: a file written 9 s ago is open, 11 s ago is not, 61 s ago is deleted.</li>
 <li>Working sessions: the first snapshot counts; identical repeats every 5 s do not keep a session working; a change in any of the five figures does; the grace ends at 10 minutes; a session no longer open drops. Keep awake: the first switch alone counts working sessions only; both switches count every open session; the first switch off disables both.</li>
+<li>Session restore: offered only after a boot and within seven days; a closed session stays ten minutes; a session without a folder is not kept; the record round trips with mode 0600; the script refuses an id that is not a UUID and a folder that does not exist, quotes both, and falls back to a plain resume with Remote Control; the Remote Control line is found in a transcript.</li>
 <li>Open at login: the row against golden strings for on, off, waiting for approval (the note carries the row's action) and an error (cut to the width); the system's statuses <code>enabled</code>, <code>notRegistered</code>, <code>notFound</code> and <code>requiresApproval</code> map to on, off, off and waiting.</li>
 <li>Bar builder: 36 cells at 61% is 21 full cells and a full block (22 cells); 50 cells at 9% is four full cells and ▌; the tick at E = 55% of 36 is cell 20; the tick never exceeds N - 1; stale yields no coral.</li>
 <li>Transcript reader: a fixture transcript with one message id written three times with identical usage sums it once; a <code>&lt;synthetic&gt;</code> line is skipped; a malformed line is skipped; a file under <code>subagents/</code> and a line with <code>isSidechain</code> true count as agent share; a file under <code>memory/</code> or <code>tool-results/</code> is never opened (the enumerator is tested against a fixture tree); the sum matches the fixture's <code>cost-state</code> line within rounding.</li>

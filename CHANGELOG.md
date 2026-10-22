@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.7, 2026-10-22
+
+- Settings: Reopen sessions after a restart, off by default. After the Mac starts again, one notification says how many Claude Code sessions were open before. Reopen opens each in Terminal with `claude --resume`, and with Remote Control again for sessions that had it. It waits until the Mac has a network address, so Remote Control can connect, and skips sessions that are open already. Nothing starts without the click. The app keeps a small list of the open sessions while the switch is on and deletes it when you turn it off.
+
 ## 0.1.6, 2026-10-21
 
 - Settings: Open at login, the first row, off by default. It uses the macOS login item service and stores nothing of its own, so the box always shows what macOS says, also after you remove the app in System Settings, General, Login Items. If macOS waits for your OK, the row says so and a click opens Login Items; if it refuses, the row says why.
