@@ -12,12 +12,13 @@ enum Settings {
     static let listPriceEquivalent = "listPriceEquivalent"
     static let keepAwake = "keepAwake"
     static let keepAwakeWhileOpen = "keepAwakeWhileOpen"
+    static let restoreSessions = "restoreSessions"
     static let hookPreviousCommand = "hookPreviousCommand"
     static let nudgedWeeklyWindow = "nudgedWeeklyWindow"
     static let nudgedFiveHourWindow = "nudgedFiveHourWindow"
 
     static func register() {
-        defaults.register(defaults: [macFiguresInBar: false, nudges: true, listPriceEquivalent: true, keepAwake: false, keepAwakeWhileOpen: false])
+        defaults.register(defaults: [macFiguresInBar: false, nudges: true, listPriceEquivalent: true, keepAwake: false, keepAwakeWhileOpen: false, restoreSessions: false])
     }
 
     static func bool(_ key: String) -> Bool { defaults.bool(forKey: key) }
@@ -39,4 +40,5 @@ enum Paths {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/settings.json")
     }
     static var weeksFile: URL { dataDir.appendingPathComponent("weeks.json") }
+    static var restoreFile: URL { dataDir.appendingPathComponent("restore.json") }
 }

@@ -28,6 +28,7 @@ public struct LiveInput: Sendable {
     public var awake: KeepAwake?       // why the power assertion is held; nil when it is not
     public var login: LoginItem        // SMAppService.mainApp.status, read when the popover opens and while Settings shows
     public var loginError: String?
+    public var restoreSessions: Bool
     public var warn: Bool
     public var tab: Int
     public var section: Int
@@ -38,11 +39,11 @@ public struct LiveInput: Sendable {
     public init(feed: FeedState, hook: HookStatus, tokens: TokenSummary?, transcriptsRootsExist: Bool, transcriptsError: String?,
                 mac: MacSample?, weeks: WeekRecords, macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String?, hookError: String? = nil,
                 keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awake: KeepAwake? = nil, login: LoginItem = .off, loginError: String? = nil,
-                warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current) {
+                restoreSessions: Bool = false, warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current) {
         self.feed = feed; self.hook = hook; self.tokens = tokens; self.transcriptsRootsExist = transcriptsRootsExist
         self.transcriptsError = transcriptsError; self.mac = mac; self.weeks = weeks; self.macInBar = macInBar; self.nudges = nudges
         self.listPrice = listPrice; self.nudgeNote = nudgeNote; self.hookError = hookError; self.warn = warn
-        self.keepAwake = keepAwake; self.keepAwakeWhileOpen = keepAwakeWhileOpen; self.awake = awake; self.login = login; self.loginError = loginError; self.tab = tab; self.section = section
+        self.keepAwake = keepAwake; self.keepAwakeWhileOpen = keepAwakeWhileOpen; self.awake = awake; self.login = login; self.loginError = loginError; self.restoreSessions = restoreSessions; self.tab = tab; self.section = section
         self.now = now; self.timeZone = timeZone; self.calendar = calendar
     }
 }
@@ -282,7 +283,8 @@ public enum ScreenBuilder {
         let claude = ClaudeTab(limits: limitsView(i), sessions: sessions, moreSessions: more, tokens: tokensView(i), weeks: weekViews(i))
         let settings = SettingsTab(macInBar: i.macInBar, nudges: i.nudges, listPrice: i.listPrice, nudgeNote: i.nudgeNote,
                                    hookInstalled: i.hook.installed, hookError: i.hookError, keepAwake: i.keepAwake,
-                                   keepAwakeWhileOpen: i.keepAwakeWhileOpen, awakeNote: awakeNote(i.awake), openAtLogin: i.login, loginError: i.loginError)
+                                   keepAwakeWhileOpen: i.keepAwakeWhileOpen, awakeNote: awakeNote(i.awake), openAtLogin: i.login, loginError: i.loginError,
+                                   restoreSessions: i.restoreSessions)
         return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: settings)
     }
 

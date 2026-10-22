@@ -136,11 +136,13 @@ struct BarTests {
         #expect(s[2] == " [x] Nudge at 80% and before the 5h end")
         #expect(s[4] == "     tokens at list prices, not the plan price")
         #expect(s[5] == " [ ] Keep the Mac awake while Claude works")
-        #expect(s[7] == " Install the status line entry")
-        #expect(s[8] == "     one statusLine entry in ~/.claude/settings.json")
-        #expect(s[10] == " This app makes no network calls. Usage comes")
-        #expect(s[11] == " from Claude Code's own status feed on this Mac.")
-        #expect(s[13] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
+        #expect(s[6] == " [ ] Reopen sessions after a restart")
+        #expect(s[7] == "     asks first, then opens them in Terminal")
+        #expect(s[9] == " Install the status line entry")
+        #expect(s[10] == "     one statusLine entry in ~/.claude/settings.json")
+        #expect(s[12] == " This app makes no network calls. Usage comes")
+        #expect(s[13] == " from Claude Code's own status feed on this Mac.")
+        #expect(s[15] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
     }
 
     @Test func keepAwakeRowSaysWhenItHoldsTheMacAwake() {
@@ -151,7 +153,7 @@ struct BarTests {
         #expect(lines[6].plain == "     [ ] also while a session waits for you")
         #expect(lines[6].pieces[1].action == .toggle("keepAwakeWhileOpen"))
         #expect(lines[7].plain == "         awake  2 sessions working")
-        #expect(lines[8].plain == "")
+        #expect(lines[8].plain == " [ ] Reopen sessions after a restart")
         let open = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: true, keepAwakeWhileOpen: true,
                                                    awakeNote: "awake  1 session open"))
         #expect(open[6].plain == "     [x] also while a session waits for you")
@@ -159,19 +161,19 @@ struct BarTests {
         // with the first switch off the second row is not drawn, whatever it holds
         let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: false, keepAwakeWhileOpen: true))
         #expect(off[5].plain == " [ ] Keep the Mac awake while Claude works")
-        #expect(off[6].plain == "")
+        #expect(off[6].plain == " [ ] Reopen sessions after a restart")
     }
 
     @Test func hookRowRemovesWhenInstalledAndShowsTheError() {
         let lines = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: true,
                                                     hookError: "Could not remove the entry: cannot write settings.json: denied"))
-        #expect(lines[7].plain == " Remove the status line entry")
-        #expect(lines[7].pieces[1].action == .uninstall)
-        #expect(lines[8].plain == "     puts back what statusLine held before")
-        #expect(lines[9].plain.hasPrefix("     Could not remove the entry"))
-        #expect(lines[9].cells <= Grammar.popCells + 1)
+        #expect(lines[9].plain == " Remove the status line entry")
+        #expect(lines[9].pieces[1].action == .uninstall)
+        #expect(lines[10].plain == "     puts back what statusLine held before")
+        #expect(lines[11].plain.hasPrefix("     Could not remove the entry"))
+        #expect(lines[11].cells <= Grammar.popCells + 1)
         let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: false))
-        #expect(off[7].pieces[1].action == .install)
+        #expect(off[9].pieces[1].action == .install)
     }
 
     @Test func openAtLoginRowShowsTheSystemsState() {

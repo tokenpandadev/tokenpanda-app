@@ -282,6 +282,7 @@ public enum Grammar {
         if s.keepAwake {
             out += cbRow("keepAwakeWhileOpen", "also while a session waits for you", s.keepAwakeWhileOpen, s.awakeNote, indent: "     ")
         }
+        out += cbRow("restoreSessions", "Reopen sessions after a restart", s.restoreSessions, "asks first, then opens them in Terminal")
         out.append(blank)
         out += hookRow(installed: s.hookInstalled, error: s.hookError)
         out.append(blank)

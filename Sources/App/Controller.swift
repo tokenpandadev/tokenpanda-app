@@ -58,6 +58,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var awake: KeepAwake? = nil                  // why it is held
     var login = LoginItem.off                    // the system's status, read when the popover opens and while Settings shows
     var loginError: String? = nil                // the last register or unregister error
+    var restore: RestoreRecord? = nil            // the sessions open now, kept on disk only while the setting is on
+    var restoreSaved: [String] = []              // the session ids last written, so the file is written only when they change
+    var pendingReopen: [RestoreRecord.Entry] = []   // the sessions the restart notification offers
 
     var item: NSStatusItem!
     let popover = NSPopover()
@@ -113,6 +116,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         lineView.onAction = { [weak self] a in self?.perform(a) }
 
         readHookStatus()
+        notifier.onReopen = { [weak self] in self?.reopen() }
+        offerRestore(now: Date())   // before the first scan, which writes this boot's record over the last one
         if Settings.bool(Settings.nudges) { notifier.requestIfNeeded() }
         startFeedWatch()
         startTimers(open: false)
@@ -184,6 +189,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         feedState = await feed.scan(now: now)
         working.apply(feedState.sessions)
         updateAwake(now: now)
+        recordSessions(now: now)
         if hook.settingsModified() != settingsModified { readHookStatus() }
         if let l = feedState.limits, let w = l.windows["seven_day"] {
             var ws = weeks
@@ -294,6 +300,65 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         login = Self.loginStatus()
     }
 
+    // MARK: session restore
+
+    /// The time this Mac booted, from kern.boottime.
+    static func bootTime() -> Date? {
+        var tv = timeval()
+        var size = MemoryLayout<timeval>.size
+        var mib: [Int32] = [CTL_KERN, KERN_BOOTTIME]
+        guard sysctl(&mib, 2, &tv, &size, nil, 0) == 0 else { return nil }
+        return Date(timeIntervalSince1970: Double(tv.tv_sec) + Double(tv.tv_usec) / 1e6)
+    }
+
+    /// At launch: when the record was written before this boot, one notification offers the sessions that were open then.
+    func offerRestore(now: Date) {
+        guard Settings.bool(Settings.restoreSessions) else { return }
+        let record = RestoreRecord.load(from: Paths.restoreFile)
+        guard let boot = Self.bootTime(), let lost = record?.lost(bootTime: boot, now: now), !lost.isEmpty else { return }
+        pendingReopen = lost
+        let n = lost.count
+        let names = Array(Set(lost.map { ($0.folder as NSString).lastPathComponent })).sorted().joined(separator: ", ")
+        Task { @MainActor in
+            await notifier.authorize()
+            notifier.post(title: "\(n) Claude Code session\(n == 1 ? " was" : "s were") open before the restart",
+                          body: "In \(names). Reopen opens \(n == 1 ? "it" : "each") in Terminal.", id: "reopen-\(Int(boot.timeIntervalSince1970))",
+                          category: Notifier.reopenCategory)
+        }
+    }
+
+    /// Each scan while the setting is on: the open sessions go into the record, written only when the set of ids changes.
+    func recordSessions(now: Date) {
+        guard Settings.bool(Settings.restoreSessions) else { return }
+        var r = restore ?? RestoreRecord(lastScan: now)
+        r.apply(feedState.sessions, now: now)
+        restore = r
+        let ids = r.entries.map(\.id)
+        if ids != restoreSaved { restoreSaved = ids; r.save(to: Paths.restoreFile) }
+    }
+
+    /// Reopen: one Terminal file per session in a private folder, opened through Launch Services so no Automation
+    /// permission is needed. Each file deletes itself when Terminal runs it.
+    func reopen() {
+        let entries = pendingReopen
+        pendingReopen = []
+        guard !entries.isEmpty else { return }
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("tokenpanda-reopen-" + UUID().uuidString, isDirectory: true)
+        guard (try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])) != nil else { return }
+        var files: [URL] = []
+        for e in entries {
+            guard let text = Reopen.script(id: e.id, folder: e.folder, remoteControl: Reopen.hadRemoteControl(transcript: e.transcript)) else { continue }
+            let url = dir.appendingPathComponent(e.id + ".command")
+            guard fm.createFile(atPath: url.path, contents: Data(text.utf8), attributes: [.posixPermissions: 0o600]) else { continue }
+            try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
+            files.append(url)
+        }
+        let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
+        guard !files.isEmpty else { return }
+        NSWorkspace.shared.open(files, withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
+    }
+
     // MARK: nudges
 
     func checkNudges(now: Date) {
@@ -319,7 +384,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                   mac: mac, weeks: weeks, macInBar: Settings.bool(Settings.macFiguresInBar), nudges: Settings.bool(Settings.nudges),
                   listPrice: Settings.bool(Settings.listPriceEquivalent), nudgeNote: notifier.noteForSettings, hookError: hookError,
                   keepAwake: Settings.bool(Settings.keepAwake),
-                  keepAwakeWhileOpen: Settings.bool(Settings.keepAwakeWhileOpen), awake: awake, login: login, loginError: loginError, warn: warning, tab: tab, section: section, now: Date())
+                  keepAwakeWhileOpen: Settings.bool(Settings.keepAwakeWhileOpen), awake: awake, login: login, loginError: loginError,
+                  restoreSessions: Settings.bool(Settings.restoreSessions), warn: warning, tab: tab, section: section, now: Date())
     }
 
     func render() {
@@ -352,6 +418,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             Settings.toggle(key)
             if key == Settings.nudges, Settings.bool(key) { notifier.requestIfNeeded() }
             if key == Settings.keepAwake || key == Settings.keepAwakeWhileOpen { updateAwake(now: Date()) }
+            if key == Settings.restoreSessions {
+                if Settings.bool(key) { notifier.requestIfNeeded(); recordSessions(now: Date()) }
+                else { restore = nil; restoreSaved = []; try? FileManager.default.removeItem(at: Paths.restoreFile) }
+            }
         case .install:
             do {
                 let st = try hook.install()

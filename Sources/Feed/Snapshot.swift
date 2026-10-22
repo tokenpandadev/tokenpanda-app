@@ -14,6 +14,7 @@ public struct LimitWindow: Sendable, Equatable, Codable {
 public struct Snapshot: Sendable, Equatable {
     public var sessionId: String
     public var projectDir: String?
+    public var transcriptPath: String?        // read only for session restore, which looks in it for a Remote Control line
     public var modelDisplayName: String?
     public var modelId: String?
     public var effortLevel: String?
@@ -37,6 +38,8 @@ public enum SnapshotParser {
         guard let sid = d["session_id"] as? String else { return nil }
         var s = Snapshot(sessionId: sid, writtenAt: writtenAt)
         if let w = d["workspace"] as? [String: Any] { s.projectDir = w["project_dir"] as? String }
+        if s.projectDir == nil { s.projectDir = d["cwd"] as? String }
+        s.transcriptPath = d["transcript_path"] as? String
         if let m = d["model"] as? [String: Any] { s.modelDisplayName = m["display_name"] as? String; s.modelId = m["id"] as? String }
         if let e = d["effort"] as? [String: Any] { s.effortLevel = e["level"] as? String }
         if let c = d["context_window"] as? [String: Any] {

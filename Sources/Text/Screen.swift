@@ -148,8 +148,11 @@ public struct SettingsTab: Sendable, Equatable {
     public var keepAwake: Bool
     public var keepAwakeWhileOpen: Bool   // the indented second row, shown only while keepAwake is on
     public var awakeNote: String?   // "awake  2 sessions working" or "awake  1 session open", only while the power assertion is held
+    public var restoreSessions: Bool
     public init(macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String? = nil, hookInstalled: Bool = false, hookError: String? = nil,
-                keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awakeNote: String? = nil, openAtLogin: LoginItem = .off, loginError: String? = nil) {
+                keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awakeNote: String? = nil, openAtLogin: LoginItem = .off, loginError: String? = nil,
+                restoreSessions: Bool = false) {
+        self.restoreSessions = restoreSessions
         self.openAtLogin = openAtLogin; self.loginError = loginError
         self.macInBar = macInBar; self.nudges = nudges; self.listPrice = listPrice; self.nudgeNote = nudgeNote
         self.hookInstalled = hookInstalled; self.hookError = hookError; self.keepAwake = keepAwake
