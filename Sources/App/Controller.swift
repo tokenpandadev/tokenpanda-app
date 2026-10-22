@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import AppKit
 import IOKit.pwr_mgt
+import Network
 import os
 import ServiceManagement
 import Text
@@ -24,6 +25,8 @@ enum Rules {
     static let hogSustained: TimeInterval = 60                // one process over the hog threshold this long
     static let pressureWarn = 2                               // kern.memorystatus_vm_pressure_level: 2 warn, 4 critical
     static let keepAwakeGrace: TimeInterval = 10 * 60         // a session works while its figures moved this recently
+    static let restoreSettle: TimeInterval = 15               // after launch, before the restart notification is posted
+    static let restoreNetworkWait: TimeInterval = 120         // the longest the restore waits for a network
 }
 
 /// The main actor state: the status item, the popover, the timers, and the readers it asks.
@@ -320,11 +323,32 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let n = lost.count
         let names = Array(Set(lost.map { ($0.folder as NSString).lastPathComponent })).sorted().joined(separator: ", ")
         Task { @MainActor in
+            // right after login the notification centre may not show anything yet: wait a little, and for the network,
+            // which Remote Control needs when the sessions start
+            try? await Task.sleep(for: .seconds(Rules.restoreSettle))
+            await Self.waitForNetwork(timeout: Rules.restoreNetworkWait)
             await notifier.authorize()
             notifier.post(title: "\(n) Claude Code session\(n == 1 ? " was" : "s were") open before the restart",
                           body: "In \(names). Reopen opens \(n == 1 ? "it" : "each") in Terminal.", id: "reopen-\(Int(boot.timeIntervalSince1970))",
                           category: Notifier.reopenCategory)
         }
+    }
+
+    /// Returns once the Mac has a usable network path, or after the timeout. NWPathMonitor reads the interfaces' state;
+    /// it opens no connection.
+    static func waitForNetwork(timeout: TimeInterval) async {
+        let monitor = NWPathMonitor()
+        let online: Bool = await withCheckedContinuation { cont in
+            let once = OSAllocatedUnfairLock(initialState: false)
+            let finish: @Sendable (Bool) -> Void = { ok in
+                if once.withLock({ done in defer { done = true }; return !done }) { cont.resume(returning: ok) }
+            }
+            monitor.pathUpdateHandler = { path in if path.status == .satisfied { finish(true) } }
+            monitor.start(queue: DispatchQueue(label: "dev.tokenpanda.network", qos: .utility))
+            DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + timeout) { finish(false) }
+        }
+        _ = online
+        monitor.cancel()
     }
 
     /// Each scan while the setting is on: the open sessions go into the record, written only when the set of ids changes.
@@ -356,7 +380,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
         guard !files.isEmpty else { return }
-        NSWorkspace.shared.open(files, withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
+        Task { @MainActor in
+            // Remote Control connects once, when a session starts, so the sessions wait for the network; without one they still open
+            await Self.waitForNetwork(timeout: Rules.restoreNetworkWait)
+            NSWorkspace.shared.open(files, withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+        }
     }
 
     // MARK: nudges

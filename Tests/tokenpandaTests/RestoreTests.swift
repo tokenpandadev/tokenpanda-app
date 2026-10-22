@@ -28,12 +28,13 @@ struct RestoreTests {
         #expect(r.lost(bootTime: t0.addingTimeInterval(60), now: t0.addingTimeInterval(8 * 24 * 3600)).isEmpty)
     }
 
-    @Test func aClosedSessionDropsOutAfterTwoMinutes() {
+    @Test func aClosedSessionDropsOutAfterTenMinutes() {
         var r = RestoreRecord(lastScan: t0)
         r.apply([open(id)], now: t0)
-        r.apply([], now: t0.addingTimeInterval(60))
-        #expect(r.entries.count == 1)   // Terminal may close a little before the app quits
-        r.apply([], now: t0.addingTimeInterval(121))
+        r.apply([], now: t0.addingTimeInterval(300))
+        #expect(r.entries.count == 1)   // Terminal may close minutes before the app quits
+        #expect(r.lost(bootTime: t0.addingTimeInterval(400), now: t0.addingTimeInterval(450)).map(\.id) == [id])
+        r.apply([], now: t0.addingTimeInterval(601))
         #expect(r.entries.isEmpty)
     }
 

@@ -19,8 +19,9 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
     public var lastScan: Date
     public init(entries: [Entry] = [], lastScan: Date) { self.entries = entries; self.lastScan = lastScan }
 
-    /// A session still counts this long after its last feed, so one that Terminal closed a little before the app quit is kept.
-    public static let keepFor: TimeInterval = 120
+    /// A session still counts this long after its last feed. At a restart Terminal closes the sessions before the app quits,
+    /// sometimes minutes before when Terminal asks to close its windows, so a shorter time loses them.
+    public static let keepFor: TimeInterval = 600
     /// A record older than this at boot is not offered: after a week away the sessions are history, not lost work.
     public static let offerWithin: TimeInterval = 7 * 24 * 3600
 
