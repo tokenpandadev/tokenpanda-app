@@ -43,6 +43,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var hookError: String? = nil
     var settingsModified: Date? = nil   // settings.json is read again only when this moves
     let log = Logger(subsystem: Paths.bundleId, category: "hook")
+    let restoreLog = Logger(subsystem: Paths.bundleId, category: "restore")
     var tokens: TokenSummary? = nil
     var transcriptsRootsExist = true
     var transcriptsError: String? = nil
@@ -320,6 +321,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let record = RestoreRecord.load(from: Paths.restoreFile)
         guard let boot = Self.bootTime(), let lost = record?.lost(bootTime: boot, now: now), !lost.isEmpty else { return }
         pendingReopen = lost
+        restoreLog.info("restore: \(lost.count, privacy: .public) sessions were open before this boot")
         let n = lost.count
         let names = Array(Set(lost.map { ($0.folder as NSString).lastPathComponent })).sorted().joined(separator: ", ")
         Task { @MainActor in
@@ -328,6 +330,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             try? await Task.sleep(for: .seconds(Rules.restoreSettle))
             await Self.waitForNetwork(timeout: Rules.restoreNetworkWait)
             await notifier.authorize()
+            restoreLog.info("restore: posting the offer")
             notifier.post(title: "\(n) Claude Code session\(n == 1 ? " was" : "s were") open before the restart",
                           body: "In \(names). Reopen opens \(n == 1 ? "it" : "each") in Terminal.", id: "reopen-\(Int(boot.timeIntervalSince1970))",
                           category: Notifier.reopenCategory)
@@ -364,8 +367,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// Reopen: one Terminal file per session in a private folder, opened through Launch Services so no Automation
     /// permission is needed. Each file deletes itself when Terminal runs it.
     func reopen() {
-        let entries = pendingReopen
+        // a session already open again, from a Terminal window or an earlier click, is not opened a second time
+        let openNow = Set(feedState.sessions.map(\.snapshot.sessionId))
+        let entries = pendingReopen.filter { !openNow.contains($0.id) }
         pendingReopen = []
+        restoreLog.info("reopen: \(entries.count, privacy: .public) of the offered sessions, the others are open already")
         guard !entries.isEmpty else { return }
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("tokenpanda-reopen-" + UUID().uuidString, isDirectory: true)
