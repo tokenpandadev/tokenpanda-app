@@ -68,6 +68,9 @@ public enum Grammar {
         case .absent:
             out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: 0, elapsed: nil))))
             out.append(L(sp(" "), sp("not in the last feed", .dim)))
+        case .quiet:
+            out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: w.used, elapsed: nil, options: BarOptions(stale: true))), percentPiece(w.used, dim: true)))
+            out.append(L(sp(" "), sp("not in the last feed", .dim)))
         case .unknown:
             out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: w.used, elapsed: nil)), percentPiece(w.used, dim: true)))
             out.append(L(sp(" "), sp("unknown window", .dim)))

@@ -67,6 +67,8 @@ public enum ScreenBuilder {
             // sessions still feed but dropped the passed window: the next reply brings the new one
             return WindowView(title: title, used: rec.used, mode: rec.retired ? .nextReply(reset: reset) : .resetPassed(reset: reset))
         }
+        // retired before its reset: the last figure stays, without countdown, pace or projection
+        if rec.retired { return WindowView(title: title, used: rec.used, mode: .quiet) }
         let start = rec.resetsAt.addingTimeInterval(-length)
         let stale = OpenSessionsRule.isStale(asOf: limits.asOf, now: now)
         guard let r = PaceModel.reading(used: rec.used, start: start, reset: rec.resetsAt, now: now, timeZone: tz) else {
@@ -166,7 +168,7 @@ public enum ScreenBuilder {
                 let start = c.resetsAt.addingTimeInterval(-weeklyLength)
                 let reading = PaceModel.reading(used: c.used, start: start, reset: c.resetsAt, now: i.now, timeZone: tz)
                 out.append(WeekView(date: date, used: Int(c.used.rounded()), hit: false, note: "so far",
-                                    elapsed: reading?.elapsedShare, over: !stale && reading?.status == .overPace))
+                                    elapsed: reading?.elapsedShare, over: !stale && !c.retired && reading?.status == .overPace))
             } else {
                 out.append(WeekView(date: date, used: Int(r.lastUsed.rounded()), hit: r.hitAt != nil,
                                     note: r.hitAt.map { clock($0, tz, weekday: true) }))
@@ -321,6 +323,10 @@ public enum ScreenBuilder {
                              label: "Claude usage, no figures yet" + (i.warn ? ", Mac warning" : ""))
         }
         let stale = OpenSessionsRule.isStale(asOf: limits.asOf, now: i.now)
+        if rec.retired, i.now < rec.resetsAt {
+            return ItemState(used: Int(rec.used.rounded()), elapsed: nil, over: false, stale: stale, warn: i.warn, macText: macText,
+                             label: "Weekly \(Int(rec.used.rounded()))% used, not in the last feed" + (i.warn ? ", Mac warning" : ""))
+        }
         if i.now >= rec.resetsAt {
             return ItemState(used: nil, elapsed: nil, over: false, stale: true, warn: i.warn, macText: macText,
                              label: "Claude usage, reset passed " + clock(rec.resetsAt, i.timeZone, weekday: true) + (i.warn ? ", Mac warning" : ""))

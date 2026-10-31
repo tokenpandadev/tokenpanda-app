@@ -22,6 +22,7 @@ public enum WindowMode: Sendable, Equatable {
     case resetPassed(reset: String)   // "Reset Sun 18:00  no session since"
     case nextReply(reset: String)     // "Reset Sun 18:00  new window on the next reply": sessions feed, none answered since
     case absent                       // "not in the last feed"
+    case quiet                        // the last figure, no pace: the feed stopped carrying the window before its reset
     case unknown                      // "unknown window"
 }
 

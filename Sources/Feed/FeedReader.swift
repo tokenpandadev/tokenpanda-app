@@ -45,9 +45,11 @@ public struct Limits: Sendable, Equatable, Codable {
     /// Applies the merged rate_limits of one scan (or one feed). Per key the latest reset wins, and inside one reset the
     /// highest percentage, the stored one included: the server's figure only rises within a window, lower ones are older
     /// cached replies. A window whose reset moved is checked against the key's length.
-    /// A stored key the scan does not carry is retired, not deleted. `replied` says a session answered in this scan:
-    /// a key absent then is hidden, since a reply carries every window the plan has.
-    public mutating func apply(_ rateLimits: [String: LimitWindow], at: Date, replied: Bool = false) {
+    /// A different reset that is earlier means the account changed (/login): the stored window belongs to the other one.
+    /// A stored key the scan does not carry is retired, not deleted. `repliedAt` is the time of the newest reply in this
+    /// scan: a key absent from a reply that came after its reset is hidden, since a reply carries every window the plan
+    /// has. Before its reset a missing window only goes quiet.
+    public mutating func apply(_ rateLimits: [String: LimitWindow], at: Date, repliedAt: Date? = nil) {
         for (key, w) in rateLimits {
             hidden.remove(key)
             guard let old = windows[key] else {
@@ -66,13 +68,18 @@ public struct Limits: Sendable, Equatable, Codable {
                 rec.resetsAt = w.resetsAt
             } else if w.resetsAt == old.resetsAt {
                 rec.used = max(old.used, w.usedPercentage)
+            } else {
+                // merge already took the latest reset of every file, so no file carries the stored window any more
+                rec = Record(used: w.usedPercentage, resetsAt: w.resetsAt)
             }
-            // an older reset than the stored one is a stale cached figure: the stored window stands
             windows[key] = rec
         }
         for key in windows.keys where rateLimits[key] == nil { windows[key]?.retired = true }
-        if replied {
-            for key in Set(windows.keys).union(Self.fixedKeys) where rateLimits[key] == nil { hidden.insert(key) }
+        if let r = repliedAt {
+            for key in Set(windows.keys).union(Self.fixedKeys) where rateLimits[key] == nil {
+                if let rec = windows[key], r < rec.resetsAt { continue }
+                hidden.insert(key)
+            }
         }
         asOf = at
     }
@@ -151,7 +158,7 @@ public actor FeedReader {
         var feeds: [[String: LimitWindow]] = []
         var newestLimits: Date? = nil
         var lastWrite: Date? = nil
-        var replied = false
+        var repliedAt: Date? = nil
         var nextFigures: [String: ReplyFigures] = [:]
         for name in names where name.hasSuffix(".json") {
             let url = sessionsDir.appendingPathComponent(name)
@@ -167,7 +174,9 @@ public actor FeedReader {
                 feeds.append(rl)
                 if mtime > (newestLimits ?? .distantPast) { newestLimits = mtime }
                 // a reply: a session seen before whose figures moved; the first sight of a file after launch is not one
-                if snap.currentUsageTokens != nil, let before = figuresSeen[snap.sessionId], before != figures { replied = true }
+                if snap.currentUsageTokens != nil, let before = figuresSeen[snap.sessionId], before != figures {
+                    repliedAt = max(repliedAt ?? mtime, mtime)
+                }
             }
             nextFigures[snap.sessionId] = figures
             if OpenSessionsRule.isOpen(writtenAt: mtime, now: now) { sessions.append(OpenSession(snapshot: snap)) }
@@ -175,7 +184,7 @@ public actor FeedReader {
         figuresSeen = nextFigures
         if let t = newestLimits, t > (limits?.asOf ?? .distantPast) {
             var l = limits ?? Limits(asOf: t)
-            l.apply(Limits.merge(feeds, now: now), at: t, replied: replied)
+            l.apply(Limits.merge(feeds, now: now), at: t, repliedAt: repliedAt)
             if l != limits {
                 limits = l
                 persist()

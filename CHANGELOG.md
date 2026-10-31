@@ -3,7 +3,8 @@
 ## 0.1.8, unreleased
 
 - The weekly figure no longer jumps between the values each open session last saw. With several sessions open the app takes the highest figure for the current week, and keeps it when the busiest session closes. Week over week keeps the highest value of each week too.
-- A window your plan no longer has goes away. When Claude Code stops sending the 5h window for an account, the app drops the 5h row after the next reply comes without it, instead of showing the old figure as live or "no session since" for good. The panda's eyes, the spoken label and the nudges stop using it at once. Max and Pro see no change.
+- A window your plan no longer has goes away. When Claude Code stops sending the 5h window for an account, the row keeps its last figure without countdown or pace until that window's reset, then goes after the next reply that comes without it. Before, the old figure showed as live, or "no session since" stayed for good. The panda's eyes, the spoken label and the nudges stop using it at once. Max and Pro see no change.
+- After switching accounts with /login, the weekly shows the new account's figure at once, also when its week resets earlier.
 - After a window resets while sessions are open but waiting, the row says "new window on the next reply" instead of "no session since".
 
 ## 0.1.7, 2026-10-22

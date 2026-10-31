@@ -122,7 +122,7 @@ struct WindowsTests {
 
     // MARK: retiring a window
 
-    @Test func ultraFiveHourRetiresThenHidesAfterAReply() async throws {
+    @Test func ultraFiveHourGoesQuietThenHidesAfterAReplyPastItsReset() async throws {
         let dir = try tempDir()
         let five = t0.addingTimeInterval(2 * 3600)
         let reader = FeedReader(dataDir: dir)
@@ -130,20 +130,76 @@ struct WindowsTests {
         try write("s", feed("s", windows: ["seven_day": (24, week), "five_hour": (100, five)], cost: 1), in: dir, at: t0)
         var l = try #require(await reader.scan(now: t0).limits)
         #expect(ScreenBuilder.eyes(l, now: t0) == .fiveHourLimit)
-        // the feed stops carrying it, an idle rewrite: kept, retired, no eyes, row still drawn
+        // the feed stops carrying it, an idle rewrite: kept, retired, no eyes, the row quiet (figure, no pace)
         try write("s", feed("s", windows: ["seven_day": (24, week)], cost: 1), in: dir, at: t0.addingTimeInterval(5))
         l = try #require(await reader.scan(now: t0.addingTimeInterval(5)).limits)
         #expect(l.windows["five_hour"]?.retired == true)
         #expect(l.active("five_hour") == nil)
         #expect(ScreenBuilder.eyes(l, now: t0.addingTimeInterval(5)) == .normal)
-        #expect(titles(l) == ["Weekly (all models)", "5h window"])
-        // a reply without it: the plan no longer has the window, the row goes, the record stays for the length check
+        #expect(mode("five_hour", l, t0.addingTimeInterval(5)) == .quiet)
+        // a reply without it before its reset: still quiet, not hidden
         try write("s", feed("s", windows: ["seven_day": (25, week)], cost: 2), in: dir, at: t0.addingTimeInterval(10))
         l = try #require(await reader.scan(now: t0.addingTimeInterval(10)).limits)
+        #expect(!l.hidden.contains("five_hour"))
+        #expect(titles(l) == ["Weekly (all models)", "5h window"])
+        #expect(ScreenBuilder.item(Fixtures.input(feedState: FeedState(limits: l, lastWriteAt: t0))).label.contains("5h") == false)
+        // a reply without it after its reset: the plan no longer has the window, the row goes, the record stays
+        let after = five.addingTimeInterval(60)
+        try write("s", feed("s", windows: ["seven_day": (26, week)], cost: 3), in: dir, at: after)
+        l = try #require(await reader.scan(now: after).limits)
         #expect(l.hidden.contains("five_hour"))
         #expect(l.windows["five_hour"]?.resetsAt == five)
         #expect(titles(l) == ["Weekly (all models)"])
-        #expect(ScreenBuilder.item(Fixtures.input(feedState: FeedState(limits: l, lastWriteAt: t0))).label.contains("5h") == false)
+    }
+
+    @Test func aRetiredWindowBeforeTheFirstReplyDrawsNoPace() async throws {
+        let dir = try tempDir()
+        // limits.json holds a 5h window at 63% two hours from its reset, an over pace figure if drawn live
+        let five = t0.addingTimeInterval(2 * 3600)
+        let stored = """
+        {"asOf":\(t0.timeIntervalSince1970 - 60),"windows":{"five_hour":{"contradicts":false,"used":63,"resetsAt":\(five.timeIntervalSince1970)},"seven_day":{"contradicts":false,"used":24,"resetsAt":\(week.timeIntervalSince1970)}}}
+        """
+        try Data(stored.utf8).write(to: dir.appendingPathComponent("limits.json"))
+        let reader = FeedReader(dataDir: dir)
+        try write("s", feed("s", windows: ["seven_day": (24, week)], cost: 1), in: dir, at: t0)
+        let l = try #require(await reader.scan(now: t0).limits)
+        #expect(mode("five_hour", l, t0) == .quiet)
+        let lines = Grammar.windowSection(ScreenBuilder.windowView(key: "five_hour", limits: l, now: t0, tz: utc)).map(\.plain)
+        #expect(lines.contains(" not in the last feed"))
+        #expect(!lines.joined().contains("pace"))
+        #expect(!lines.joined().contains("Resets"))
+    }
+
+    @Test func aReplyLandingAtTheResetKeepsTheRow() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        let five = t0.addingTimeInterval(30)
+        try write("s", feed("s", windows: ["seven_day": (30, week), "five_hour": (80, five)], cost: 1), in: dir, at: t0)
+        _ = await reader.scan(now: t0)
+        // a reply written just before the reset, scanned just after it: its 5h window has passed and merges away
+        try write("s", feed("s", windows: ["seven_day": (31, week), "five_hour": (82, five)], cost: 2), in: dir, at: five.addingTimeInterval(-1))
+        let l = try #require(await reader.scan(now: five.addingTimeInterval(2)).limits)
+        #expect(!l.hidden.contains("five_hour"))
+        #expect(mode("five_hour", l, five.addingTimeInterval(2)) == .nextReply(reset: "Reset 08:00"))
+    }
+
+    @Test func anAccountSwitchWithAnEarlierResetTakesTheNewWindow() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        let tuesday = week, sunday = t0.addingTimeInterval(86400)
+        try write("s", feed("s", windows: ["seven_day": (70, tuesday)], cost: 1), in: dir, at: t0)
+        _ = await reader.scan(now: t0)
+        // /login to another account: the old file goes, the new account's week resets earlier
+        try FileManager.default.removeItem(at: dir.appendingPathComponent("sessions/s.json"))
+        for k in 1...3 {
+            let now = t0.addingTimeInterval(Double(k) * 5)
+            try write("n", feed("n", windows: ["seven_day": (5 + Double(k), sunday)], cost: Double(k)), in: dir, at: now)
+            _ = await reader.scan(now: now)
+        }
+        let l = try #require(await reader.scan(now: t0.addingTimeInterval(16)).limits)
+        let rec = try #require(l.active("seven_day"))
+        #expect(rec.used == 8 && rec.resetsAt == sunday && !rec.contradicts)
+        #expect(isLive(mode("seven_day", l, t0.addingTimeInterval(16))))
     }
 
     @Test func maxIdleAndWorkingSessionsDoNotFlicker() async throws {
@@ -240,7 +296,11 @@ struct WindowsTests {
         try write("s", feed("s", windows: ["seven_day": (30, week)], cost: 1), in: dir, at: t0.addingTimeInterval(5))
         var l = try #require(await reader.scan(now: t0.addingTimeInterval(5)).limits)
         #expect(!l.hidden.contains("five_hour"))
-        #expect(isLive(mode("five_hour", l, t0.addingTimeInterval(5))))
+        #expect(mode("five_hour", l, t0.addingTimeInterval(5)) == .quiet)
+        #expect(titles(l) == ["Weekly (all models)", "5h window"])
+        // a reply that leaves it out before its reset: the row stays, quiet
+        try write("s", feed("s", windows: ["seven_day": (30, week)], cost: 1.5), in: dir, at: t0.addingTimeInterval(7))
+        l = try #require(await reader.scan(now: t0.addingTimeInterval(7)).limits)
         #expect(titles(l) == ["Weekly (all models)", "5h window"])
         // it comes back: no longer retired, the figure carries on
         try write("s", feed("s", windows: ["seven_day": (31, week), "five_hour": (42, five)], cost: 2), in: dir, at: t0.addingTimeInterval(10))
@@ -272,8 +332,9 @@ struct WindowsTests {
     }
 
     @Test func aReplyWithNoWindowsAtAllShowsNoPlanLimits() {
-        var l = Limits(windows: ["seven_day": .init(used: 5, resetsAt: week)], asOf: t0)
-        l.apply([:], at: t0, replied: true)
+        // a weekly whose reset passed, then a reply with an empty rate_limits object
+        var l = Limits(windows: ["seven_day": .init(used: 5, resetsAt: t0.addingTimeInterval(-60))], asOf: t0)
+        l.apply([:], at: t0, repliedAt: t0)
         let v = ScreenBuilder.limitsView(Fixtures.input(feedState: FeedState(limits: l, lastWriteAt: Fixtures.now)))
         #expect(v == .noLimits)
     }
