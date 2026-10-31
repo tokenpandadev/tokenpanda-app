@@ -56,7 +56,7 @@ The Open Anyway step applies after a Homebrew install too.
 
 On first launch the Claude tab offers one button, Install the status line hook. Click it, start a Claude Code session, and the figures arrive after the first reply. If you already have a status line, it keeps working.
 
-If you use more than one settings folder (`CLAUDE_CONFIG_DIR`, `~/.config/claude`, or a `~/.claude-work` for a second account), Install writes the entry into each one the app finds, and those sessions feed too. A folder made later shows up in Settings as Install again.
+If you use more than one settings folder, Install writes the entry into ~/.claude, a `CLAUDE_CONFIG_DIR` folder the app can see, and `~/.config/claude` or any `~/.claude-something` folder that holds a settings.json; those sessions feed too. Install lists the folders before you click. A folder with only transcripts in it, such as a backup copy, is left out; to include one, put a settings.json in it. A folder made later shows up in Settings as Install again.
 
 When a session does not show up:
 
@@ -65,7 +65,7 @@ When a session does not show up:
 - Sessions in the VS Code or JetBrains extension, in the desktop app, and `claude -p` runs most likely run no status line, so they do not feed the windows. Their tokens are still counted from the transcripts.
 - Each Mac feeds only itself. Use on the web, in the Claude app or on another Mac moves the limits, and the app sees it with the next Claude Code reply on this Mac.
 
-To uninstall with Homebrew, `brew uninstall --zap tokenpanda` puts your previous status line back before it deletes the app's data. With a plain `brew uninstall`, click "Remove the status line entry" in Settings first.
+To uninstall with Homebrew, `brew uninstall --zap tokenpanda` puts your previous status line back before it deletes the app's data (for an entry installed with 0.1.9 or later; it runs the remove script the app keeps in its data folder). With a plain `brew uninstall`, click "Remove the status line entry" in Settings first.
 
 ## By the rules
 

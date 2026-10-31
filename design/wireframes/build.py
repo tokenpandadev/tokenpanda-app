@@ -611,10 +611,10 @@ reg('term-leftover', 'After the app is gone: the hook keeps writing, files pile 
     plain(term('Terminal', [('p', '$ ls ~/Library/Application\\ Support/dev.tokenpanda.app/sessions'), ('', '0a1f...json  0b77...json  1c02...json  ...  (214 files)'), ('d', '(one file per Claude Code session since the app was removed; only the app deletes them)')])
           + tip('<b>Friction.</b> The statusLine entry still runs hook.sh, so every session leaves a file that nothing removes. Illustration: the count is an example; the behaviour is from Hook.swift and FeedReader.swift:92-95.', 760, 520, 330), app='Terminal'))
 reg('term-zap', 'brew uninstall --zap: the app removes its entry first, your own status line comes back', 'Uninstall',
-    plain(term('Terminal, ~/workspace', [('p', '$ brew uninstall --zap tokenpanda'), ('d', '==&gt; Running tokenpanda --remove-status-line'), ('', 'tokenpanda: status line entry removed from ~/.claude'),
+    plain(term('Terminal, ~/workspace', [('p', '$ brew uninstall --zap tokenpanda'), ('d', '==&gt; Running remove.sh from the data folder'), ('', 'tokenpanda: status line entry removed from ~/.claude/settings.json'),
                                          ('d', '==&gt; Trashing ~/Library/Application Support/dev.tokenpanda.app'), ('p', '$ claude'), ('', '&gt; ...'),
                                          ('ok', ' (your own status line, as before the install)')])
-          + tip('<b>Fixed in 0.1.9.</b> The cask\'s zap stanza runs the app\'s own Remove before it trashes the data folder, in every settings folder; uninstall does not, because it also runs on every upgrade. If the script is gone anyway, the app says so and offers Install again instead of claiming it is installed.', 760, 500, 330), app='Terminal'))
+          + tip('<b>Fixed in 0.1.9.</b> The cask\'s zap stanza runs remove.sh, the Remove the app keeps in its data folder, before it trashes that folder, for every settings folder; it needs no app binary, so it works on Homebrew before 7.0.10 too. uninstall does not run it, because it also runs on every upgrade. If the script is gone anyway, the app says so and offers Install again instead of claiming it is installed.', 760, 500, 330), app='Terminal'))
 
 
 # ---------- outcomes and the next place a flow goes: dashed targets, shown with h or in walk mode ----------

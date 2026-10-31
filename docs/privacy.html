@@ -64,7 +64,7 @@
 <li>title files and error files next to a transcript, and the subagent metadata files</li>
 <li>anything else in <code>~/.claude</code>: history, stats caches, sessions, state, uploads, the daemon, the paste cache, file history</li>
 <li>your <code>settings.json</code>, except the one status line key the app edits when you ask it to (section 7)</li>
-<li>in your home folder the app lists names only, to find Claude Code's settings folders: <code>~/.claude</code>, <code>~/.config/claude</code>, the folder in <code>CLAUDE_CONFIG_DIR</code> and folders named <code>.claude-something</code>; it opens nothing else there</li>
+<li>in your home folder the app lists names only, to find Claude Code's settings folders: <code>~/.claude</code>, <code>~/.config/claude</code>, the folder in <code>CLAUDE_CONFIG_DIR</code> and folders named <code>.claude-something</code> or <code>.claude_something</code>; it checks whether they hold a <code>settings.json</code> or a <code>projects</code> folder and opens nothing else there</li>
 <li>inside a transcript line: the message content, the tool results, attachments, snapshots and the account ids</li>
 </ul>
 <p>One exception, only with "Reopen sessions after a restart" on and only when you click Reopen: the app looks in each offered session's transcript for the line Claude Code writes when Remote Control was on (<code>"type":"bridge-session"</code>), to know whether to start that session with Remote Control again. It checks that the line is there and reads nothing from it.</p>
@@ -74,7 +74,8 @@
 <h2 id="writes">4  What it writes</h2>
 <ul>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/sessions/&lt;session id&gt;.json</code>: the latest status line object of each open session, overwritten every few seconds and deleted a minute after the session stops feeding</li>
-<li><code>~/Library/Application Support/dev.tokenpanda.app/hook.sh</code>: the status line script; with more than one settings folder, one more script per folder, <code>hook-&lt;folder&gt;.sh</code></li>
+<li><code>~/Library/Application Support/dev.tokenpanda.app/hook.sh</code>: the status line script; with more than one settings folder, one more script per folder, <code>hook-&lt;folder&gt;-&lt;hash&gt;.sh</code></li>
+<li><code>~/Library/Application Support/dev.tokenpanda.app/remove.sh</code>, while the entry is installed: the Remove step as a shell script, which <code>brew uninstall --zap</code> runs; it lists the settings files and the saved entries, nothing else</li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/statusline-before.json</code>: your <code>statusLine</code> entry as it was before the install, so removing the hook can put it back exactly; deleted on removal</li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/limits.json</code>: the last two plan windows (used percent and reset time) and the time they were read, so the figures outlive the session files; no path, no model, no session id</li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/weeks.json</code>: four small records of past weekly windows, for the week over week rows</li>
