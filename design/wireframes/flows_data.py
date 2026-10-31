@@ -138,7 +138,7 @@ FLOWS = [
 GAPS = [
  dict(t='The 5h window shows a dead figure for Ultra accounts', steps='05.1 to 05.5, 04.4',
       why='Since 30 Oct every verified Ultra user sees a 5h figure that is not real: first a frozen percentage with live pace and possibly - - eyes and a nudge, then for good "Reset 00:10  no session since" under "Usage live". The panel contradicts itself on its main screen.',
-      fix='Limits.apply (FeedReader.swift:23-38) drops every stored window whose key is missing from the feed it applies; apply only runs for a snapshot that carries rate_limits, so the first call of a session still changes nothing. Then limitsView (ScreenBuilder.swift:83) draws the fixed keys only while their record exists, with the weekly placeholder kept. Max and Pro feeds carry five_hour and see no change. Two tests: a later feed without five_hour removes it; the first call without rate_limits keeps it.',
+      fix='Limits.apply (FeedReader.swift:23-38) drops every stored window whose key is missing from the feed it applies; apply only runs for a snapshot that carries rate_limits, so the first call of a session still changes nothing. Then limitsView (ScreenBuilder.swift:83) draws the fixed keys only while their record exists, with the empty weekly row kept. Max and Pro feeds carry five_hour and see no change. Two tests: a later feed without five_hour removes it; the first call without rate_limits keeps it.',
       size='about 6 lines and 2 tests'),
  dict(t='The weekly figure jumps between sessions', steps='03.7, 06.5',
       why='With several Claude Code sessions open, which is the normal case for this user, the item and the bar change every few seconds between 9% and 28%, and the week over week history records whichever value was last. The one number the app exists for is unreliable.',
@@ -158,7 +158,7 @@ GAPS = [
       size='two strings and one action'),
  dict(t='After a weekly reset the weekly reads "no session since" while sessions are open', steps='06.3',
       why='For the minutes between the reset and the next reply the main figure says no session ran, under "Usage live".',
-      fix='The same drop as gap 1 covers it: when the feed comes without seven_day the stored one goes, and the weekly shows its placeholder until the new week arrives. Better copy for that placeholder: "new week starts with the next reply".',
+      fix='The same drop as gap 1 covers it: when the feed comes without seven_day the stored one goes, and the weekly shows its empty row until the new week arrives. Better copy for that empty row: "new week starts with the next reply".',
       size='covered by gap 1, plus one string'),
  dict(t='brew uninstall --zap leaves Claude Code pointing at a deleted script', steps='13.5, 13.4',
       why='The user\'s own status line, chained inside the hook, disappears with the zap; without Remove first, session files pile up for ever.',

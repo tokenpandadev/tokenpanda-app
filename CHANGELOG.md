@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.8, unreleased
+## 0.1.8, 2026-10-31
 
 - The weekly figure no longer jumps between the values each open session last saw. With several sessions open the app takes the highest figure for the current week, and keeps it when the busiest session closes. Week over week keeps the highest value of each week too.
 - A window your plan no longer has goes away. When Claude Code stops sending the 5h window for an account, the row keeps its last figure without countdown or pace until that window's reset, then goes after the next reply that comes without it. Before, the old figure showed as live, or "no session since" stayed for good. The panda's eyes, the spoken label and the nudges stop using it at once. Max and Pro see no change.
@@ -10,9 +10,9 @@
 - With disableAllHooks on in settings.json, the panel says Claude Code runs no status line, instead of waiting for a feed that never comes.
 - After /compact or a resume, a session reads "compacted or resumed  next reply updates it" instead of "waiting for the first reply", and the line fits the panel.
 - If a Claude Code update renames the limit fields, the panel says the feed format changed instead of "no plan limits".
+- After a window resets while sessions are open but waiting, the row says "new window on the next reply" instead of "no session since".
 
 Known in 0.1.8: with CLAUDE_CONFIG_DIR or a settings folder other than ~/.claude, Install still writes ~/.claude/settings.json, so those sessions never feed the windows. Planned for the next version.
-- After a window resets while sessions are open but waiting, the row says "new window on the next reply" instead of "no session since".
 
 ## 0.1.7, 2026-10-22
 
