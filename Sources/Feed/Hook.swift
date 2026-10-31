@@ -3,7 +3,7 @@
 import Foundation
 
 // The status line hook: the script as a resource, installed only on an explicit click, chaining an existing command.
-// settings.json is otherwise off limits: this file reads the one statusLine key and changes the one statusLine key.
+// settings.json is otherwise off limits: this file reads the statusLine key and disableAllHooks, and changes only statusLine.
 
 public enum HookScript {
     /// The script text, identical to hook/statusline.sh in the repository (a test checks that).
@@ -39,7 +39,10 @@ public enum HookScript {
 public struct HookStatus: Sendable, Equatable {
     public var installed: Bool
     public var previousCommand: String?   // a status line command that is not ours, when one exists
-    public init(installed: Bool, previousCommand: String?) { self.installed = installed; self.previousCommand = previousCommand }
+    public var hooksDisabled: Bool        // disableAllHooks is true: Claude Code runs no status line from this file
+    public init(installed: Bool, previousCommand: String?, hooksDisabled: Bool = false) {
+        self.installed = installed; self.previousCommand = previousCommand; self.hooksDisabled = hooksDisabled
+    }
 }
 
 public enum HookError: Error, Sendable, CustomStringConvertible {
@@ -71,13 +74,15 @@ public struct Hook: Sendable {
 
     func isOurs(_ command: String) -> Bool { command == hookCommand || command == hookPath.path }
 
-    /// Reads the one statusLine key. Anything else in settings.json stays unread.
+    /// Reads the statusLine key and disableAllHooks, which switches the status line off. Anything else stays unread.
     public func status() -> HookStatus {
-        guard let obj = readSettings(), let sl = obj["statusLine"] as? [String: Any], let cmd = sl["command"] as? String else {
-            return HookStatus(installed: false, previousCommand: nil)
+        let obj = readSettings()
+        let disabled = (obj?["disableAllHooks"] as? Bool) ?? false
+        guard let sl = obj?["statusLine"] as? [String: Any], let cmd = sl["command"] as? String else {
+            return HookStatus(installed: false, previousCommand: nil, hooksDisabled: disabled)
         }
-        if isOurs(cmd) { return HookStatus(installed: true, previousCommand: nil) }
-        return HookStatus(installed: false, previousCommand: cmd)
+        if isOurs(cmd) { return HookStatus(installed: true, previousCommand: nil, hooksDisabled: disabled) }
+        return HookStatus(installed: false, previousCommand: cmd, hooksDisabled: disabled)
     }
 
     /// The modification time of settings.json, so a caller can re-read it only when it changed. nil when it does not exist.
@@ -103,8 +108,9 @@ public struct Hook: Sendable {
     }
 
     /// Writes the script and the statusLine entry. Only ever called from an install row's click.
-    /// An existing statusLine keeps its other keys (padding, refreshInterval and the like); only type and command change,
-    /// and refreshInterval is added when there was none.
+    /// An existing statusLine keeps its other keys (padding and the like); type and command change, and refreshInterval
+    /// is set to 5 when there was none or a longer one: idle sessions must write within the 10 s open rule. Remove puts
+    /// the user's own value back from the backup.
     public func install() throws -> HookStatus {
         let fm = FileManager.default
         var settings: [String: Any] = [:]
@@ -129,7 +135,11 @@ public struct Hook: Sendable {
         var sl = existing ?? [:]
         sl["type"] = "command"
         sl["command"] = hookCommand
-        if sl["refreshInterval"] == nil { sl["refreshInterval"] = Hook.refreshInterval }
+        if let n = (sl["refreshInterval"] as? NSNumber)?.doubleValue, n >= 1, n <= Double(Hook.refreshInterval) {
+            // a shorter interval of the user's own stays
+        } else {
+            sl["refreshInterval"] = Hook.refreshInterval
+        }
         settings["statusLine"] = sl
         try writeSettings(settings)
         return HookStatus(installed: true, previousCommand: previous)

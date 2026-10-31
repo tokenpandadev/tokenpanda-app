@@ -37,7 +37,9 @@ public enum LimitsView: Sendable, Equatable {
     case windows([WindowView], staleNote: Bool)
     case noHook(previous: String?)
     case noSession
-    case noLimits
+    case noLimits          // the sessions' replies carry no plan windows (an API key, Bedrock, Vertex)
+    case hooksDisabled     // disableAllHooks is on: Claude Code runs no status line
+    case formatChanged     // rate_limits arrived in a shape this version cannot read
 }
 
 public struct SessionView: Sendable, Equatable {
@@ -47,9 +49,11 @@ public struct SessionView: Sendable, Equatable {
     public var used: Int
     public var figure: String       // "405.6k of 1M"
     public var tip: String
-    public var waiting: Bool        // current_usage null: empty bar, "waiting for the first reply"
-    public init(name: String, model: String, hue: RGBA, used: Int, figure: String, tip: String, waiting: Bool = false) {
+    public var waiting: Bool        // current_usage null: "waiting for the first reply"
+    public var compacted: Bool      // current_usage null after a reply (/compact or a resume): "next reply updates it"
+    public init(name: String, model: String, hue: RGBA, used: Int, figure: String, tip: String, waiting: Bool = false, compacted: Bool = false) {
         self.name = name; self.model = model; self.hue = hue; self.used = used; self.figure = figure; self.tip = tip; self.waiting = waiting
+        self.compacted = compacted
     }
 }
 

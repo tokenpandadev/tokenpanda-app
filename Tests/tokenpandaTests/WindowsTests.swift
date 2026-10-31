@@ -338,4 +338,138 @@ struct WindowsTests {
         let v = ScreenBuilder.limitsView(Fixtures.input(feedState: FeedState(limits: l, lastWriteAt: Fixtures.now)))
         #expect(v == .noLimits)
     }
+
+    // MARK: accounts, providers, settings (0.1.8 command sweep)
+
+    @Test func anAccountSwitchWithALaterResetIsNotUnknown() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        let five = t0.addingTimeInterval(3600), week1 = t0.addingTimeInterval(86400)
+        try write("s", feed("s", windows: ["seven_day": (70, week1), "five_hour": (50, five)], cost: 1), in: dir, at: t0)
+        _ = await reader.scan(now: t0)
+        // /login to an account whose windows reset later, both while the stored ones still run
+        try write("s", feed("s", windows: ["seven_day": (6, week), "five_hour": (3, five.addingTimeInterval(2 * 3600))], cost: 2), in: dir, at: t0.addingTimeInterval(5))
+        let l = try #require(await reader.scan(now: t0.addingTimeInterval(5)).limits)
+        #expect(l.windows["seven_day"]?.used == 6 && l.windows["five_hour"]?.used == 3)
+        #expect(!l.isUnknown("seven_day") && !l.isUnknown("five_hour"))
+        #expect(isLive(mode("seven_day", l, t0.addingTimeInterval(5))) && isLive(mode("five_hour", l, t0.addingTimeInterval(5))))
+    }
+
+    @Test func anAccountSwitchWithAnEarlierFiveHourResetTakesIt() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        let five = t0.addingTimeInterval(4 * 3600)
+        try write("s", feed("s", windows: ["seven_day": (70, week), "five_hour": (90, five)], cost: 1), in: dir, at: t0)
+        _ = await reader.scan(now: t0)
+        try write("s", feed("s", windows: ["seven_day": (8, week.addingTimeInterval(-86400)), "five_hour": (4, t0.addingTimeInterval(1800))], cost: 2), in: dir, at: t0.addingTimeInterval(5))
+        let l = try #require(await reader.scan(now: t0.addingTimeInterval(5)).limits)
+        #expect(l.active("five_hour")?.used == 4 && !l.isUnknown("five_hour"))
+        #expect(l.active("seven_day")?.used == 8 && !l.isUnknown("seven_day"))
+    }
+
+    @Test func twoAccountsOpenAtOnceWithTheSecondLaterAreNotUnknown() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        let early = week.addingTimeInterval(-2 * 86400)
+        try write("one", feed("one", windows: ["seven_day": (70, early)], cost: 1), in: dir, at: t0)
+        _ = await reader.scan(now: t0)
+        for k in 1...4 {
+            let now = t0.addingTimeInterval(Double(k) * 5)
+            try write("one", feed("one", windows: ["seven_day": (70, early)], cost: 1), in: dir, at: now.addingTimeInterval(k % 2 == 0 ? 0 : -1))
+            try write("two", feed("two", windows: ["seven_day": (30, week)], cost: Double(k)), in: dir, at: now.addingTimeInterval(k % 2 == 0 ? -1 : 0))
+            let l = try #require(await reader.scan(now: now).limits)
+            #expect(!l.isUnknown("seven_day"))
+            #expect(l.windows["seven_day"]?.resetsAt == week && l.windows["seven_day"]?.used == 30)
+        }
+    }
+
+    @Test func aRolloverStillChecksTheWindowLength() {
+        var l = Limits(asOf: t0)
+        let first = t0.addingTimeInterval(600)
+        l.apply(["five_hour": LimitWindow(key: "five_hour", usedPercentage: 10, resetsAt: first)], at: t0)
+        // the stored window has passed when the next one arrives, only one hour later: the key's length is wrong
+        l.apply(["five_hour": LimitWindow(key: "five_hour", usedPercentage: 2, resetsAt: first.addingTimeInterval(3600))], at: first.addingTimeInterval(60))
+        #expect(l.isUnknown("five_hour"))
+    }
+
+    @Test func anAPIKeyAfterSubscriptionUseShowsNoPlanLimits() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        try write("s", feed("s", windows: ["seven_day": (100, week), "five_hour": (20, t0.addingTimeInterval(3600))], cost: 1), in: dir, at: t0)
+        _ = await reader.scan(now: t0)
+        // the same session goes on with an API key: replies come without rate_limits
+        try write("s", feed("s", windows: nil, cost: 2), in: dir, at: t0.addingTimeInterval(5))
+        let st = await reader.scan(now: t0.addingTimeInterval(5))
+        let l = try #require(st.limits)
+        #expect(l.planless)
+        let input = Fixtures.input(feedState: FeedState(limits: l, sessions: st.sessions, lastWriteAt: Fixtures.now))
+        #expect(ScreenBuilder.limitsView(input) == .noLimits)
+        #expect(ScreenBuilder.eyes(l, now: t0.addingTimeInterval(5)) == .normal)
+        #expect(ScreenBuilder.item(input).used == nil)
+        #expect(l.active("seven_day") == nil)
+        // a subscription reply brings the windows back
+        try write("s", feed("s", windows: ["seven_day": (100, week)], cost: 3), in: dir, at: t0.addingTimeInterval(10))
+        let back = try #require(await reader.scan(now: t0.addingTimeInterval(10)).limits)
+        #expect(!back.planless && back.active("seven_day")?.used == 100)
+    }
+
+    @Test func aRenamedRateLimitFieldSaysTheFormatChanged() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        try write("s", feed("s", windows: ["seven_day": (30, week)], cost: 1), in: dir, at: t0)
+        let before = try #require(await reader.scan(now: t0).limits)
+        let renamed = Data("{\"session_id\":\"s\",\"context_window\":{\"current_usage\":{\"input_tokens\":5}},\"cost\":{\"total_cost_usd\":2},\"rate_limits\":{\"seven_day\":{\"used_pct\":31,\"reset_time\":1}}}".utf8)
+        try write("s", renamed, in: dir, at: t0.addingTimeInterval(5))
+        let st = await reader.scan(now: t0.addingTimeInterval(5))
+        #expect(st.formatChanged)
+        #expect(st.limits?.windows == before.windows && st.limits?.planless == false)
+        #expect(ScreenBuilder.limitsView(Fixtures.input(feedState: st)) == .formatChanged)
+        // a spend limit alone is a known shape: no windows, not a format change
+        let spend = SnapshotParser.parse(Data("{\"session_id\":\"x\",\"rate_limits\":{\"spend_limit\":{\"used\":1}}}".utf8), writtenAt: t0)
+        #expect(spend?.rateLimitsUnreadable == false && spend?.rateLimits?.isEmpty == true)
+    }
+
+    @Test func disableAllHooksIsReported() throws {
+        let dir = try tempDir()
+        let settings = dir.appendingPathComponent("settings.json")
+        let hook = Hook(settingsURL: settings, dataDir: dir)
+        let obj: [String: Any] = ["disableAllHooks": true, "statusLine": ["type": "command", "command": hook.hookCommand]]
+        try JSONSerialization.data(withJSONObject: obj).write(to: settings)
+        let st = hook.status()
+        #expect(st.installed && st.hooksDisabled)
+        let v = ScreenBuilder.limitsView(Fixtures.input(feedState: FeedState(), hook: st))
+        #expect(v == .hooksDisabled)
+        #expect(Grammar.limits(v).allSatisfy { $0.cells <= Grammar.popCells })
+    }
+
+    @Test func aLongRefreshIntervalIsLoweredAndPutBack() throws {
+        let dir = try tempDir()
+        let settings = dir.appendingPathComponent("settings.json")
+        let hook = Hook(settingsURL: settings, dataDir: dir)
+        try "{\"statusLine\":{\"type\":\"command\",\"command\":\"~/bin/x\",\"refreshInterval\":30}}".write(to: settings, atomically: true, encoding: .utf8)
+        _ = try hook.install()
+        func interval() throws -> Int? {
+            let o = try #require(JSONSerialization.jsonObject(with: try Data(contentsOf: settings)) as? [String: Any])
+            return (o["statusLine"] as? [String: Any])?["refreshInterval"] as? Int
+        }
+        #expect(try interval() == 5)
+        try hook.uninstall(previousCommand: nil)
+        #expect(try interval() == 30)
+        // a shorter one of the user's own stays
+        try "{\"statusLine\":{\"type\":\"command\",\"command\":\"~/bin/x\",\"refreshInterval\":2}}".write(to: settings, atomically: true, encoding: .utf8)
+        _ = try hook.install()
+        #expect(try interval() == 2)
+    }
+
+    @Test func aCompactedSessionSaysTheNextReplyUpdatesIt() {
+        var s = Snapshot(sessionId: "c", writtenAt: t0)
+        s.projectDir = "/x/workspace"; s.totalCostUSD = 3.2; s.currentUsageTokens = nil
+        var first = Snapshot(sessionId: "f", writtenAt: t0)
+        first.projectDir = "/x/other"
+        let input = Fixtures.input(feedState: FeedState(sessions: [OpenSession(snapshot: s), OpenSession(snapshot: first)], lastWriteAt: Fixtures.now))
+        let lines = Grammar.sessionRows(ScreenBuilder.sessionViews(input).0, more: 0)
+        #expect(lines.map(\.plain).contains(" compacted or resumed  next reply updates it"))
+        #expect(lines.map(\.plain).contains(" waiting for the first reply"))
+        #expect(lines.allSatisfy { $0.cells <= Grammar.popCells })
+    }
 }

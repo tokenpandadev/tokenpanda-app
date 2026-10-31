@@ -83,7 +83,11 @@ public enum ScreenBuilder {
     }
 
     public static func limitsView(_ i: LiveInput) -> LimitsView {
+        if i.feed.formatChanged { return .formatChanged }
+        if i.hook.installed, i.hook.hooksDisabled, !i.feed.isLive(now: i.now) { return .hooksDisabled }
         if let limits = i.feed.limits {
+            // the newest reply carried no plan windows: the stored ones are another sign in, not these sessions
+            if limits.planless { return .noLimits }
             // a window a reply came without is one the plan no longer has: no row
             let shown = keys + limits.windows.keys.sorted().filter { !keys.contains($0) }
             let views = shown.filter { !limits.hidden.contains($0) }.map { windowView(key: $0, limits: limits, now: i.now, tz: i.timeZone) }
@@ -111,7 +115,8 @@ public enum ScreenBuilder {
             if let e = snap.effortLevel { tip += "  effort \(e)" }
             return SessionView(name: snap.projectName ?? snap.sessionId.prefix(8).description, model: snap.modelDisplayName ?? "",
                                hue: Tokens.hue(forFamily: family), used: Int((snap.contextUsedPercentage ?? 0).rounded()),
-                               figure: figure, tip: tip, waiting: snap.currentUsageTokens == nil)
+                               figure: figure, tip: tip, waiting: snap.currentUsageTokens == nil,
+                               compacted: snap.currentUsageTokens == nil && (snap.totalCostUSD ?? 0) > 0)
         }
         return (Array(all.prefix(5)), max(0, all.count - 5))
     }
@@ -153,7 +158,7 @@ public enum ScreenBuilder {
         let f = DayFormatter(timeZone: tz)
         var out: [WeekView] = []
         guard let weeklyLength = WindowKind.length(forKey: "seven_day") else { return [] }
-        let current = i.feed.limits?.windows["seven_day"]
+        let current = (i.feed.limits?.planless ?? false) ? nil : i.feed.limits?.windows["seven_day"]
         // a week is labelled by its first full day: the window starts Sunday 18:00, the row says Monday
         var cal = i.calendar; cal.timeZone = tz
         func label(_ reset: Date) -> String {
@@ -317,7 +322,7 @@ public enum ScreenBuilder {
 
     static func itemFigures(_ i: LiveInput) -> ItemState {
         let macText = i.macInBar ? i.mac.map { " CPU \(Int($0.cpuBusy.rounded()))%" } : nil
-        guard let limits = i.feed.limits, !limits.hidden.contains("seven_day"), let rec = limits.windows["seven_day"], !limits.isUnknown("seven_day"),
+        guard let limits = i.feed.limits, !limits.planless, !limits.hidden.contains("seven_day"), let rec = limits.windows["seven_day"], !limits.isUnknown("seven_day"),
               let length = WindowKind.length(forKey: "seven_day") else {
             return ItemState(used: nil, elapsed: nil, over: false, stale: true, warn: i.warn, macText: macText,
                              label: "Claude usage, no figures yet" + (i.warn ? ", Mac warning" : ""))

@@ -119,7 +119,15 @@ public enum Grammar {
                 + windowEmpty("5h window", "no session yet  open Claude Code once")
         case .noLimits:
             return [L(sp(" "), sp("Weekly and 5h window", .bold)),
-                    L(sp(" "), sp("this account has no plan limits to show", .dim))]
+                    L(sp(" "), sp("these sessions carry no plan limits", .dim)),
+                    L(sp(" "), sp("API key, Bedrock and Vertex have none", .dim))]
+        case .hooksDisabled:
+            return [L(sp(" "), sp("Weekly and 5h window", .bold)),
+                    L(sp(" "), sp("disableAllHooks is on in settings.json", .dim)),
+                    L(sp(" "), sp("so Claude Code runs no status line", .dim))]
+        case .formatChanged:
+            return [L(sp(" "), sp("Weekly and 5h window", .bold)),
+                    L(sp(" "), sp("the feed format changed, update tokenpanda", .dim))]
         }
     }
 
@@ -134,7 +142,9 @@ public enum Grammar {
             out.append(L(sp(" "), sp(s.name), sp("  "), sp(s.model, .dim)))
             let bar = Bar.render(width: rowBar, used: s.waiting ? 0 : Double(s.used), elapsed: nil, options: BarOptions(color: s.hue, plain: true))
             if s.waiting {
-                out.append(Line([sp(" "), .bar(bar), sp("  "), sp("waiting for the first reply", .dim)], hover: true))
+                // no figure yet: the words take the bar's place, so they fit the width
+                let words = s.compacted ? "compacted or resumed  next reply updates it" : "waiting for the first reply"
+                out.append(Line([sp(" "), sp(words, .dim)], hover: true))
             } else {
                 let fig = Piece(s.figure + "  " + Format.rcol("\(s.used)%", 3), .text, tip: s.tip, tipLeft: true)
                 out.append(Line([sp(" "), .bar(bar), sp("  "), fig], hover: true,

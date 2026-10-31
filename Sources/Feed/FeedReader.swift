@@ -29,14 +29,19 @@ public struct Limits: Sendable, Equatable, Codable {
     public var asOf: Date
     /// Keys a reply came without: the plan no longer has them, the row is hidden. A record stays for the length check.
     public var hidden: Set<String>
-    public init(windows: [String: Record] = [:], asOf: Date, hidden: Set<String> = []) { self.windows = windows; self.asOf = asOf; self.hidden = hidden }
+    /// The newest reply carried no plan windows at all (an API key, Bedrock, Vertex): the stored ones are not drawn.
+    public var planless: Bool
+    public init(windows: [String: Record] = [:], asOf: Date, hidden: Set<String> = [], planless: Bool = false) {
+        self.windows = windows; self.asOf = asOf; self.hidden = hidden; self.planless = planless
+    }
 
-    enum CodingKeys: String, CodingKey { case windows, asOf, hidden }
+    enum CodingKeys: String, CodingKey { case windows, asOf, hidden, planless }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         windows = try c.decode([String: Record].self, forKey: .windows)
         asOf = try c.decode(Date.self, forKey: .asOf)
         hidden = try c.decodeIfPresent(Set<String>.self, forKey: .hidden) ?? []
+        planless = try c.decodeIfPresent(Bool.self, forKey: .planless) ?? false
     }
 
     /// The keys always drawn, in this order; any other key the feed carries follows them.
@@ -44,8 +49,9 @@ public struct Limits: Sendable, Equatable, Codable {
 
     /// Applies the merged rate_limits of one scan (or one feed). Per key the latest reset wins, and inside one reset the
     /// highest percentage, the stored one included: the server's figure only rises within a window, lower ones are older
-    /// cached replies. A window whose reset moved is checked against the key's length.
-    /// A different reset that is earlier means the account changed (/login): the stored window belongs to the other one.
+    /// cached replies. A new reset that follows a stored window which had already passed is the next window of the same
+    /// account and is checked against the key's length. A reset that moves while the stored window still runs, earlier or
+    /// later, is another account (/login, or two accounts open at once): it replaces the record without the check.
     /// A stored key the scan does not carry is retired, not deleted. `repliedAt` is the time of the newest reply in this
     /// scan: a key absent from a reply that came after its reset is hidden, since a reply carries every window the plan
     /// has. Before its reset a missing window only goes quiet.
@@ -58,7 +64,7 @@ public struct Limits: Sendable, Equatable, Codable {
             }
             var rec = old
             rec.retired = false
-            if w.resetsAt > old.resetsAt {
+            if w.resetsAt > old.resetsAt, old.resetsAt <= at {
                 rec.previousResetsAt = old.resetsAt
                 if let len = WindowKind.length(forKey: key) {
                     // consecutive windows of one key are at least one length apart; closer means the key's length is wrong
@@ -75,6 +81,7 @@ public struct Limits: Sendable, Equatable, Codable {
             windows[key] = rec
         }
         for key in windows.keys where rateLimits[key] == nil { windows[key]?.retired = true }
+        if !rateLimits.isEmpty { planless = false } else if repliedAt != nil { planless = true }
         if let r = repliedAt {
             for key in Set(windows.keys).union(Self.fixedKeys) where rateLimits[key] == nil {
                 if let rec = windows[key], r < rec.resetsAt { continue }
@@ -84,9 +91,9 @@ public struct Limits: Sendable, Equatable, Codable {
         asOf = at
     }
 
-    /// The record the eyes, the spoken label and the nudges may use: none for a retired or hidden window.
+    /// The record the eyes, the spoken label and the nudges may use: none for a retired or hidden window, or planless.
     public func active(_ key: String) -> Record? {
-        guard !hidden.contains(key), let r = windows[key], !r.retired else { return nil }
+        guard !planless, !hidden.contains(key), let r = windows[key], !r.retired else { return nil }
         return r
     }
 
@@ -122,8 +129,9 @@ public struct FeedState: Sendable, Equatable {
     public var sessions: [OpenSession]       // open, sorted by context used, largest first
     public var lastWriteAt: Date?            // the newest file's write time, for "Usage live"
     public var scanError: String?
-    public init(limits: Limits? = nil, sessions: [OpenSession] = [], lastWriteAt: Date? = nil, scanError: String? = nil) {
-        self.limits = limits; self.sessions = sessions; self.lastWriteAt = lastWriteAt; self.scanError = scanError
+    public var formatChanged: Bool           // a file's rate_limits had entries and none of them read as a window
+    public init(limits: Limits? = nil, sessions: [OpenSession] = [], lastWriteAt: Date? = nil, scanError: String? = nil, formatChanged: Bool = false) {
+        self.limits = limits; self.sessions = sessions; self.lastWriteAt = lastWriteAt; self.scanError = scanError; self.formatChanged = formatChanged
     }
     public func isLive(now: Date) -> Bool {
         guard let t = lastWriteAt else { return false }
@@ -159,6 +167,7 @@ public actor FeedReader {
         var newestLimits: Date? = nil
         var lastWrite: Date? = nil
         var repliedAt: Date? = nil
+        var formatChanged = false
         var nextFigures: [String: ReplyFigures] = [:]
         for name in names where name.hasSuffix(".json") {
             let url = sessionsDir.appendingPathComponent(name)
@@ -170,13 +179,15 @@ public actor FeedReader {
             guard let data = try? Data(contentsOf: url), let snap = SnapshotParser.parse(data, writtenAt: mtime) else { continue }
             if mtime > (lastWrite ?? .distantPast) { lastWrite = mtime }
             let figures = ReplyFigures(tokens: snap.currentUsageTokens, cost: snap.totalCostUSD)
-            if let rl = snap.rateLimits {
-                feeds.append(rl)
+            // a reply: a session seen before whose figures moved; the first sight of a file after launch is not one
+            let replied = snap.currentUsageTokens != nil && figuresSeen[snap.sessionId].map { $0 != figures } == true
+            if snap.rateLimitsUnreadable {
+                formatChanged = true      // windows under keys the parser does not know: never read as "no windows"
+            } else if snap.rateLimits != nil || replied {
+                // a reply without rate_limits (an API key, Bedrock, Vertex) is a feed with no plan windows
+                feeds.append(snap.rateLimits ?? [:])
                 if mtime > (newestLimits ?? .distantPast) { newestLimits = mtime }
-                // a reply: a session seen before whose figures moved; the first sight of a file after launch is not one
-                if snap.currentUsageTokens != nil, let before = figuresSeen[snap.sessionId], before != figures {
-                    repliedAt = max(repliedAt ?? mtime, mtime)
-                }
+                if replied { repliedAt = max(repliedAt ?? mtime, mtime) }
             }
             nextFigures[snap.sessionId] = figures
             if OpenSessionsRule.isOpen(writtenAt: mtime, now: now) { sessions.append(OpenSession(snapshot: snap)) }
@@ -191,7 +202,7 @@ public actor FeedReader {
             }
         }
         sessions.sort { $0.usedPercentage > $1.usedPercentage }
-        return FeedState(limits: limits, sessions: sessions, lastWriteAt: lastWrite)
+        return FeedState(limits: limits, sessions: sessions, lastWriteAt: lastWrite, formatChanged: formatChanged)
     }
 
     func persist() {

@@ -25,6 +25,7 @@ public struct Snapshot: Sendable, Equatable {
     public var linesAdded: Int?
     public var linesRemoved: Int?
     public var rateLimits: [String: LimitWindow]?   // absent on the first call of a session
+    public var rateLimitsUnreadable = false          // rate_limits had entries besides spend_limit and none read as a window
     public var writtenAt: Date
 
     public init(sessionId: String, writtenAt: Date) { self.sessionId = sessionId; self.writtenAt = writtenAt }
@@ -62,7 +63,12 @@ public enum SnapshotParser {
                       let used = number(w["used_percentage"]), let reset = number(w["resets_at"]) else { continue }
                 windows[key] = LimitWindow(key: key, usedPercentage: used, resetsAt: Date(timeIntervalSince1970: reset))
             }
-            s.rateLimits = windows
+            // a renamed field would make every window vanish: say so instead of reading it as an account without limits
+            if windows.isEmpty, r.keys.contains(where: { $0 != "spend_limit" }) {
+                s.rateLimitsUnreadable = true
+            } else {
+                s.rateLimits = windows
+            }
         }
         return s
     }

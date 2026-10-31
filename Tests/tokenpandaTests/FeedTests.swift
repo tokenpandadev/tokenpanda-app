@@ -208,7 +208,7 @@ struct FeedTests {
         let obj = try #require(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
         let sl = try #require(obj["statusLine"] as? [String: Any])
         #expect(sl["padding"] as? Int == 2)
-        #expect(sl["refreshInterval"] as? Int == 10)       // the user's interval is kept
+        #expect(sl["refreshInterval"] as? Int == 5)        // a longer interval of the user's own is lowered to 5; Remove puts it back
         #expect(sl["command"] as? String == hook.hookCommand)
         #expect((obj["env"] as? [String: Any])?["A"] as? String == "https://example.com/x")
         // a second click does not chain the hook to itself and keeps the first backup
