@@ -82,6 +82,27 @@ public enum Bar {
 }
 
 public enum Format {
+    /// Text broken into lines of at most w cells at spaces, never cut: a word longer than w is split. Text that fits stays
+    /// as it is, double spaces and all; a break eats the spaces at it.
+    public static func wrap(_ s: String, _ w: Int) -> [String] {
+        guard s.count > w else { return [s] }
+        var out: [String] = []
+        var line = ""
+        for word in s.split(separator: " ", omittingEmptySubsequences: false).map(String.init) {
+            var word = word
+            while word.count > w {
+                if !line.isEmpty { out.append(line); line = "" }
+                out.append(String(word.prefix(w))); word = String(word.dropFirst(w))
+            }
+            if line.isEmpty { line = word }
+            else if line.count + 1 + word.count <= w { line += " " + word }
+            else { out.append(line.trimmingCharacters(in: .whitespaces)); line = word }
+        }
+        line = line.trimmingCharacters(in: .whitespaces)
+        if !line.isEmpty { out.append(line) }
+        return out.filter { !$0.isEmpty }
+    }
+
     /// A name cut to a column: w - 1 characters and the ellipsis, or padded to w.
     public static func col(_ s: String, _ w: Int) -> String {
         if s.count > w { return String(s.prefix(w - 1)) + "\u{2026}" }

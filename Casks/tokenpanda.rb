@@ -18,17 +18,24 @@ cask "tokenpanda" do
 
   uninstall quit: "dev.tokenpanda.app"
 
-  zap trash: [
-    "~/Library/Application Support/dev.tokenpanda.app",
-    "~/Library/Preferences/dev.tokenpanda.app.plist",
-  ]
+  # The app's own Remove runs first, in zap only: uninstall directives also run on every upgrade and would strip
+  # the status line entry each time. Homebrew runs zap directives before it removes the app, so the binary is there.
+  zap script: {
+        executable:   "#{appdir}/tokenpanda.app/Contents/MacOS/tokenpanda",
+        args:         ["--remove-status-line"],
+        must_succeed: false,
+      },
+      trash:  [
+        "~/Library/Application Support/dev.tokenpanda.app",
+        "~/Library/Preferences/dev.tokenpanda.app.plist",
+      ]
 
   caveats <<~EOS
     The app is signed ad hoc, not notarised. On first launch macOS blocks it:
     open System Settings, Privacy & Security, and click Open Anyway.
 
-    Before you uninstall, open tokenpanda's Settings tab and click
-    "Remove the status line entry", so ~/.claude/settings.json gets its
-    previous statusLine back.
+    brew uninstall --zap removes the status line entry and puts back the one
+    you had before. With a plain brew uninstall, first open tokenpanda's
+    Settings tab and click "Remove the status line entry".
   EOS
 end

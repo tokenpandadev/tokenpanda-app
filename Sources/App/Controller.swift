@@ -32,7 +32,8 @@ enum Rules {
 @MainActor
 final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let feed: FeedReader
-    let hook: Hook
+    var hook: HookSet
+    var folders: [URL]
     let store: TranscriptStore
     let sampler = MacSampler()
     let notifier = Notifier()
@@ -40,7 +41,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var feedState = FeedState()
     var hookStatus = HookStatus(installed: false, previousCommand: nil)
     var hookError: String? = nil
-    var settingsModified: Date? = nil   // settings.json is read again only when this moves
+    var settingsModified: [Date?] = []   // the settings.json files are read again only when one of these moves
     let log = Logger(subsystem: Paths.bundleId, category: "hook")
     let restoreLog = Logger(subsystem: Paths.bundleId, category: "restore")
     var tokens: TokenSummary? = nil
@@ -79,8 +80,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     override init() {
         feed = FeedReader(dataDir: Paths.dataDir)
-        hook = Hook(settingsURL: Paths.settingsJSON, dataDir: Paths.dataDir)
-        store = TranscriptStore(roots: TranscriptLocator.roots())
+        folders = ConfigFolders.find()
+        hook = HookSet(folders: folders, dataDir: Paths.dataDir)
+        // the transcripts of every settings folder found, besides the usual places
+        var roots = TranscriptLocator.roots()
+        for f in folders { let r = f.appendingPathComponent("projects", isDirectory: true); if !roots.contains(r) { roots.append(r) } }
+        store = TranscriptStore(roots: roots)
         super.init()
     }
 
@@ -121,7 +126,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         readHookStatus()
         notifier.onReopen = { [weak self] in self?.reopen() }
         offerRestore(now: Date())   // before the first scan, which writes this boot's record over the last one
-        if Settings.bool(Settings.nudges) { notifier.requestIfNeeded() }
+        notifier.refreshState()   // no prompt at launch: the first nudge that is due asks
         startFeedWatch()
         startTimers(open: false)
         Task { await refreshFeed(); await refreshTranscripts(); await sampleMac(full: false) }
@@ -193,6 +198,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         working.apply(feedState.sessions)
         updateAwake(now: now)
         recordSessions(now: now)
+        refreshFolders()
         if hook.settingsModified() != settingsModified { readHookStatus() }
         if let l = feedState.limits, let w = l.windows["seven_day"] {
             var ws = weeks
@@ -220,6 +226,15 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             tokens = await Task.detached(priority: .utility) { Aggregator.summarize(records, now: now) }.value
         }
         render()
+    }
+
+    /// A settings folder made since launch (a second account with CLAUDE_CONFIG_DIR) joins the set; Install then offers it.
+    func refreshFolders() {
+        let now = ConfigFolders.find()
+        guard now != folders else { return }
+        folders = now
+        hook = HookSet(folders: now, dataDir: Paths.dataDir)
+        readHookStatus()
     }
 
     /// settings.json, the one statusLine key, read at launch and again only when the file's modification time moves.
@@ -414,12 +429,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
            Settings.nudged(Settings.nudgedWeeklyWindow) != w.resetsAt.timeIntervalSince1970 {
             let start = w.resetsAt.addingTimeInterval(-length)
             let body = PaceModel.reading(used: w.used, start: start, reset: w.resetsAt, now: now).map { PaceModel.nudgeBody($0) } ?? ""
-            notifier.post(title: "Weekly at \(Int(w.used.rounded()))%", body: body, id: "weekly-\(Int(w.resetsAt.timeIntervalSince1970))")
+            notifier.postAsking(title: "Weekly at \(Int(w.used.rounded()))%", body: body, id: "weekly-\(Int(w.resetsAt.timeIntervalSince1970))")
             Settings.setNudged(Settings.nudgedWeeklyWindow, w.resetsAt.timeIntervalSince1970)
         }
         if let f = l.active("five_hour"), now >= f.resetsAt.addingTimeInterval(-Rules.fiveHourNudgeLead), now < f.resetsAt,
            Settings.nudged(Settings.nudgedFiveHourWindow) != f.resetsAt.timeIntervalSince1970 {
-            notifier.post(title: "5h window ends in 15 min", body: "\(Int(f.used.rounded()))% used.", id: "five-\(Int(f.resetsAt.timeIntervalSince1970))")
+            notifier.postAsking(title: "5h window ends in 15 min", body: "\(Int(f.used.rounded()))% used.", id: "five-\(Int(f.resetsAt.timeIntervalSince1970))")
             Settings.setNudged(Settings.nudgedFiveHourWindow, f.resetsAt.timeIntervalSince1970)
         }
     }
@@ -432,7 +447,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                   listPrice: Settings.bool(Settings.listPriceEquivalent), nudgeNote: notifier.noteForSettings, hookError: hookError,
                   keepAwake: Settings.bool(Settings.keepAwake),
                   keepAwakeWhileOpen: Settings.bool(Settings.keepAwakeWhileOpen), awake: awake, login: login, loginError: loginError,
-                  restoreSessions: Settings.bool(Settings.restoreSessions), warn: warning, tab: tab, section: section, now: Date())
+                  restoreSessions: Settings.bool(Settings.restoreSessions), warn: warning, tab: tab, section: section, now: Date(),
+                  version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
     }
 
     func render() {
@@ -471,10 +487,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             }
         case .install:
             do {
-                let st = try hook.install()
+                let done = try hook.install(previousFallback: { Settings.defaults.string(forKey: Settings.previousCommandKey($0.id)) })
                 hookError = nil
-                if let p = st.previousCommand { Settings.defaults.set(p, forKey: Settings.hookPreviousCommand) }
-                if let r = st.slowerRefresh { Settings.defaults.set(r, forKey: Settings.hookPreviousRefresh) }
+                for (h, st) in done {
+                    if let p = st.previousCommand { Settings.defaults.set(p, forKey: Settings.previousCommandKey(h.id)) }
+                    if let r = st.slowerRefresh { Settings.defaults.set(r, forKey: Settings.previousRefreshKey(h.id)) }
+                }
                 startFeedWatch()
             } catch {
                 hookFailed("install", error)
@@ -482,11 +500,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             readHookStatus()
         case .uninstall:
             do {
-                try hook.uninstall(previousCommand: Settings.defaults.string(forKey: Settings.hookPreviousCommand),
-                                   previousRefresh: Settings.defaults.object(forKey: Settings.hookPreviousRefresh) as? Double)
+                try Self.removeEverywhere(hook)
                 hookError = nil
-                Settings.defaults.removeObject(forKey: Settings.hookPreviousCommand)
-                Settings.defaults.removeObject(forKey: Settings.hookPreviousRefresh)
                 stopFeedWatch()
             } catch {
                 hookFailed("remove", error)
@@ -495,6 +510,17 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case .quit: NSApp.terminate(nil)
         }
         render()
+    }
+
+    /// Remove in every settings folder, with the chained command and interval the app kept as the fallback for a lost backup.
+    /// Also what `tokenpanda --remove-status-line` runs, which the cask's zap calls before it trashes the data folder.
+    static func removeEverywhere(_ hook: HookSet) throws {
+        try hook.uninstall(previousCommand: { Settings.defaults.string(forKey: Settings.previousCommandKey($0.id)) },
+                           previousRefresh: { Settings.defaults.object(forKey: Settings.previousRefreshKey($0.id)) as? Double })
+        for h in hook.hooks {
+            Settings.defaults.removeObject(forKey: Settings.previousCommandKey(h.id))
+            Settings.defaults.removeObject(forKey: Settings.previousRefreshKey(h.id))
+        }
     }
 
     func hookFailed(_ what: String, _ error: Error) {
@@ -536,9 +562,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         switch e.keyCode {
         case KeyCode.escape: popover.performClose(nil); return true
-        case KeyCode.tab: tab = (tab + (e.modifierFlags.contains(.shift) ? 2 : 1)) % 3; render(); return true
+        case KeyCode.tab:
+            // Tab switches the tab and puts the focus on it, so the arrows go on from there
+            tab = (tab + (e.modifierFlags.contains(.shift) ? 2 : 1)) % 3; render()
+            lineView.focus(on: .tab(tab), visible: true)
+            return true
         default: break
         }
+        if let k = LineView.focusKey(forKeyCode: e.keyCode), lineView.moveFocus(k) { return true }
         if tab == 0, let c = e.charactersIgnoringModifiers, let i = ["m", "p", "s"].firstIndex(of: c) { section = i; render(); return true }
         return false
     }

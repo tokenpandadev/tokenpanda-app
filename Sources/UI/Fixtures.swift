@@ -118,6 +118,22 @@ public enum Fixtures {
         settings.keepAwake = true; settings.awake = .working(2)   // the sample's two open sessions, both working
         settings.login = .on
         settings.restoreSessions = true
+        settings.version = "0.1.9"
+        // the first call: two sessions open, neither has replied, no rate_limits yet
+        let waitingSnap = openSessions.map { var o = $0; o.snapshot.rateLimits = nil; o.snapshot.currentUsageTokens = nil; o.snapshot.totalCostUSD = 0; return o }
+        let firstReply = input(feedState: FeedState(limits: nil, sessions: waitingSnap, lastWriteAt: now.addingTimeInterval(-2)))
+        // Install refused: settings.json is not a JSON object
+        var installFailed = input(feedState: fresh, hook: HookStatus(installed: false, previousCommand: nil))
+        installFailed.hookError = "Could not install the entry: cannot read settings.json: settings.json is not a JSON object"
+        // two settings folders, the entry in one, its script gone in the other, and the error of the last Install
+        var folders = input(hook: HookStatus(installed: false, previousCommand: nil, scriptMissing: true, anyInstalled: true,
+                                             targets: ["~/.claude", "~/.claude-work"]), tab: 2)
+        folders.hookError = "Could not install the entry: ~/.claude-work: cannot write settings.json: You don\u{2019}t have permission"
+        folders.nudgeNote = "Notifications are off in System Settings"
+        folders.restoreSessions = true
+        // the weekly reset on Sunday 18:00 passed half an hour ago with no session: the row after 12 Oct says 19 Oct
+        var rolled = input(feedState: FeedState(limits: limits(weekly: 61, asOf: date(2026, 10, 18, 17, 40)), sessions: [], lastWriteAt: date(2026, 10, 18, 17, 40)))
+        rolled.now = date(2026, 10, 18, 18, 30)
         return [
             ("claude-overpace", input(weekly: 61)),
             ("claude-ahead", input(weekly: 45)),
@@ -133,6 +149,10 @@ public enum Fixtures {
             ("mac-warning", input(warn: true, tab: 1)),
             ("mac-health-na", input(tab: 1, healthKnown: false)),
             ("settings", settings),
+            ("claude-firstreply", firstReply),
+            ("claude-install-failed", installFailed),
+            ("claude-week-rolled", rolled),
+            ("settings-folders", folders),
         ]
     }
 }

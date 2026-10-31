@@ -6,13 +6,32 @@ import UI
 import Transcripts
 import MacStats
 import ServiceManagement
+import Feed
 
 // Entry point of tokenpanda. Debug builds also take four flags that print or render and exit:
-//   tokenpanda --snapshot <dir>         every tab and state of the sample data to PNG through the view's bitmap
+//   tokenpanda --snapshot <dir> [--snapshot-stage white]   every tab and state of the sample data to PNG through the view's bitmap
 //   tokenpanda --read-transcripts       one full pass over the transcripts: counts and seconds
 //   tokenpanda --sample-mac <rounds>    the Mac sampler alone at 2 s, its own CPU time
 //   tokenpanda --login-item on|off|status   the Open at login row's own calls, from inside an app bundle; prints the system's status
 // Release builds contain none of them.
+
+// tokenpanda --remove-status-line: Remove, as the Settings row does, in every settings folder, then exit. The cask's
+// zap runs it before it trashes the data folder, so settings.json never points at a deleted script. In release builds too.
+if CommandLine.arguments.contains("--remove-status-line") {
+    MainActor.assumeIsolated {
+        let hook = HookSet(folders: ConfigFolders.find(), dataDir: Paths.dataDir)
+        let had = zip(hook.hooks, hook.targets).filter { h, _ in let st = h.status(); return st.installed || st.scriptMissing }.map(\.1)
+        do {
+            try Controller.removeEverywhere(hook)
+            print(had.isEmpty ? "tokenpanda: no status line entry of tokenpanda's found"
+                              : "tokenpanda: status line entry removed from " + had.joined(separator: ", "))
+        } catch {
+            print("tokenpanda: " + ((error as? HookError)?.description ?? error.localizedDescription))
+            exit(1)
+        }
+    }
+    exit(0)
+}
 
 #if DEBUG
 let args = CommandLine.arguments
@@ -21,6 +40,8 @@ if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     _ = NSApplication.shared
     MainActor.assumeIsolated {
+        // --snapshot-stage white: the tint over white, the brightest desktop the glass can sit on, for the contrast check
+        if let j = args.firstIndex(of: "--snapshot-stage"), j + 1 < args.count, args[j + 1] == "white" { LineView.stageOverride = Tokens.white }
         var written: [String] = []
         for (name, input) in Fixtures.all() {
             let url = dir.appendingPathComponent(name + ".png")

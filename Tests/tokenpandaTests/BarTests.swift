@@ -136,13 +136,14 @@ struct BarTests {
         #expect(s[2] == " [x] Nudge at 80% and before the 5h end")
         #expect(s[4] == "     tokens at list prices, not the plan price")
         #expect(s[5] == " [ ] Keep the Mac awake while Claude works")
-        #expect(s[6] == " [ ] Reopen sessions after a restart")
-        #expect(s[7] == "     asks first, then opens them in Terminal")
-        #expect(s[9] == " Install the status line entry")
-        #expect(s[10] == "     one statusLine entry in ~/.claude/settings.json")
-        #expect(s[12] == " This app makes no network calls. Usage comes")
-        #expect(s[13] == " from Claude Code's own status feed on this Mac.")
-        #expect(s[15] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
+        #expect(s[6] == "     a closed lid on battery still sleeps")
+        #expect(s[7] == " [ ] Reopen sessions after a restart")
+        #expect(s[8] == "     asks first, then opens them in Terminal")
+        #expect(s[10] == " Install the status line entry")
+        #expect(s[11] == "     one entry in ~/.claude/settings.json")
+        #expect(s[13] == " This app makes no network calls. Usage comes")
+        #expect(s[14] == " from Claude Code's own status feed on this Mac.")
+        #expect(s[16] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
     }
 
     @Test func keepAwakeRowSaysWhenItHoldsTheMacAwake() {
@@ -150,33 +151,38 @@ struct BarTests {
         #expect(lines[5].plain == " [x] Keep the Mac awake while Claude works")
         #expect(lines[5].pieces[1].action == .toggle("keepAwake"))
         #expect(lines[5].cells <= Grammar.popCells + 1)
-        #expect(lines[6].plain == "     [ ] also while a session waits for you")
-        #expect(lines[6].pieces[1].action == .toggle("keepAwakeWhileOpen"))
-        #expect(lines[7].plain == "         awake  2 sessions working")
-        #expect(lines[8].plain == " [ ] Reopen sessions after a restart")
+        #expect(lines[6].plain == "     a closed lid on battery still sleeps")
+        #expect(lines[7].plain == "     [ ] also while a session waits for you")
+        #expect(lines[7].pieces[1].action == .toggle("keepAwakeWhileOpen"))
+        #expect(lines[8].plain == "         awake  2 sessions working")
+        #expect(lines[9].plain == " [ ] Reopen sessions after a restart")
         let open = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: true, keepAwakeWhileOpen: true,
                                                    awakeNote: "awake  1 session open"))
-        #expect(open[6].plain == "     [x] also while a session waits for you")
-        #expect(open[7].plain == "         awake  1 session open")
+        #expect(open[7].plain == "     [x] also while a session waits for you")
+        #expect(open[8].plain == "         awake  1 session open")
         // with the first switch off the second row is not drawn, whatever it holds
         let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, keepAwake: false, keepAwakeWhileOpen: true))
         #expect(off[5].plain == " [ ] Keep the Mac awake while Claude works")
-        #expect(off[6].plain == " [ ] Reopen sessions after a restart")
+        #expect(off[7].plain == " [ ] Reopen sessions after a restart")
     }
 
     @Test func hookRowRemovesWhenInstalledAndShowsTheError() {
         let lines = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: true,
                                                     hookError: "Could not remove the entry: cannot write settings.json: denied"))
-        #expect(lines[9].plain == " Remove the status line entry")
-        #expect(lines[9].pieces[1].action == .uninstall)
-        #expect(lines[10].plain == "     puts back what statusLine held before")
-        #expect(lines[11].plain.hasPrefix("     Could not remove the entry"))
-        #expect(lines[11].cells <= Grammar.popCells + 1)
+        #expect(lines[10].plain == " Remove the status line entry")
+        #expect(lines[10].pieces[1].action == .uninstall)
+        #expect(lines[11].plain == "     puts back what statusLine held before")
+        // the error is wrapped over lines, never cut: every word of it is there
+        #expect(lines[12].plain.hasPrefix("     Could not remove the entry"))
+        let err = lines[12...].prefix { !$0.plain.isEmpty }
+        #expect(err.allSatisfy { $0.cells <= Grammar.popCells + 1 })
+        #expect(err.map { $0.plain.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
+                == "Could not remove the entry: cannot write settings.json: denied")
         let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: false))
-        #expect(off[9].pieces[1].action == .install)
+        #expect(off[10].pieces[1].action == .install)
     }
 
-    @Test func openAtLoginRowShowsTheSystemsState() {
+    @Test func openAtLoginRowShowsTheSystemsState() throws {
         // off: the empty box, no note
         let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, openAtLogin: .off))
         #expect(off[0].plain == " [ ] Open at login")
@@ -193,13 +199,16 @@ struct BarTests {
         #expect(wait[1].pieces[1].action == .toggle("openAtLogin"))
         #expect(wait[1].cells <= Grammar.popCells + 1)
         #expect(wait[2].plain == " [ ] Mac figures in the bar")
-        // an error from register(): a dim line under the row, cut to the popover's width
+        // an error from register(): dim lines under the row, wrapped to the popover's width
         let err = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, openAtLogin: .off,
                                                   loginError: "Could not turn it on: The operation couldn\u{2019}t be completed. Operation not permitted"))
         #expect(err[0].plain == " [ ] Open at login")
         #expect(err[1].plain.hasPrefix("     Could not turn it on: The operation"))
-        #expect(err[1].cells <= Grammar.popCells + 1)
-        #expect(err[2].plain == " [ ] Mac figures in the bar")
+        let next = try #require(err.firstIndex { $0.plain == " [ ] Mac figures in the bar" })
+        #expect(next > 2)
+        #expect(err[1..<next].allSatisfy { $0.cells <= Grammar.popCells + 1 })
+        #expect(err[1..<next].map { $0.plain.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
+                == "Could not turn it on: The operation couldn\u{2019}t be completed. Operation not permitted")
     }
 
     @Test func loginItemFollowsTheSystemStatus() {

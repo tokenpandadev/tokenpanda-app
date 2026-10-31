@@ -172,6 +172,12 @@ public actor FeedReader {
         var formatChanged = false
         var carriedWindows = false
         var nextFigures: [String: ReplyFigures] = [:]
+        for name in names where name.hasSuffix(".tmp") {
+            // a hook run Claude Code cancelled between the write and the move leaves its .tmp file behind
+            let url = sessionsDir.appendingPathComponent(name)
+            if let mtime = (try? fm.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date,
+               OpenSessionsRule.shouldDelete(writtenAt: mtime, now: now) { try? fm.removeItem(at: url) }
+        }
         for name in names where name.hasSuffix(".json") {
             let url = sessionsDir.appendingPathComponent(name)
             guard let attrs = try? fm.attributesOfItem(atPath: url.path), let mtime = attrs[.modificationDate] as? Date else { continue }

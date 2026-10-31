@@ -22,11 +22,11 @@ public enum Grammar {
             if i > 0 { tabs.append(sp("  ")) }
             let style: Style = i == sel ? .tabSelected : .text
             if name == "Mac" && warn {
-                tabs.append(Piece(" Mac ", style, action: .tab(i)))
-                tabs.append(Piece("\u{25CF}", Style(fg: Tokens.warning, bg: style.bg), action: .tab(i)))
-                tabs.append(Piece(" ", style, action: .tab(i)))
+                tabs.append(Piece(" Mac ", style, action: .tab(i), checked: i == sel, label: "Mac, warning"))
+                tabs.append(Piece("\u{25CF}", Style(fg: Tokens.warning, bg: style.bg), action: .tab(i), checked: i == sel, label: "Mac, warning"))
+                tabs.append(Piece(" ", style, action: .tab(i), checked: i == sel, label: "Mac, warning"))
             } else {
-                tabs.append(Piece(" \(name) ", style, action: .tab(i)))
+                tabs.append(Piece(" \(name) ", style, action: .tab(i), checked: i == sel, label: name))
             }
         }
         return [
@@ -103,20 +103,30 @@ public enum Grammar {
                 out.append(L(sp(" "), sp("Macs, so the real figure may be higher", .dim)))
             }
             return out
-        case .noHook(let previous, let slowerRefresh):
+        case .noHook(let previous, let slowerRefresh, let error, let targets):
             var out: [Line] = [
                 L(sp(" "), sp("Weekly and 5h window", .bold)),
                 L(sp(" "), sp("needs Claude Code's status line feed", .dim)),
-                L(sp(" "), sp("one statusLine entry in ~/.claude/settings.json", .dim)),
-                L(sp(" "), sp(previous == nil ? "chained if one exists" : "your current status line is kept and chained", .dim)),
             ]
+            if targets.count <= 1 {
+                out += dimLines("one statusLine entry in \(targets.first ?? "~/.claude")/settings.json", indent: 1)
+            } else {
+                out.append(L(sp(" "), sp("one statusLine entry in the settings.json of", .dim)))
+                for t in targets { out += dimLines(t, indent: 3) }
+            }
+            out.append(L(sp(" "), sp(previous == nil ? "chained if one exists" : "your current status line is kept and chained", .dim)))
             if slowerRefresh { out.append(L(sp(" "), sp(refreshLine, .dim))) }
-            out += [L(sp(" "), Piece(" Install the status line hook ", .tabSelected, action: .install)), blank]
+            out.append(L(sp(" "), Piece(" Install the status line hook ", .tabSelected, action: .install, label: "Install the status line hook")))
+            if let error { out += dimLines(error, indent: 1) }
+            out.append(blank)
             out += privacy()
             return out
         case .noSession:
             return windowEmpty("Weekly (all models)", "no session yet  open Claude Code once") + [blank]
                 + windowEmpty("5h window", "no session yet  open Claude Code once")
+        case .firstReply:
+            return windowEmpty("Weekly (all models)", "waiting for the first reply") + [blank]
+                + windowEmpty("5h window", "waiting for the first reply")
         case .noLimits:
             return [L(sp(" "), sp("Weekly and 5h window", .bold)),
                     L(sp(" "), sp("these sessions carry no plan limits", .dim))]
@@ -167,7 +177,7 @@ public enum Grammar {
         var pieces: [Piece] = [sp(" ")]
         for (i, name) in ["Models", "Projects", "Sessions"].enumerated() {
             if i > 0 { pieces.append(sp("  ")) }
-            pieces.append(Piece(" \(name) ", i == sel ? .subSelected : .text, action: .section(i)))
+            pieces.append(Piece(" \(name) ", i == sel ? .subSelected : .text, action: .section(i), checked: i == sel, label: name))
         }
         return Line(pieces)
     }
@@ -231,11 +241,19 @@ public enum Grammar {
     }
 
     // 6.10 checkbox rows
-    public static func cbRow(_ key: String, _ label: String, _ on: Bool, _ sub: String?, indent: String = " ") -> [Line] {
-        var out = [Line([sp(indent), Piece(on ? "[x]" : "[ ]", .text, action: .toggle(key)), Piece(" " + label, .text, action: .toggle(key))],
-                        hover: true, label: label)]
-        if let sub { out.append(L(sp(indent + "    "), sp(sub, .dim))) }
+    /// A checkbox row: the box and the label are one control, checked or not; the dim lines under it are its help.
+    public static func cbRow(_ key: String, _ label: String, _ on: Bool, _ sub: String?, indent: String = " ", more: [String] = []) -> [Line] {
+        let subs = [sub].compactMap { $0 } + more
+        var out = [Line([sp(indent), Piece(on ? "[x]" : "[ ]", .text, action: .toggle(key), checked: on, label: label),
+                         Piece(" " + label, .text, action: .toggle(key), checked: on, label: label)],
+                        hover: true, label: label, help: subs.isEmpty ? nil : subs.joined(separator: ", "))]
+        for sub in subs { out += dimLines(sub, indent: indent.count + 4) }
         return out
+    }
+
+    /// Dim text at an indent, wrapped at spaces to the rule's width (popCells + 1, as the header rule) instead of cut at the edge.
+    public static func dimLines(_ text: String, indent: Int) -> [Line] {
+        Format.wrap(text, popCells + 1 - indent).map { L(sp(String(repeating: " ", count: indent)), sp($0, .dim)) }
     }
 
     /// The key hints. m, p and s switch the token sections, so they are named only on the Claude tab, where they work.
@@ -293,15 +311,18 @@ public enum Grammar {
         out += cbRow("macFiguresInBar", "Mac figures in the bar", s.macInBar, nil)
         out += cbRow("nudges", "Nudge at 80% and before the 5h end", s.nudges, s.nudgeNote)
         out += cbRow("listPriceEquivalent", "List price equivalent", s.listPrice, "tokens at list prices, not the plan price")
-        out += cbRow("keepAwake", "Keep the Mac awake while Claude works", s.keepAwake, nil)
+        out += cbRow("keepAwake", "Keep the Mac awake while Claude works", s.keepAwake, "a closed lid on battery still sleeps")
         if s.keepAwake {
             out += cbRow("keepAwakeWhileOpen", "also while a session waits for you", s.keepAwakeWhileOpen, s.awakeNote, indent: "     ")
         }
-        out += cbRow("restoreSessions", "Reopen sessions after a restart", s.restoreSessions, "asks first, then opens them in Terminal")
+        out += cbRow("restoreSessions", "Reopen sessions after a restart", s.restoreSessions, "asks first, then opens them in Terminal",
+                     more: s.restoreSessions ? [s.nudgeNote].compactMap { $0 } : [])
         out.append(blank)
-        out += hookRow(installed: s.hookInstalled, error: s.hookError, slowerRefresh: s.hookSlowerRefresh)
+        out += hookRow(installed: s.hookInstalled, someInstalled: s.hookSomeInstalled, error: s.hookError, slowerRefresh: s.hookSlowerRefresh,
+                       targets: s.hookTargets, scriptMissing: s.hookScriptMissing)
         out.append(blank)
         out += privacy()
+        if let v = s.version { out.append(L(sp(" "), sp(v, .dim))) }
         out.append(blank)
         out.append(Line([sp(" "), Piece("Quit", .text, action: .quit), Piece(Format.rcol("\u{2318}Q", popCells - 5), .text, action: .quit)],
                         hover: true, label: "Quit, command Q"))
@@ -316,9 +337,7 @@ public enum Grammar {
             out.append(Line([sp("     "), Piece("click to allow it in Login Items", .dim, action: .toggle(loginKey))],
                             hover: true, label: "Open at login waits for your OK, click to open Login Items in System Settings"))
         }
-        if let error {
-            out.append(L(sp("     "), sp(Format.col(error, popCells - 5).trimmingCharacters(in: .whitespaces), .dim)))
-        }
+        if let error { out += dimLines(error, indent: 5) }
         return out
     }
 
@@ -329,15 +348,25 @@ public enum Grammar {
     static let refreshLine = "your status line then refreshes every 5 s"
 
     /// The status line entry: one click installs it, one click removes it and puts the previous entry back.
-    public static func hookRow(installed: Bool, error: String?, slowerRefresh: Bool = false) -> [Line] {
-        let label = installed ? "Remove the status line entry" : "Install the status line entry"
-        let action: Action = installed ? .uninstall : .install
-        var out = [Line([sp(" "), Piece(label, .text, action: action)], hover: true, label: label)]
-        out.append(L(sp("     "), sp(installed ? "puts back what statusLine held before" : "one statusLine entry in ~/.claude/settings.json", .dim)))
-        if !installed, slowerRefresh { out.append(L(sp("     "), sp(refreshLine, .dim))) }
-        if let error {
-            out.append(L(sp("     "), sp(Format.col(error, popCells - 5).trimmingCharacters(in: .whitespaces), .dim)))
+    /// With several settings folders installed in some and not in others, both rows show: Install adds the missing ones.
+    public static func hookRow(installed: Bool, someInstalled: Bool = false, error: String?, slowerRefresh: Bool = false,
+                               targets: [String] = ["~/.claude"], scriptMissing: Bool = false) -> [Line] {
+        var out: [Line] = []
+        if !installed {
+            let label = "Install the status line entry"
+            out.append(Line([sp(" "), Piece(label, .text, action: .install)], hover: true, label: label))
+            let target = targets.count <= 1 ? "one entry in \(targets.first ?? "~/.claude")/settings.json"
+                                            : "one entry in each of " + targets.joined(separator: ", ")
+            out += dimLines(target, indent: 5)
+            if scriptMissing { out += dimLines("the hook script is gone, Install puts it back", indent: 5) }
+            if slowerRefresh { out.append(L(sp("     "), sp(refreshLine, .dim))) }
         }
+        if installed || someInstalled {
+            let label = "Remove the status line entry"
+            out.append(Line([sp(" "), Piece(label, .text, action: .uninstall)], hover: true, label: label))
+            out.append(L(sp("     "), sp("puts back what statusLine held before", .dim)))
+        }
+        if let error { out += dimLines(error, indent: 5) }
         return out
     }
 

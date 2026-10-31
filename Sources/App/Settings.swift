@@ -18,6 +18,10 @@ enum Settings {
     static let nudgedWeeklyWindow = "nudgedWeeklyWindow"
     static let nudgedFiveHourWindow = "nudgedFiveHourWindow"
 
+    /// The fallback keys per settings folder: the old names for ~/.claude, a suffix for every other folder.
+    static func previousCommandKey(_ id: String?) -> String { id.map { hookPreviousCommand + "." + $0 } ?? hookPreviousCommand }
+    static func previousRefreshKey(_ id: String?) -> String { id.map { hookPreviousRefresh + "." + $0 } ?? hookPreviousRefresh }
+
     static func register() {
         defaults.register(defaults: [macFiguresInBar: false, nudges: true, listPriceEquivalent: true, keepAwake: false, keepAwakeWhileOpen: false, restoreSessions: false])
     }
@@ -36,9 +40,6 @@ enum Paths {
     static let bundleId = "dev.tokenpanda.app"
     static var dataDir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent(bundleId, isDirectory: true)
-    }
-    static var settingsJSON: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/settings.json")
     }
     static var weeksFile: URL { dataDir.appendingPathComponent("weeks.json") }
     static var restoreFile: URL { dataDir.appendingPathComponent("restore.json") }

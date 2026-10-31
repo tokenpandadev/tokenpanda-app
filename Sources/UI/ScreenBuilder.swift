@@ -35,11 +35,14 @@ public struct LiveInput: Sendable {
     public var now: Date
     public var timeZone: TimeZone
     public var calendar: Calendar
+    public var version: String?        // the bundle's CFBundleShortVersionString; nil in a bare debug binary
 
     public init(feed: FeedState, hook: HookStatus, tokens: TokenSummary?, transcriptsRootsExist: Bool, transcriptsError: String?,
                 mac: MacSample?, weeks: WeekRecords, macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String?, hookError: String? = nil,
                 keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awake: KeepAwake? = nil, login: LoginItem = .off, loginError: String? = nil,
-                restoreSessions: Bool = false, warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current) {
+                restoreSessions: Bool = false, warn: Bool, tab: Int, section: Int, now: Date, timeZone: TimeZone = .current, calendar: Calendar = .current,
+                version: String? = nil) {
+        self.version = version
         self.feed = feed; self.hook = hook; self.tokens = tokens; self.transcriptsRootsExist = transcriptsRootsExist
         self.transcriptsError = transcriptsError; self.mac = mac; self.weeks = weeks; self.macInBar = macInBar; self.nudges = nudges
         self.listPrice = listPrice; self.nudgeNote = nudgeNote; self.hookError = hookError; self.warn = warn
@@ -96,11 +99,14 @@ public enum ScreenBuilder {
             return .windows(views, staleNote: stale)
         }
         if i.feed.lastWriteAt == nil {
-            return i.hook.installed ? .noSession : .noHook(previous: i.hook.previousCommand, slowerRefresh: i.hook.slowerRefresh != nil)
+            return i.hook.installed ? .noSession : .noHook(previous: i.hook.previousCommand, slowerRefresh: i.hook.slowerRefresh != nil,
+                                                           error: i.hookError, targets: i.hook.targets)
         }
         // a feed arrived and carried no rate_limits: after the first reply that means the account has none to show
         let answered = i.feed.sessions.contains { $0.snapshot.currentUsageTokens != nil }
-        return answered ? .noLimits : .noSession
+        if answered { return .noLimits }
+        // a session is open and has not replied: it brings the windows with its first reply
+        return i.feed.sessions.isEmpty ? .noSession : .firstReply
     }
 
     // MARK: open sessions
@@ -179,9 +185,13 @@ public enum ScreenBuilder {
                                     note: r.hitAt.map { clock($0, tz, weekday: true) }))
             }
         }
-        // without a live window the current row is the calendar week of today, labelled by its Monday
+        // without a live window the current row is the week after the last reset seen, labelled like the others; with no
+        // reset seen, the calendar week of today by its Monday. A Sunday evening reset starts the week of the next Monday,
+        // so the row after "26 Oct" says "2 Nov", never "26 Oct" twice.
         var weekCal = cal; weekCal.firstWeekday = 2
-        let thisWeek = f.string(from: weekCal.dateInterval(of: .weekOfYear, for: i.now)?.start ?? i.now)
+        var thisWeek = f.string(from: weekCal.dateInterval(of: .weekOfYear, for: i.now)?.start ?? i.now)
+        let lastReset = [current?.resetsAt, i.weeks.records.last?.resetsAt].compactMap { $0 }.filter { $0 <= i.now }.max()
+        if let r = lastReset, i.now < r.addingTimeInterval(weeklyLength) { thisWeek = label(r.addingTimeInterval(weeklyLength)) }
         if let c = current, i.now >= c.resetsAt {
             // the window rolled while no session fed: the current row has no figure, only the last value seen
             out.append(WeekView(date: thisWeek, used: nil, note: "last seen \(Int(c.used.rounded()))%"))
@@ -293,7 +303,9 @@ public enum ScreenBuilder {
         let settings = SettingsTab(macInBar: i.macInBar, nudges: i.nudges, listPrice: i.listPrice, nudgeNote: i.nudgeNote,
                                    hookInstalled: i.hook.installed, hookError: i.hookError, keepAwake: i.keepAwake,
                                    keepAwakeWhileOpen: i.keepAwakeWhileOpen, awakeNote: awakeNote(i.awake), openAtLogin: i.login, loginError: i.loginError,
-                                   restoreSessions: i.restoreSessions, hookSlowerRefresh: !i.hook.installed && i.hook.slowerRefresh != nil)
+                                   restoreSessions: i.restoreSessions, hookSlowerRefresh: !i.hook.installed && i.hook.slowerRefresh != nil,
+                                   hookSomeInstalled: i.hook.anyInstalled && !i.hook.installed, hookTargets: i.hook.targets,
+                                   hookScriptMissing: i.hook.scriptMissing, version: i.version.map { "tokenpanda " + $0 })
         return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: settings)
     }
 
@@ -320,6 +332,9 @@ public enum ScreenBuilder {
         return st
     }
 
+    /// The weekday in full for VoiceOver: "Sunday 17:00", where the panel writes "Sun 17:00".
+    static func spokenDay(_ d: Date, _ tz: TimeZone) -> String { PaceModel.format(d, "EEEE HH:mm", timeZone: tz) }
+
     static func itemFigures(_ i: LiveInput) -> ItemState {
         let macText = i.macInBar ? i.mac.map { " CPU \(Int($0.cpuBusy.rounded()))%" } : nil
         guard let limits = i.feed.limits, !limits.planless, !limits.hidden.contains("seven_day"), let rec = limits.windows["seven_day"], !limits.isUnknown("seven_day"),
@@ -334,12 +349,12 @@ public enum ScreenBuilder {
         }
         if i.now >= rec.resetsAt {
             return ItemState(used: nil, elapsed: nil, over: false, stale: true, warn: i.warn, macText: macText,
-                             label: "Claude usage, reset passed " + clock(rec.resetsAt, i.timeZone, weekday: true) + (i.warn ? ", Mac warning" : ""))
+                             label: "Claude usage, reset passed " + spokenDay(rec.resetsAt, i.timeZone) + (i.warn ? ", Mac warning" : ""))
         }
         let r = PaceModel.reading(used: rec.used, start: rec.resetsAt.addingTimeInterval(-length), reset: rec.resetsAt, now: i.now, timeZone: i.timeZone)
         let over = !stale && r?.status == .overPace
         var label = "Weekly \(Int(rec.used.rounded()))% used"
-        if let r { label += ", " + r.status.rawValue.lowercased() + ", " + r.resetText.lowercased() }
+        if let r { label += ", " + r.status.rawValue.lowercased() + ", resets " + spokenDay(rec.resetsAt, i.timeZone) }
         if stale { label += ", as of " + clock(limits.asOf, i.timeZone) }
         if i.warn { label += ", Mac warning" }
         return ItemState(used: Int(rec.used.rounded()), elapsed: r?.elapsedShare, over: over, stale: stale, warn: i.warn, macText: macText, label: label)

@@ -170,6 +170,10 @@ struct FeedTests {
         try "{\"statusLine\":{\"type\":\"command\",\"command\":\"/usr/local/bin/other\"},\"other\":1}".write(to: settings, atomically: true, encoding: .utf8)
         #expect(hook.status() == HookStatus(installed: false, previousCommand: "/usr/local/bin/other"))
         try "{\"statusLine\":{\"type\":\"command\",\"command\":\"\(hook.hookPath.path)\"}}".write(to: settings, atomically: true, encoding: .utf8)
+        // the entry is ours but the script is not there (a zap, a deleted data folder): not installed, Install offered again
+        #expect(hook.status() == HookStatus(installed: false, previousCommand: nil, scriptMissing: true))
+        try "#!/bin/sh\n".write(to: hook.hookPath, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hook.hookPath.path)
         #expect(hook.status() == HookStatus(installed: true, previousCommand: nil))
     }
 

@@ -27,9 +27,30 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     var noteForSettings: String? {
         switch state {
-        case .denied: return "Notifications are off for this app in System Settings"
-        case .unavailable: return "Notifications need the app bundle, not swift run"
+        case .denied: return "Notifications are off in System Settings"
+        case .unavailable: return "Notifications need the app bundle"
         default: return nil
+        }
+    }
+
+    /// Reads what the user decided before, without asking: the Settings note shows a denial from the first open on.
+    func refreshState() {
+        guard available, state == .undecided else { return }
+        Task { @MainActor in
+            switch await UNUserNotificationCenter.current().notificationSettings().authorizationStatus {
+            case .authorized, .provisional: state = .allowed
+            case .denied: state = .denied
+            default: break
+            }
+        }
+    }
+
+    /// Posts, asking for permission first when the user was never asked: the prompt comes with the first notification
+    /// that is due, not at launch.
+    func postAsking(title: String, body: String, id: String, category: String? = nil) {
+        Task { @MainActor in
+            await authorize()
+            post(title: title, body: body, id: id, category: category)
         }
     }
 

@@ -35,8 +35,11 @@ public struct WindowView: Sendable, Equatable {
 
 public enum LimitsView: Sendable, Equatable {
     case windows([WindowView], staleNote: Bool)
-    case noHook(previous: String?, slowerRefresh: Bool = false)   // slowerRefresh: the user's status line refreshes less often than 5 s
+    /// slowerRefresh: the user's status line refreshes less often than 5 s. error: the last Install error, drawn under the button.
+    /// targets: the settings folders Install writes to, as the user knows them ("~/.claude").
+    case noHook(previous: String?, slowerRefresh: Bool = false, error: String? = nil, targets: [String] = ["~/.claude"])
     case noSession
+    case firstReply        // sessions are open and none has replied yet: the first reply brings the windows
     case noLimits          // the sessions' replies carry no plan windows (an API key, Bedrock, Vertex)
     case hooksDisabled     // disableAllHooks is on: Claude Code runs no status line
     case formatChanged     // rate_limits arrived in a shape this version cannot read
@@ -156,10 +159,16 @@ public struct SettingsTab: Sendable, Equatable {
     public var awakeNote: String?   // "awake  2 sessions working" or "awake  1 session open", only while the power assertion is held
     public var restoreSessions: Bool
     public var hookSlowerRefresh: Bool   // Install would set the user's longer refreshInterval to 5 s: one line says so
+    public var hookSomeInstalled: Bool   // installed in some settings folders, not all: both rows show
+    public var hookTargets: [String]     // the settings folders, "~/.claude"
+    public var hookScriptMissing: Bool   // settings.json points at a hook script that is gone
+    public var version: String?          // "tokenpanda 0.1.9", under the privacy lines
     public init(macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String? = nil, hookInstalled: Bool = false, hookError: String? = nil,
                 keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awakeNote: String? = nil, openAtLogin: LoginItem = .off, loginError: String? = nil,
-                restoreSessions: Bool = false, hookSlowerRefresh: Bool = false) {
+                restoreSessions: Bool = false, hookSlowerRefresh: Bool = false, hookSomeInstalled: Bool = false, hookTargets: [String] = ["~/.claude"],
+                hookScriptMissing: Bool = false, version: String? = nil) {
         self.restoreSessions = restoreSessions; self.hookSlowerRefresh = hookSlowerRefresh
+        self.hookSomeInstalled = hookSomeInstalled; self.hookTargets = hookTargets; self.hookScriptMissing = hookScriptMissing; self.version = version
         self.openAtLogin = openAtLogin; self.loginError = loginError
         self.macInBar = macInBar; self.nudges = nudges; self.listPrice = listPrice; self.nudgeNote = nudgeNote
         self.hookInstalled = hookInstalled; self.hookError = hookError; self.keepAwake = keepAwake

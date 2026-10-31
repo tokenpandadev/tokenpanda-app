@@ -435,6 +435,8 @@ struct WindowsTests {
         let hook = Hook(settingsURL: settings, dataDir: dir)
         let obj: [String: Any] = ["disableAllHooks": true, "statusLine": ["type": "command", "command": hook.hookCommand]]
         try JSONSerialization.data(withJSONObject: obj).write(to: settings)
+        try "#!/bin/sh\n".write(to: hook.hookPath, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hook.hookPath.path)
         let st = hook.status()
         #expect(st.installed && st.hooksDisabled)
         let v = ScreenBuilder.limitsView(Fixtures.input(feedState: FeedState(), hook: st))
