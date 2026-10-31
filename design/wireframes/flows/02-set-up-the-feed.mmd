@@ -1,0 +1,19 @@
+flowchart TD
+  classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
+  classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
+  classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  S1["1. The Claude tab says what is needed: 'needs<br/>Claude Code's status line feed, one statusLine<br/>entry in ~/.claude/settings.json', and one<br/>button, Install the status line hook.<br/><i>works</i>"]:::works
+  S2["2. With a status line of your own it says 'your<br/>current status line is kept and chained'.<br/><i>works</i>"]:::works
+  S3["3. Install writes one statusLine entry with<br/>refreshInterval 5 and keeps every other key; an<br/>existing entry keeps its padding and<br/>refreshInterval and is chained.<br/><i>works</i>"]:::works
+  S4["4. The windows then read 'no session yet open<br/>Claude Code once'.<br/><i>works</i>"]:::works
+  S5["5. During the first call the open sessions show<br/>'waiting for the first reply' while both<br/>windows still say 'open Claude Code once'.<br/><i>friction</i>"]:::friction
+  S6["6. After the first reply: header Usage live, both<br/>windows with pace, the session with its context<br/>bar.<br/><i>works</i>"]:::works
+  S7["7. If settings.json is not valid JSON, Install on<br/>the Claude tab changes nothing on screen; the<br/>error is drawn only on the Settings tab, cut at<br/>the width, without its reason.<br/><i>broken</i>"]:::broken
+  S8["8. In Settings the row says 'Install the status<br/>line entry' (the Claude tab says hook), and its<br/>second line runs past the popover edge:<br/>'...~/.claude/settings.js'.<br/><i>friction</i>"]:::friction
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
+  S4 --> S5
+  S5 --> S6
+  S6 --> S7
+  S7 --> S8

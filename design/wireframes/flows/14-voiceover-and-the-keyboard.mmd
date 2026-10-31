@@ -1,0 +1,15 @@
+flowchart TD
+  classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
+  classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
+  classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  S1["1. VoiceOver on the item reads the state in words:<br/>'Weekly 28% used, ahead, resets sun 17:00'.<br/><i>works</i>"]:::works
+  S2["2. Inside the popover VoiceOver reads each line as<br/>text, so the figures are heard.<br/><i>works</i>"]:::works
+  S3["3. The Install button, the tabs, the section<br/>switch and every checkbox are static text to<br/>VoiceOver: no role, no state, no press. A<br/>VoiceOver user cannot set up the feed or change<br/>a setting.<br/><i>broken</i>"]:::broken
+  S4["4. From the keyboard only Tab, Esc, m, p, s and<br/>Command Q work; no row takes focus and Space<br/>does nothing, so settings need a pointer.<br/><i>broken</i>"]:::broken
+  S5["5. The key hints are #505050 on the glass, about<br/>2.1 to 1.<br/><i>friction</i>"]:::friction
+  S6["6. Reduce motion: the popover opens without<br/>animation.<br/><i>works</i>"]:::works
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
+  S4 --> S5
+  S5 --> S6

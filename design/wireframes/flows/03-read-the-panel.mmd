@@ -1,0 +1,19 @@
+flowchart TD
+  classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
+  classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
+  classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  S1["1. The item shows the panda and the weekly<br/>percentage; semibold when over pace.<br/><i>works</i>"]:::works
+  S2["2. Weekly: bar with the tick at the elapsed share,<br/>'Resets Sun 18:00 in 3d 3h', 'Over pace limit<br/>Sun 01:20 at this rate', '0.5% an hour left'.<br/>Coral past the tick only when over pace.<br/><i>works</i>"]:::works
+  S3["3. 5h window, the same five lines, for plans that<br/>have it.<br/><i>works</i>"]:::works
+  S4["4. Open sessions: project, model, context bar and<br/>'405.6k of 1M 41%'; hovering the figure shows<br/>list price, lines added and removed, effort.<br/><i>friction</i>"]:::friction
+  S5["5. Tokens by model, project or session with the<br/>price chip and the subagent share; click the<br/>switch or press m, p, s.<br/><i>works</i>"]:::works
+  S6["6. Week over week: four rows, the hit week marked<br/>with the time it hit.<br/><i>works</i>"]:::works
+  S7["7. With several sessions open the weekly figure<br/>jumps every few seconds between the values each<br/>session last saw: 28%, 12%, 28%, 18%, 11%<br/>within 30 s, in the bar, the item, the<br/>projection and the allowance.<br/><i>broken</i>"]:::broken
+  S8["8. Esc closes, Tab and Shift Tab switch tabs,<br/>Command Q quits.<br/><i>works</i>"]:::works
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
+  S4 --> S5
+  S5 --> S6
+  S6 --> S7
+  S7 --> S8

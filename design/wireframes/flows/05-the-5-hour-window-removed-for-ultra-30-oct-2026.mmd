@@ -1,0 +1,17 @@
+flowchart TD
+  classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
+  classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
+  classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  S1["1. 30 Oct, evening: the feed stops sending<br/>five_hour for verified Ultra accounts. The app<br/>keeps the last figure (63% in this example) and<br/>draws it as live: countdown running, tick<br/>moving, 'Over pace limit 22:50 at this rate'.<br/><i>broken</i>"]:::broken
+  S2["2. Near the stored reset the same 63% reads 'Ahead<br/>66% by reset', '185% an hour left'.<br/><i>broken</i>"]:::broken
+  S3["3. If the 5h window was at 100% when the feed<br/>stopped, the panda shows - - eyes and VoiceOver<br/>says '5h limit reached' until the old reset.<br/><i>broken</i>"]:::broken
+  S4["4. Around the old reset a '5h window ends in 15<br/>min' nudge can fire for it.<br/><i>broken</i>"]:::broken
+  S5["5. Today, 31 Oct: the 5h window is an empty bar<br/>with 'Reset 00:10 no session since', under<br/>'Usage live' and a listed open session, and it<br/>stays that way for good. The smallest fix drops<br/>the window when a fresh feed comes without it.<br/><i>broken</i>"]:::broken
+  S6["6. A new Ultra user, whose feed never had<br/>five_hour, sees an empty 5h bar with 'not in<br/>the last feed' for good.<br/><i>friction</i>"]:::friction
+  S7["7. Max and Pro feeds still carry five_hour; their<br/>panel is unchanged.<br/><i>works</i>"]:::works
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
+  S4 --> S5
+  S5 --> S6
+  S6 --> S7

@@ -1,0 +1,15 @@
+flowchart TD
+  classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
+  classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
+  classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  S1["1. Settings, Remove the status line entry puts the<br/>previous statusLine back exactly, or removes<br/>the key.<br/><i>works</i>"]:::works
+  S2["2. If there was no settings.json before, an empty<br/>'{}' file stays.<br/><i>friction</i>"]:::friction
+  S3["3. Quit and move the app to the Bin.<br/><i>works</i>"]:::works
+  S4["4. Moved to the Bin without Remove first: the hook<br/>keeps running from Application Support and<br/>leaves one session file per session that<br/>nothing deletes.<br/><i>friction</i>"]:::friction
+  S5["5. brew uninstall --zap deletes the folder that<br/>holds hook.sh while settings.json still points<br/>at it: the Claude Code status line goes blank,<br/>including the status line the user had before.<br/><i>broken</i>"]:::broken
+  S6["6. Delete Application Support and the preferences<br/>file by hand; nothing else was created.<br/><i>works</i>"]:::works
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
+  S4 --> S5
+  S5 --> S6

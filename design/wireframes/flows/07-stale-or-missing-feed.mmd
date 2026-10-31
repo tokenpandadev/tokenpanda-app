@@ -1,0 +1,15 @@
+flowchart TD
+  classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
+  classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
+  classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  S1["1. The last session closes: its row leaves after<br/>60 s and the header says 'Usage as of 13:05,<br/>last Claude Code session'; pace is still<br/>computed for an hour.<br/><i>works</i>"]:::works
+  S2["2. After an hour: the stale form, dim bars, 'as of<br/>13:05', the note that limits are shared, the<br/>item at half strength.<br/><i>works</i>"]:::works
+  S3["3. Use on the web or in the Claude app moves the<br/>limits, but the app sees it only when a Claude<br/>Code session feeds; the stale note says so.<br/><i>friction</i>"]:::friction
+  S4["4. An account without plan limits: 'this account<br/>has no plan limits to show'.<br/><i>works</i>"]:::works
+  S5["5. No transcripts folder: 'No transcripts in<br/>~/.claude/projects' in the token section; a<br/>read error shows its own message.<br/><i>works</i>"]:::works
+  S6["6. The statusLine entry removed by hand: the app<br/>notices the settings.json change on the next<br/>tick and offers Install again.<br/><i>works</i>"]:::works
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
+  S4 --> S5
+  S5 --> S6

@@ -1,0 +1,147 @@
+/* Wireframes of tokenpanda as built (0.1.7, 4ca4160). drawn-ui hand on a dark ground: dark cards, radii 12/8/4,
+   one card shadow, one lift shadow, bars for filler content (project, model, process and session names).
+   Titles, labels, status words, figures and clock times are real text. One accent, coral, on the thing that
+   matters in each screen; problems are named in coral outlined notes. tokenpanda itself is dark only. */
+:root {
+  --ground: #0d0f14;
+  --desk: #151821;
+  --menubar: #1e212b;
+  --card: #1d2029;
+  --card2: #262a34;
+  --soft: #2d313c;
+  --bar: #3b404c;
+  --bar2: #555b68;
+  --track: #2f3440;
+  --fill: #a3a9b6;
+  --tick: #eceef2;
+  --line: #2b2f39;
+  --marker: #8d93a0;
+  --text: #c8cbd2;
+  --ink: #eceef1;
+  --accent: #d77757;
+  --card-sh: 0 1px 2px rgba(0, 0, 0, .45), 0 10px 28px -8px rgba(0, 0, 0, .6);
+  --lift: 0 2px 4px rgba(0, 0, 0, .5), 0 10px 20px rgba(0, 0, 0, .45);
+  font: 12px/1.35 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  color: var(--text);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--ground); }
+a { color: inherit; text-decoration: none; }
+a[href] { cursor: pointer; }
+a[href]:hover { outline: 2px solid rgba(215, 119, 87, .55); outline-offset: 1px; border-radius: 4px; }
+html.hot a[href] { outline: 1px dashed rgba(200, 203, 210, .45); outline-offset: 1px; }
+html.hot a[href]:hover { outline: 2px solid rgba(215, 119, 87, .8); }
+
+/* the desktop, 1280 by 800 */
+.vp { position: relative; width: 1280px; height: 800px; background: var(--desk); overflow: hidden; }
+.mbar { position: absolute; left: 0; top: 0; right: 0; height: 26px; background: var(--menubar); display: flex; align-items: center; gap: 14px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+.mbar .sp { flex: 1; }
+.mbar .clock { color: var(--ink); font-weight: 500; }
+.mbar .apple { width: 12px; height: 14px; border-radius: 4px; background: var(--bar2); }
+.mbar .appname { color: var(--ink); font-weight: 600; }
+.item { display: flex; align-items: center; gap: 5px; height: 22px; padding: 0 6px; border-radius: 4px; color: var(--ink); font-variant-numeric: tabular-nums; font-size: 13px; }
+.item.on { background: var(--soft); }
+.item.dim { opacity: .5; }
+.item.over b { font-weight: 600; }
+.item svg { display: block; }
+.ext { width: 16px; height: 12px; border-radius: 4px; background: var(--bar); }
+.bgwin { position: absolute; background: var(--card); border-radius: 12px; box-shadow: var(--card-sh); opacity: .55; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+/* bars: filler text */
+.b { display: inline-block; border-radius: 99px; background: var(--bar); vertical-align: middle; }
+.b.s { background: var(--soft); }
+.b.k { background: var(--bar2); }
+
+/* the popover: SF Mono 12 on 16 pt lines, cells as ch, like the app */
+.pop { position: absolute; top: 34px; width: 380px; background: var(--card); border-radius: 12px; box-shadow: var(--lift); padding: 12px 10px 10px; font: 12px/16px ui-monospace, "SF Mono", Menlo, monospace; color: var(--text); }
+.pop::before { content: ""; position: absolute; top: -7px; left: var(--arrow, 190px); width: 14px; height: 14px; background: var(--card); transform: rotate(45deg); border-radius: 2px; }
+.ln { height: 16px; white-space: pre; display: flex; align-items: center; position: relative; }
+.ln > * { flex: none; }
+.ln .bold { color: var(--ink); font-weight: 700; }
+.ln .dim { color: var(--marker); }
+.ln .quiet { color: #5d626d; }
+.ln .warnc { color: #ffc107; }
+.ln.hov { background: #273746; border-radius: 2px; }
+.ln a { border-radius: 2px; }
+.rule { height: 2px; background: var(--bar2); margin: 7px 0 7px; border-radius: 1px; }
+.tab { padding: 0 1ch; }
+.tab.on { background: var(--ink); color: #15171d; font-weight: 700; border-radius: 2px; }
+.sub { padding: 0 1ch; }
+.sub.on { background: var(--text); color: #15171d; font-weight: 700; border-radius: 2px; }
+.btnl { background: var(--accent); color: #15171d; font-weight: 700; padding: 0 1ch; border-radius: 2px; }
+.cb { color: var(--ink); }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 4px; background: #ffc107; margin-left: 4px; vertical-align: middle; }
+
+/* a window bar: track, fill, tick, the coral fill past the tick when over pace */
+.wb { position: relative; height: 11px; border-radius: 3px; background: var(--track); overflow: hidden; }
+.wb i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--fill); border-radius: 3px 0 0 3px; }
+.wb i.ov { background: var(--accent); border-radius: 0; }
+.wb i.st { background: #4a5060; }
+.wb u { position: absolute; top: -1px; bottom: -1px; width: 5px; background: var(--tick); border-radius: 1px; }
+.wb.stale u { background: #7a808c; }
+.grid10 { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px 4px; width: 36ch; padding: 2px 0; }
+.grid10 i { height: 10px; border-radius: 2px; background: var(--fill); }
+.grid10 i.f { background: transparent; border: 1px dashed var(--bar2); }
+.grid10 i.w { background: transparent; border: 1.5px solid #ffc107; }
+
+/* notes: what the screen shows that the user should know, coral when it names a problem */
+.tip { position: absolute; max-width: 300px; background: var(--card2); border: 1.5px solid var(--accent); color: var(--ink); border-radius: 8px; padding: 8px 10px; font-size: 12px; line-height: 1.4; box-shadow: var(--card-sh); }
+.tip.n { border-color: var(--bar2); color: var(--text); }
+.tip b { color: var(--accent); }
+.mark { position: absolute; border: 2px dashed var(--accent); border-radius: 6px; pointer-events: none; }
+.fixlbl { position: absolute; left: 24px; top: 44px; background: var(--accent); color: #15171d; font-weight: 700; padding: 4px 10px; border-radius: 99px; font-size: 12px; }
+
+/* system surfaces */
+.win { position: absolute; background: var(--card); border-radius: 12px; box-shadow: var(--card-sh); overflow: hidden; display: flex; flex-direction: column; }
+.wtb { height: 36px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--line); color: var(--ink); font-weight: 600; }
+.tl { display: flex; gap: 7px; margin-right: 8px; }
+.tl i { width: 12px; height: 12px; border-radius: 6px; background: var(--bar); }
+.wbody { flex: 1; min-height: 0; display: flex; }
+.sside { width: 210px; flex: none; background: var(--card2); padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+.si { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 8px; border-radius: 6px; color: var(--text); }
+.si i { width: 16px; height: 16px; border-radius: 4px; background: var(--bar); flex: none; }
+.si.on { background: var(--soft); color: var(--ink); font-weight: 600; }
+.smain { flex: 1; padding: 20px 26px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.smain h2 { margin: 0; font-size: 17px; color: var(--ink); }
+.grp { background: var(--card2); border-radius: 8px; padding: 4px 0; display: flex; flex-direction: column; }
+.grow { display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 6px 14px; border-top: 1px solid var(--line); }
+.grow:first-child { border-top: 0; }
+.grow .sp { flex: 1; }
+.grow small { display: block; color: var(--marker); font-size: 11px; }
+.appic { width: 22px; height: 22px; border-radius: 6px; background: var(--bar2); flex: none; }
+.btn { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border-radius: 6px; background: var(--soft); color: var(--ink); font-weight: 500; }
+.btn.pri { background: var(--accent); color: #15171d; font-weight: 600; }
+.sw { display: inline-block; width: 30px; height: 18px; border-radius: 9px; background: var(--bar); position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px; background: var(--ink); }
+.sw.on { background: var(--accent); }
+.sw.on::after { left: 14px; }
+.dlg { position: absolute; width: 300px; background: var(--card2); border-radius: 12px; box-shadow: var(--lift); padding: 20px 18px 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.dlg h3 { margin: 0; font-size: 13px; color: var(--ink); }
+.dlg p { margin: 0; color: var(--text); font-size: 11.5px; }
+.dlg .btns { display: flex; gap: 8px; width: 100%; justify-content: flex-end; margin-top: 4px; }
+.notif { position: absolute; right: 14px; top: 36px; width: 344px; background: var(--card2); border-radius: 12px; box-shadow: var(--lift); padding: 12px 14px; display: flex; gap: 10px; }
+.notif .t { color: var(--ink); font-weight: 600; }
+.notif .acts { display: flex; flex-direction: column; gap: 6px; margin-left: auto; }
+.term { font: 12px/18px ui-monospace, "SF Mono", Menlo, monospace; padding: 14px 16px; color: var(--text); white-space: pre-wrap; }
+.term .p { color: var(--ink); }
+.term .ok { color: #8fc79a; }
+.term .bad { color: var(--accent); }
+.term .d { color: var(--marker); }
+.fgrid { display: flex; flex-wrap: wrap; gap: 22px; padding: 22px; }
+.fi { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; width: 84px; color: var(--text); font-size: 11.5px; }
+.fi i { width: 54px; height: 54px; border-radius: 12px; background: var(--bar); }
+.fi.on i { background: var(--bar2); outline: 2px solid var(--accent); outline-offset: 3px; }
+.urlbar { height: 28px; margin: 8px 14px; border-radius: 8px; background: var(--card2); display: flex; align-items: center; padding: 0 12px; color: var(--marker); }
+.page { padding: 18px 28px; display: flex; flex-direction: column; gap: 12px; }
+.page h2 { margin: 0; color: var(--ink); font-size: 18px; }
+.asset { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 12px; border-top: 1px solid var(--line); }
+
+/* outcome targets: another outcome, a drag or another start; dashed, shown with h and in walk mode */
+.alts { position: absolute; left: 16px; bottom: 14px; display: flex; gap: 8px; flex-wrap: wrap; max-width: 760px; }
+.altg { display: none; border: 1.5px dashed var(--bar2); color: var(--text); border-radius: 8px; padding: 5px 10px; font-size: 11.5px; background: rgba(13, 15, 20, .7); }
+html.hot .altg { display: inline-block; }
+
+/* index and walk pages */
+.note { color: var(--marker); font-size: 11.5px; }
+.sp { flex: 1; }

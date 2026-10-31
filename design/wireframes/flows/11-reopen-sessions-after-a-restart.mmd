@@ -1,0 +1,13 @@
+flowchart TD
+  classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
+  classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
+  classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  S1["1. Turn on Reopen sessions after a restart: the<br/>app keeps the open sessions in restore.json,<br/>readable only by you.<br/><i>works</i>"]:::works
+  S2["2. After a restart, one notification: '3 Claude<br/>Code sessions were open before the restart',<br/>with Reopen.<br/><i>works</i>"]:::works
+  S3["3. Reopen opens each session in Terminal with<br/>claude --resume, and --remote-control where it<br/>had it.<br/><i>works</i>"]:::works
+  S4["4. With notifications off the offer never comes<br/>and the Reopen row does not say why.<br/><i>friction</i>"]:::friction
+  S5["5. Turning it off deletes restore.json.<br/><i>works</i>"]:::works
+  S1 --> S2
+  S2 --> S3
+  S3 --> S4
+  S4 --> S5
