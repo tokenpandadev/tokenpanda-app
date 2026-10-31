@@ -48,7 +48,7 @@
 <tr><td><span class="sw" style="color:#ededed">████</span></td><td>#ededed</td><td>bold</td><td>section titles and the status word, always weight 700</td><td class="n">13.7 to 15.6</td></tr>
 <tr><td><span class="sw" style="color:#999999">████</span></td><td>#999999</td><td>dim</td><td>reset line, pace lines, captions, the header line, chips</td><td class="n">5.6 to 6.4</td></tr>
 <tr><td><span class="sw" style="color:#888888">████</span></td><td>#888888</td><td>dimmer</td><td>free cells in the memory grid</td><td class="n">4.5 to 5.2</td></tr>
-<tr><td><span class="sw" style="color:#505050">████</span></td><td>#505050</td><td>quiet</td><td>key hints in the foot, the quietest line; never a figure the user needs</td><td class="n">2.0 to 2.3</td></tr>
+<tr><td><span class="sw" style="color:#b8b8b8">████</span></td><td>#b8b8b8</td><td>quiet</td><td>key hints in the foot; never a figure the user needs. Lifted from #505050 in 0.1.9 so the hints pass AA over any desktop</td><td class="n">8.7 (4.8 over white)</td></tr>
 <tr><td><span class="sw" style="color:#b1b9f9">████</span></td><td>#b1b9f9</td><td>accent</td><td>used fill, selected tab, the ▔ rule, the selected row's ❯</td><td class="n">8.5 to 9.7</td></tr>
 <tr><td><span class="sw" style="color:#505370">████</span></td><td>#505370</td><td>track</td><td>the bar behind the fill; the fill itself when stale</td><td class="n"></td></tr>
 <tr><td><span class="sw" style="color:#d77757">████</span></td><td>#d77757</td><td>coral</td><td>the fill past the tick when over pace, nothing else</td><td class="n">5.1 to 5.8</td></tr>
@@ -338,11 +338,12 @@
 <tr><td>#e0e0e0 text</td><td class="n">12.1</td><td class="n">13.8</td><td>AAA</td><td>every figure the user needs</td></tr>
 <tr><td>#999999 dim</td><td class="n">5.6</td><td class="n">6.4</td><td>AA for normal text (4.5 needed)</td><td>reset, pace lines, captions</td></tr>
 <tr><td>#888888 dimmer</td><td class="n">4.5</td><td class="n">5.2</td><td>AA at the low end, barely</td><td>free cells only, a glyph with a legend</td></tr>
-<tr><td>#505050 quiet</td><td class="n">2.0</td><td class="n">2.3</td><td>fails AA</td><td>key hints only; every hint is also a working key and is in the docs; nothing the user needs is written in quiet</td></tr>
+<tr><td>#b8b8b8 quiet</td><td class="n">4.8</td><td class="n">8.7</td><td>AA everywhere</td><td>key hints only. Measured in 0.1.9 on the app's own render (debug <code>--snapshot</code>): 8.65 on the tint over the dark stage, and 4.76 on the tint over pure white (<code>--snapshot-stage white</code>), the brightest ground the glass can have, since the material under the tint only darkens what is behind it. Until 0.1.8 it was #505050, 2.1 to 1</td></tr>
 <tr><td>#b1b9f9 accent</td><td class="n">8.5</td><td class="n">9.7</td><td>AAA</td><td>fills, rule, selected tab ground</td></tr>
 <tr><td>#d77757 coral</td><td class="n">5.1</td><td class="n">5.8</td><td>AA</td><td>fill past the tick; the status word repeats it in words</td></tr>
 <tr><td>#ffc107 warning</td><td class="n">9.8</td><td class="n">11.2</td><td>AAA</td><td>hit mark, swap, the dot</td></tr>
 </table>
+<p>Over a white desktop the same bound gives dim 3.3 and coral 3.0. That bound ignores the dark layer of the window material, so the real figures are higher; they could not be measured here, because macOS lets an app read the composited glass only with Screen Recording permission. Check them by eye on a white wallpaper.</p>
 <p>Rule: colour never carries a meaning alone. Over pace is coral and the word "Over pace". A hit week is ⚠ and "Thu 16:10". A Mac warning is the dot and the pressure word on the Mac tab.</p>
 
 <h3>VoiceOver labels per component</h3>
@@ -359,7 +360,8 @@
 <tr><td>Week</td><td>row</td><td>"Week of 28 September, 100%, hit the limit Thursday 16:10"</td></tr>
 <tr><td>Open session</td><td>group; the figure focusable</td><td>"workspace, Fable 5.1, context 405.6 thousand of 1 million, 41% used"; the tooltip text is its help</td></tr>
 <tr><td>Memory grid</td><td>image with a description</td><td>"Memory 25.5 of 36 gigabytes, 71%, swap 0.9 gigabytes, pressure normal"; the cells are hidden from VoiceOver</td></tr>
-<tr><td>Checkbox</td><td>checkbox with checked state</td><td>the row label; the second line is its help</td></tr>
+<tr><td>Checkbox</td><td>checkbox with checked state, press toggles</td><td>the row label; the dim lines under it are its help</td></tr>
+<tr><td>Button</td><td>button, press runs it</td><td>"Install the status line hook", "Install the status line entry", "Remove the status line entry", "Quit, command Q", the Login Items note</td></tr>
 <tr><td>Tooltip</td><td>help text of the figure</td><td>the tooltip line</td></tr>
 <tr><td>Nudge</td><td>the OS notification</td><td>the title and body</td></tr>
 </table>
@@ -367,13 +369,16 @@
 <h3>Keyboard</h3>
 <ul>
 <li>Open and close the popover from the menu bar item; Esc closes it.</li>
-<li>Tab moves between the three tabs; Shift Tab goes back. Inside a tab, the figures and the checkboxes are in the tab order in reading order.</li>
+<li>Tab moves between the three tabs; Shift Tab goes back. The focus lands on the selected tab, so the ring shows where you are.</li>
+<li>Down and Up move the focus through the tab's controls in reading order: the tab strip, the section switch, the figures with a readout, the checkboxes, Install, Remove, Quit. Left and Right move along a line, the tab strip and the section switch. A focused figure shows its readout tooltip.</li>
+<li>Space and Return press the focused control: a tab or section is selected, a checkbox toggles, a button runs.</li>
 <li>m, p, s switch the token section on the Claude tab.</li>
-<li>Space toggles a focused checkbox.</li>
 <li>⌘Q quits.</li>
-<li>The focus ring is a 1 px accent outline with 1 px offset, custom, never the default blue.</li>
+<li>The focus ring is a 1 px accent outline with 1 px offset, custom, never the default blue. It shows once a key moved the focus, and a click hides it.</li>
 </ul>
-<p>Text size follows the system monospace font; the layout is cells, so it holds at any size.</p>
+<p>The manual test for VoiceOver and the keyboard, what to press and what should be heard, is on the <a href="testing.html">testing page</a>.</p>
+<h3>Text size</h3>
+<p>The popover stays SF Mono 12 in a 380 point panel. macOS has no Dynamic Type for AppKit: the SDK has no content size category to read (checked in the AppKit headers of the macOS SDK), and the Text size setting in System Settings, Accessibility, Display applies to the apps it lists. What enlarges the popover is the system's own scaling, which works because everything is laid out in points: Displays, a "Larger Text" resolution, and Zoom in Accessibility. A size setting of the app's own would change the cell grid the layout rests on (47 cells at 12 points), so it is left for when there is a need for it.</p>
 
 <div class="foot">Overview  Style guide  Spec  Privacy</div>
 </main>
@@ -416,7 +421,7 @@ $('c-chip').innerHTML = L(' ' + sp('[list price equivalent  USD 1,140]', 'd') + 
 $('c-chipno').innerHTML = L(' <span class="tab sub" aria-selected="true"> list price equivalent  USD 1,140 </span>  <span class="tab sub" aria-selected="true"> 44% by subagents </span>');
 $('c-mem').innerHTML = memGrid(); $('c-open').innerHTML = R6.openSessions();
 $('c-cb').innerHTML = L(' <button type="button" class="cb" role="checkbox" aria-checked="false">[ ]</button> off   <button type="button" class="cb" role="checkbox" aria-checked="true">[x]</button> on');
-$('c-settings').innerHTML = cbRow('Open at login', false) + cbRow('Mac figures in the bar', false) + cbRow('Nudge at 80% and before the 5h end', true, null, {hover:true}) + cbRow('List price equivalent', true, 'tokens at list prices, not the plan price') + cbRow('Keep the Mac awake while Claude works', false) + BL + R6.hookRow(true) + BL + L(' ' + sp('This app makes no network calls. Usage comes', 'd')) + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd')) + BL + L(' Quit' + rcol('⌘Q', R6.POP - 5));
+$('c-settings').innerHTML = cbRow('Open at login', false) + cbRow('Mac figures in the bar', false) + cbRow('Nudge at 80% and before the 5h end', true, null, {hover:true}) + cbRow('List price equivalent', true, 'tokens at list prices, not the plan price') + cbRow('Keep the Mac awake while Claude works', false, 'a closed lid on battery still sleeps') + BL + R6.hookRow(true) + BL + L(' ' + sp('This app makes no network calls. Usage comes', 'd')) + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd')) + BL + L(' Quit' + rcol('⌘Q', R6.POP - 5));
 $('c-tip1').innerHTML = L(' <span class="tip show">1.02B tokens  49% of 7 days</span>'); $('c-tip2').innerHTML = L(' <span class="tip show">Week of 28 Sep  hit Thu 16:10</span>'); $('c-tip3').innerHTML = L(' <span class="tip show">14:19  last snapshot</span>');
 $('c-ion').innerHTML = L(strip(item(57, 55))); $('c-iahead').innerHTML = L(strip(item(24, 32))); $('c-iover').innerHTML = L(strip(item(61, 55, {over:true}))); $('c-iweekly').innerHTML = L(strip(item(100, 55, {over:true, eyes:'weekly'}))); $('c-ifive').innerHTML = L(strip(item(61, 55, {over:true, eyes:'five'}))); $('c-istale').innerHTML = L(strip(item(61, 55, {stale:true}))); $('c-iwarn').innerHTML = L(strip(item(61, 55, {warn:true}))); $('c-imac').innerHTML = L(strip(item(61, 55, {mac:true}))); $('c-ilight').innerHTML = L(strip(item(61, 55, {over:true, mac:true}), true));
 $('c-nb1').innerHTML = '<div class="nb" role="status"><span class="tx"><b>Weekly at 80%</b><p>2 days 4 h to the reset. At this pace the limit lands Saturday 09:00.</p></span><time>now</time></div>';

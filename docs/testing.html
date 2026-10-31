@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>tokenpanda testing</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="stylesheet" href="docs.css">
+<style>@media (prefers-reduced-motion: reduce){.r6 .bar .fl{animation:none}.r6 .tip{transition:none}}</style>
+</head>
+<body style="margin:0;background:#0e1120">
+<div class="r6 dk">
+<div class="frame">
+
+<nav class="nav" aria-label="Documentation">
+<div class="l"><a class="tab" href="index.html"> Overview </a></div>
+<div class="l"><a class="tab" href="styleguide.html"> Style guide </a></div>
+<div class="l"><a class="tab" href="spec.html"> Spec </a></div>
+<div class="l"><a class="tab" href="privacy.html"> Privacy </a></div>
+<div class="l"></div>
+<div class="toc"><div class="l d"><a href="#before">1  Before you start</a></div>
+<div class="l d"><a href="#keyboard">2  Keyboard only</a></div>
+<div class="l d"><a href="#voiceover">3  VoiceOver</a></div>
+<div class="l d"><a href="#size">4  Text size and contrast</a></div>
+<div class="l d"><a href="#auto">5  What the tests cover</a></div>
+</div></nav>
+
+<main class="main">
+<div class="head"><h1>Testing</h1><span class="d">  tokenpanda  VoiceOver and the keyboard, by hand  31 October 2026</span></div>
+<div class="head d">what to press and what should be heard; about ten minutes</div>
+<div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
+
+<h2 id="before">1  Before you start</h2>
+<ul>
+<li>Run the app bundle (<code>scripts/build-app.sh</code>, then open <code>build/tokenpanda.app</code>), not <code>swift run</code>: notifications and the version line need the bundle.</li>
+<li>Have one Claude Code session open, so the Claude tab shows windows and a session row.</li>
+<li>Turn VoiceOver on and off with Command F5. VO below means Control Option, the VoiceOver keys.</li>
+<li>VoiceOver's exact words depend on its verbosity setting. Below is what each element should carry: its name, its state and its kind. The order of the words may differ.</li>
+</ul>
+
+<h2 id="keyboard">2  Keyboard only, VoiceOver off</h2>
+<ol>
+<li>Click the panda in the menu bar. The popover opens. No ring is drawn yet.</li>
+<li>Press Down. A thin accent ring appears around "Claude" in the tab strip.</li>
+<li>Press Right twice. The ring moves to "Mac", then to "Settings". Press Right again: it stays on "Settings".</li>
+<li>Press Space. The Settings tab opens; the ring stays on "Settings".</li>
+<li>Press Down. The ring is on "[ ] Open at login" (box and label together). Keep pressing Down: each setting, then "Install the status line entry" or "Remove the status line entry", then "Quit". Up goes back the same way.</li>
+<li>On "[x] List price equivalent", press Space: the box empties. Press Return: it is ticked again. Open the Claude tab with Tab: the price chip came back.</li>
+<li>Press Tab. The Claude tab opens and the ring sits on "Claude". Shift Tab goes back to Settings, the ring on "Settings".</li>
+<li>On the Claude tab press Down until the ring is on a session's figure ("405.6k of 1M  41%"): its tooltip appears above it, over two lines when it is long, nothing cut. Down again reaches "Models", "Projects", "Sessions" (Left and Right along that line, Space selects), then the model rows, each with its tooltip.</li>
+<li>Click anywhere in the popover: the ring goes. Press Down: it comes back where it was.</li>
+<li>Esc closes the popover. Command Q quits.</li>
+</ol>
+
+<h2 id="voiceover">3  VoiceOver</h2>
+<ol>
+<li>With VoiceOver on, VO M M (the menu extras) and VO Right to the panda. Heard: "Weekly 61% used, over pace, resets Sunday 18:00", and "button". The weekday is said in full.</li>
+<li>VO Space opens the popover. VO Right through it. The order is the reading order of the panel, top to bottom.</li>
+<li>The tab strip. Heard: "Tabs, tab group", then for each tab its name, "selected" on the open one, and "tab" (for example "Claude, selected, tab, 1 of 3"). With the Mac warning on, the middle tab says "Mac, warning".</li>
+<li>VO Space on "Settings": the Settings tab opens and the tab now says selected.</li>
+<li>A setting. Heard: "List price equivalent, checked, checkbox". After a pause, its help: "tokens at list prices, not the plan price". VO Space: "unchecked". VO Space again: "checked". The panel changes with it.</li>
+<li>"Keep the Mac awake while Claude works" has the help "a closed lid on battery still sleeps".</li>
+<li>"Install the status line entry" or "Remove the status line entry": "button". Its dim lines under it are read as text after it. Do not press it on your own Mac unless you mean to; use a test account, or Remove then Install again.</li>
+<li>"Quit, command Q, button". Do not press it during the test.</li>
+<li>The Claude tab. A window section is read line by line as text: "Weekly (all models)", "61% used" with the bar, the reset line, the pace line. A session row: "workspace, Fable 5.1, context 405.6k of 1M, 41% used", with its tooltip as help. "Models", "Projects", "Sessions": "Token sections, tab group", each a tab with its state.</li>
+<li>With the keyboard focus on (press Down once, VoiceOver still on): VoiceOver follows the ring and says the focused element as the ring moves.</li>
+<li>Install error: with a test account whose <code>~/.claude/settings.json</code> is not valid JSON, on the Claude tab VO Space on "Install the status line hook". Heard after it, as text: "Could not install the entry: cannot read settings.json: settings.json is not a JSON object", over two or three lines, nothing cut.</li>
+</ol>
+<p>Note anything that is silent, said twice, said out of order, or has no state. Each is a bug.</p>
+
+<h2 id="size">4  Text size and contrast</h2>
+<ul>
+<li>The popover is SF Mono 12 and does not follow System Settings, Accessibility, Display, Text size: AppKit gives an app no size to read (see the style guide, section 9). To enlarge it, use Displays, a Larger Text resolution, or Zoom. Check the popover there: same layout, larger.</li>
+<li>Put a white wallpaper behind the menu bar and open the popover. The key hints at the foot must read clearly; the reset and pace lines (dim) should too. Their ratios on the app's own render are in the style guide, section 9.</li>
+</ul>
+
+<h2 id="auto">5  What the tests cover</h2>
+<p><code>swift test</code> checks, without VoiceOver: the role, state, label and help of every control; that a press runs the same action as a click; the order the arrows move the focus in; that the focus and the VoiceOver elements survive a render; that no line of any sample screen runs past the panel; that a long tooltip breaks over lines; and that the key hints keep 4.5 to 1 over a white desktop. What it cannot check is what VoiceOver says out loud. That is this page.</p>
+
+<div class="foot">Overview  Style guide  Spec  Privacy</div>
+</main>
+</div>
+</div>
+<script src="docs.js"></script>
+</body>
+</html>

@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.1.9, unreleased
+
+- VoiceOver can use the whole popover. The tabs, the Models, Projects and Sessions switch, every setting, Install, Remove and Quit are real buttons, tabs and checkboxes, each saying its state (selected, checked or not), and VoiceOver can press them. A figure's tooltip is read as its help. Before, everything was plain text and nothing could be pressed.
+- The keyboard reaches every control. Down and Up move through the tab, Left and Right along the tab strip and the section switch, Space or Return presses. A thin accent ring shows where you are. Tab still switches tabs and now puts the ring on the tab it opened.
+- The key hints at the foot are readable: lifted from dark grey to light grey, at least 4.5 to 1 even over a white desktop.
+- Several settings folders: with `CLAUDE_CONFIG_DIR`, `~/.config/claude` or a `~/.claude-work` for a second account, Install and Remove now work on each settings.json the app finds, each keeping its own previous status line, and those sessions feed the windows. Their transcripts are counted too.
+- If Install fails, the Claude tab says why under the button, over as many lines as it needs. Errors in Settings are no longer cut at the edge either.
+- `brew uninstall --zap` now puts your previous status line back before it deletes the app's data. And if the hook script is gone while settings.json still points at it, the app no longer says it is installed: it says the script is gone and offers Install again.
+- Text no longer runs past the panel edge: the Settings line about settings.json, the notifications note and the session tooltip, which now breaks over two lines.
+- After a Sunday evening reset, week over week labels the new week by its own Monday instead of showing the same date twice.
+- During a session's first call both windows say "waiting for the first reply" instead of "open Claude Code once".
+- The app no longer asks for notification permission at launch. It asks when the first nudge is due, or when you turn on Nudge or Reopen sessions.
+- Settings shows the version, "tokenpanda 0.1.9", under the privacy lines.
+- Files a cancelled hook run left behind in the sessions folder are cleaned up.
+- Smaller: keep awake says a closed lid on battery still sleeps; the Reopen row says when notifications are off; VoiceOver says the weekday in full ("resets Sunday 18:00"); Remove deletes a settings.json that Install created instead of leaving an empty {}.
+- README: what keeps a session from feeding (workspace trust, a project or managed statusLine, the IDE extensions, the desktop app, claude -p), several settings folders, and the zap.
+
+Not changed: the popover stays SF Mono 12. macOS gives AppKit apps no text size to follow; Larger Text in Displays and Zoom enlarge it. The style guide says why.
+
 ## 0.1.8, 2026-10-31
 
 - The weekly figure no longer jumps between the values each open session last saw. With several sessions open the app takes the highest figure for the current week, and keeps it when the busiest session closes. Week over week keeps the highest value of each week too.

@@ -234,7 +234,7 @@ function settingsTab(st) {
     + cbRow('Mac figures in the bar', st.mac)
     + cbRow('Nudge at 80% and before the 5h end', st.nudge)
     + cbRow('List price equivalent', st.price, 'tokens at list prices, not the plan price')
-    + cbRow('Keep the Mac awake while Claude works', !!st.awake)
+    + cbRow('Keep the Mac awake while Claude works', !!st.awake, 'a closed lid on battery still sleeps')
     + (st.awake ? cbRow('also while a session waits for you', !!st.awakeOpen, null, {indent: '     '}) : '')
     + cbRow('Reopen sessions after a restart', !!st.restore, 'asks first, then opens them in Terminal')
     + BL
@@ -242,13 +242,14 @@ function settingsTab(st) {
     + BL
     + L(' ' + sp('This app makes no network calls. Usage comes', 'd'))
     + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd'))
+    + L(' ' + sp('tokenpanda 0.1.9', 'd'))
     + BL
     + L(' Quit' + rcol('⌘Q', POP - 5));
 }
 /* the status line entry row: install or remove, one click each */
 function hookRow(installed) {
   return L(' <button type="button" class="tab hk">' + (installed ? 'Remove the status line entry' : 'Install the status line entry') + '</button>', 'srow')
-    + L('     ' + sp(installed ? 'puts back what statusLine held before' : 'one statusLine entry in ~/.claude/settings.json', 'd'));
+    + L('     ' + sp(installed ? 'puts back what statusLine held before' : 'one entry in ~/.claude/settings.json', 'd'));
 }
 /* the key hints: m p s work on the Claude tab only, so only that tab names them */
 const foot = (tab) => BL + L(' ' + sp(tab === 0 ? 'Esc closes  Tab switches  m p s sections' : 'Esc closes  Tab switches', 'q'));

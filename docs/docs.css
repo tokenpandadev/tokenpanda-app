@@ -3,7 +3,7 @@
 /* docs.css: the component styles under .r6, which the Swift Text module mirrors, then the documentation chrome under .dk. A change to an .r6 rule is a change to the app's grammar and is made in both. */
 .r6{
   --tint:rgba(25,29,39,.82);
-  --txt:#e0e0e0; --bold:#ededed; --dim:#999999; --dimmer:#888888; --quiet:#505050;
+  --txt:#e0e0e0; --bold:#ededed; --dim:#999999; --dimmer:#888888; --quiet:#b8b8b8;
   --accent:#b1b9f9; --track:#505370; --coral:#d77757; --warn:#ffc107; --box:#373737; --sel:rgb(39,61,76);
   --magenta:#bd7bcd; --yellow:#c4ac62; --cyan:#7ccbcd; --green:#6caa71; --blue:#6d96b4; --blue2:#67b5ed; --white:#dee5eb;
   --mono:"SF Mono",ui-monospace,Menlo,monospace;

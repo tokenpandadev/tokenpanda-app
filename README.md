@@ -56,6 +56,17 @@ The Open Anyway step applies after a Homebrew install too.
 
 On first launch the Claude tab offers one button, Install the status line hook. Click it, start a Claude Code session, and the figures arrive after the first reply. If you already have a status line, it keeps working.
 
+If you use more than one settings folder (`CLAUDE_CONFIG_DIR`, `~/.config/claude`, or a `~/.claude-work` for a second account), Install writes the entry into each one the app finds, and those sessions feed too. A folder made later shows up in Settings as Install again.
+
+When a session does not show up:
+
+- Workspace trust: Claude Code runs no status line in a folder until you accept its workspace trust dialog.
+- A `statusLine` in a project's `.claude/settings.json` or `.claude/settings.local.json`, or in managed settings, wins over yours for that project, so those sessions do not feed. So does `disableAllHooks` set there.
+- Sessions in the VS Code or JetBrains extension, in the desktop app, and `claude -p` runs most likely run no status line, so they do not feed the windows. Their tokens are still counted from the transcripts.
+- Each Mac feeds only itself. Use on the web, in the Claude app or on another Mac moves the limits, and the app sees it with the next Claude Code reply on this Mac.
+
+To uninstall with Homebrew, `brew uninstall --zap tokenpanda` puts your previous status line back before it deletes the app's data. With a plain `brew uninstall`, click "Remove the status line entry" in Settings first.
+
 ## By the rules
 
 - It reads the status line, the one feed Claude Code documents for exactly this, and nothing else. The plan figures are four fields in it: `rate_limits.five_hour` and `rate_limits.seven_day`, each with `used_percentage` and `resets_at`.
@@ -71,7 +82,7 @@ Nothing leaves your Mac. In five rules:
 1. The app makes no network calls and works offline: no analytics, no telemetry, no update check, no price fetch.
 2. From a transcript line it keeps the time, the ids, the model, the working directory name and the token counts. Not what you wrote, not what Claude answered.
 3. It never opens `memory/` or `tool-results/`, never reads the Keychain, a token or a cookie, and never asks you to sign in.
-4. It touches `~/.claude/settings.json` only when you click, and only its `statusLine` key. "Remove the status line entry" in Settings puts your previous entry back exactly.
+4. It touches `~/.claude/settings.json` (and each other settings folder's) only when you click, and only its `statusLine` key. "Remove the status line entry" in Settings puts your previous entry back exactly.
 5. Check it. The source is public; search it for URLSession. Run nettop on the app for an hour: zero connections.
 
 With keep awake on, the app holds a power assertion only while a session is working, or with the second switch while a session is open, and `pmset -g assertions` shows it. With Open at login on, macOS lists the app in System Settings, General, Login Items; the app keeps no setting of its own for it. With Reopen sessions on, the app keeps a small list of the open sessions (id, folder, transcript path) in Application Support, and starts Terminal only when you click Reopen.
@@ -85,13 +96,13 @@ You need a Mac on macOS 14 or later with the Command Line Tools or Xcode. Swift 
 ```sh
 swift build
 swift test -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
-scripts/build-app.sh 0.1.8
+scripts/build-app.sh 0.1.9
 open build/tokenpanda.app
 ```
 
-The plugin flag is for the Command Line Tools, which ship swift-testing without telling the compiler where its macro plugin lives. With Xcode selected, plain `swift test` works. `scripts/build-app.sh` builds the release binary, assembles `build/tokenpanda.app`, signs it ad hoc, and writes `build/tokenpanda-<version>.zip` with its SHA-256. A debug build also takes `--snapshot <folder>`, which renders every tab and state of the sample data to PNG.
+The plugin flag is for the Command Line Tools, which ship swift-testing without telling the compiler where its macro plugin lives. With Xcode selected, plain `swift test` works. `scripts/build-app.sh` builds the release binary, assembles `build/tokenpanda.app`, signs it ad hoc, and writes `build/tokenpanda-<version>.zip` with its SHA-256. A debug build also takes `--snapshot <folder>`, which renders every tab and state of the sample data to PNG, and `--snapshot-stage white` with it, for checking contrast over a bright desktop.
 
-The documentation is plain HTML in `docs/`: an overview, the style guide, the spec and the privacy page. Changes per version are in [CHANGELOG.md](CHANGELOG.md).
+The documentation is plain HTML in `docs/`: an overview, the style guide, the spec, the privacy page, and the manual VoiceOver and keyboard test in `docs/testing.html`. Changes per version are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Good tools that came first
 

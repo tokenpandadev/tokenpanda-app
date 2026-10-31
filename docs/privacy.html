@@ -64,6 +64,7 @@
 <li>title files and error files next to a transcript, and the subagent metadata files</li>
 <li>anything else in <code>~/.claude</code>: history, stats caches, sessions, state, uploads, the daemon, the paste cache, file history</li>
 <li>your <code>settings.json</code>, except the one status line key the app edits when you ask it to (section 7)</li>
+<li>in your home folder the app lists names only, to find Claude Code's settings folders: <code>~/.claude</code>, <code>~/.config/claude</code>, the folder in <code>CLAUDE_CONFIG_DIR</code> and folders named <code>.claude-something</code>; it opens nothing else there</li>
 <li>inside a transcript line: the message content, the tool results, attachments, snapshots and the account ids</li>
 </ul>
 <p>One exception, only with "Reopen sessions after a restart" on and only when you click Reopen: the app looks in each offered session's transcript for the line Claude Code writes when Remote Control was on (<code>"type":"bridge-session"</code>), to know whether to start that session with Remote Control again. It checks that the line is there and reads nothing from it.</p>
@@ -73,7 +74,7 @@
 <h2 id="writes">4  What it writes</h2>
 <ul>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/sessions/&lt;session id&gt;.json</code>: the latest status line object of each open session, overwritten every few seconds and deleted a minute after the session stops feeding</li>
-<li><code>~/Library/Application Support/dev.tokenpanda.app/hook.sh</code>: the status line script</li>
+<li><code>~/Library/Application Support/dev.tokenpanda.app/hook.sh</code>: the status line script; with more than one settings folder, one more script per folder, <code>hook-&lt;folder&gt;.sh</code></li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/statusline-before.json</code>: your <code>statusLine</code> entry as it was before the install, so removing the hook can put it back exactly; deleted on removal</li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/limits.json</code>: the last two plan windows (used percent and reset time) and the time they were read, so the figures outlive the session files; no path, no model, no session id</li>
 <li><code>~/Library/Application Support/dev.tokenpanda.app/weeks.json</code>: four small records of past weekly windows, for the week over week rows</li>
@@ -94,8 +95,8 @@
 <p>The app has no account, no sign in and no access to yours. The plan percentages it shows are the ones Claude Code already knows and hands to its status line. They cover your whole account, so use of Claude on the web or in the apps moves them too; the app says so when it shows figures from a past session.</p>
 
 <h2 id="hook">7  The hook and your settings</h2>
-<p>To get the feed, Claude Code has to be told to run the app's script. That is one entry, <code>statusLine</code>, in <code>~/.claude/settings.json</code>. The app does not write it on its own. It edits the file only when you click "Install the status line hook" on the Claude tab or "Install the status line entry" in Settings. If you already have a status line, the app keeps it: the script passes the same data on to your command and shows its output, so your status line looks the same as before. Inside your <code>statusLine</code> entry only <code>type</code> and <code>command</code> change; other keys such as <code>padding</code> stay. <code>refreshInterval</code> is set to 5 when there was none or a longer one, so open sessions stay listed; a shorter one of your own stays, and Remove puts your own value back.</p>
-<p>"Remove the status line entry" in Settings undoes it with one click: your previous <code>statusLine</code> entry goes back exactly as it was, or the key is removed if there was none. If you changed the entry yourself after installing, removing the hook leaves your entry alone. Either way the script, the saved entry and the sessions folder are deleted.</p>
+<p>To get the feed, Claude Code has to be told to run the app's script. That is one entry, <code>statusLine</code>, in <code>~/.claude/settings.json</code>, and in the <code>settings.json</code> of each other settings folder Claude Code uses on this Mac (a <code>CLAUDE_CONFIG_DIR</code> folder for a second account, for one). The app does not write it on its own. It edits the file only when you click "Install the status line hook" on the Claude tab or "Install the status line entry" in Settings. If you already have a status line, the app keeps it: the script passes the same data on to your command and shows its output, so your status line looks the same as before. Inside your <code>statusLine</code> entry only <code>type</code> and <code>command</code> change; other keys such as <code>padding</code> stay. <code>refreshInterval</code> is set to 5 when there was none or a longer one, so open sessions stay listed; a shorter one of your own stays, and Remove puts your own value back.</p>
+<p>"Remove the status line entry" in Settings undoes it with one click: your previous <code>statusLine</code> entry goes back exactly as it was, or the key is removed if there was none. If you changed the entry yourself after installing, removing the hook leaves your entry alone. Either way the script, the saved entry and the sessions folder are deleted. If the install created <code>settings.json</code> and nothing else was added to it since, the file goes too.</p>
 <p>The file is read and written whole by the macOS JSON writer, so its indentation and the order of its keys may change when the app writes it. In content, only the <code>statusLine</code> key differs. The app otherwise only checks the file's modification time, to notice when the entry changed.</p>
 
 <h2 id="check">8  How to check</h2>
@@ -113,7 +114,7 @@
 <ol>
 <li>In the app's Settings, click "Remove the status line entry". Or remove the <code>statusLine</code> entry from <code>~/.claude/settings.json</code> yourself.</li>
 <li>If Open at login is on, click it off in Settings, or remove the app in System Settings, General, Login Items.</li>
-<li>Quit the app and move it to the Bin, or <code>brew uninstall tokenpanda</code>.</li>
+<li>Quit the app and move it to the Bin, or <code>brew uninstall tokenpanda</code>. <code>brew uninstall --zap tokenpanda</code> does step 1 by itself, then the deletes of step 4.</li>
 <li>Delete <code>~/Library/Application Support/dev.tokenpanda.app</code> and <code>~/Library/Preferences/dev.tokenpanda.app.plist</code>.</li>
 </ol>
 <p>Nothing else was created.</p>
