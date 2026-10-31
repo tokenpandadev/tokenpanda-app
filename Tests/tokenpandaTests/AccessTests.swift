@@ -531,4 +531,29 @@ struct AccessTests {
         #expect(t.contains("Could not install the entry: cannot read settings.json: settings.json is not a JSON object"))
         #expect(!t.contains { $0.hasPrefix("settings.json: settings.json") || $0 == "object" })
     }
+
+    @Test @MainActor func aSessionsNameAndModelAreSaidOnce() throws {
+        let t = try spokenTree("claude-overpace").map(\.1)
+        #expect(t.contains("workspace, Fable 5.1, context 405.6 thousand of 1 million, 41% used"))
+        #expect(!t.contains("workspace  Fable 5.1"))
+        // a session that has not replied keeps its name line: it has no figure line to carry it
+        #expect(try spokenTree("claude-firstreply").map(\.1).contains("workspace  Fable 5.1"))
+    }
+
+    @Test func theRemoveScriptIsWrittenForAnEntryAnOlderVersionInstalled() throws {
+        let home = try tempDir(), data = try tempDir()
+        let a = home.appendingPathComponent(".claude")
+        try FileManager.default.createDirectory(at: a, withIntermediateDirectories: true)
+        let set = HookSet(folders: [a], dataDir: data, home: home)
+        _ = try set.install()
+        // as 0.1.8 left it: the entry and hook.sh, no remove.sh
+        let script = try #require(set.removeScriptPath)
+        try FileManager.default.removeItem(at: script)
+        set.writeRemoveScript()   // what launch does
+        #expect(FileManager.default.isExecutableFile(atPath: script.path))
+        // with no entry of ours, launch writes nothing
+        try set.uninstall(previousCommand: { _ in nil }, previousRefresh: { _ in nil })
+        set.writeRemoveScript()
+        #expect(!FileManager.default.fileExists(atPath: script.path))
+    }
 }

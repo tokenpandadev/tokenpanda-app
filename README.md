@@ -65,7 +65,7 @@ When a session does not show up:
 - Sessions in the VS Code or JetBrains extension, in the desktop app, and `claude -p` runs most likely run no status line, so they do not feed the windows. Their tokens are still counted from the transcripts.
 - Each Mac feeds only itself. Use on the web, in the Claude app or on another Mac moves the limits, and the app sees it with the next Claude Code reply on this Mac.
 
-To uninstall with Homebrew, `brew uninstall --zap tokenpanda` puts your previous status line back before it deletes the app's data (for an entry installed with 0.1.9 or later; it runs the remove script the app keeps in its data folder). With a plain `brew uninstall`, click "Remove the status line entry" in Settings first.
+To uninstall with Homebrew, `brew uninstall --zap tokenpanda` puts your previous status line back before it deletes the app's data (once 0.1.9 or later has run; it runs the remove script the app keeps in its data folder). With a plain `brew uninstall`, click "Remove the status line entry" in Settings first.
 
 ## By the rules
 

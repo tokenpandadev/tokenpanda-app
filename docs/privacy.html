@@ -63,7 +63,7 @@
 <li><code>~/.claude/projects/&lt;project&gt;/&lt;session&gt;/tool-results/</code>: tool outputs with file contents, images and PDFs</li>
 <li>title files and error files next to a transcript, and the subagent metadata files</li>
 <li>anything else in <code>~/.claude</code>: history, stats caches, sessions, state, uploads, the daemon, the paste cache, file history</li>
-<li>your <code>settings.json</code>, except the one status line key the app edits when you ask it to (section 7)</li>
+<li>your <code>settings.json</code>, except the one status line key the app edits when you ask it to (section 7) and <code>disableAllHooks</code>, which it reads to say when Claude Code runs no status line</li>
 <li>in your home folder the app lists names only, to find Claude Code's settings folders: <code>~/.claude</code>, <code>~/.config/claude</code>, the folder in <code>CLAUDE_CONFIG_DIR</code> and folders named <code>.claude-something</code> or <code>.claude_something</code>; it checks whether they hold a <code>settings.json</code> or a <code>projects</code> folder and opens nothing else there</li>
 <li>inside a transcript line: the message content, the tool results, attachments, snapshots and the account ids</li>
 </ul>

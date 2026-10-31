@@ -219,7 +219,10 @@ public enum Grammar {
             return out
         }
         for s in list {
-            out.append(L(sp(" "), sp(s.name), sp("  "), sp(s.model, .dim)))
+            // the name and model are in the figure line's label; said once, there. A waiting session has no figure line
+            // with a label, so its name line stays.
+            let nameLine = L(sp(" "), sp(s.name), sp("  "), sp(s.model, .dim))
+            out.append(s.waiting ? nameLine : nameLine.silent)
             let bar = Bar.render(width: rowBar, used: s.waiting ? 0 : Double(s.used), elapsed: nil, options: BarOptions(color: s.hue, plain: true))
             if s.waiting {
                 // no figure yet: the words take the bar's place, so they fit the width

@@ -38,8 +38,8 @@ cask "tokenpanda" do
     open System Settings, Privacy & Security, and click Open Anyway.
 
     brew uninstall --zap removes the status line entry and puts back the one
-    you had before, for an entry installed with tokenpanda 0.1.9 or later.
-    With a plain brew uninstall, or an entry from an older version, first open
-    tokenpanda's Settings tab and click "Remove the status line entry".
+    you had before, once tokenpanda 0.1.9 or later has run at least once.
+    With a plain brew uninstall, first open tokenpanda's Settings tab and
+    click "Remove the status line entry".
   EOS
 end

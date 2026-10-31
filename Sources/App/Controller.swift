@@ -124,6 +124,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         lineView.onAction = { [weak self] a in self?.perform(a) }
 
         readHookStatus()
+        // an entry installed by an earlier version gets its remove script now, so brew's zap needs no click first
+        hook.writeRemoveScript()
         notifier.onReopen = { [weak self] in self?.reopen() }
         offerRestore(now: Date())   // before the first scan, which writes this boot's record over the last one
         notifier.refreshState()   // no prompt at launch: the first nudge that is due asks
