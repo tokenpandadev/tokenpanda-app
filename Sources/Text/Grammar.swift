@@ -62,6 +62,9 @@ public enum Grammar {
         case .resetPassed(let reset):
             out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: 0, elapsed: nil))))
             out.append(L(sp(" "), sp(reset + "  no session since", .dim)))
+        case .nextReply(let reset):
+            out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: 0, elapsed: nil))))
+            out.append(L(sp(" "), sp(reset + "  new window on the next reply", .dim)))
         case .absent:
             out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: 0, elapsed: nil))))
             out.append(L(sp(" "), sp("not in the last feed", .dim)))

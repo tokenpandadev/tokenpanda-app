@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 
-/// Week over week: the last value seen per weekly window and the time it first reported 100%, if it did.
+/// Week over week: the highest value seen per weekly window and the time it first reported 100%, if it did.
 /// Four small records in Application Support, nothing else.
 public struct WeekRecord: Sendable, Equatable, Codable {
     public var resetsAt: Date
@@ -18,10 +18,11 @@ public struct WeekRecords: Sendable, Equatable, Codable {
     public var records: [WeekRecord]
     public init(records: [WeekRecord] = []) { self.records = records }
 
-    /// Applies the weekly window of a snapshot. "hit" means a value of 100 or more was seen.
+    /// Applies the weekly window of a snapshot. "hit" means a value of 100 or more was seen. Inside one week the highest
+    /// value stays: the server's figure only rises within a window, so a lower one is an older cached reply.
     public mutating func apply(_ w: LimitWindow, at: Date) {
         if let i = records.firstIndex(where: { $0.resetsAt == w.resetsAt }) {
-            records[i].lastUsed = w.usedPercentage
+            records[i].lastUsed = max(records[i].lastUsed, w.usedPercentage)
             records[i].lastSeenAt = at
             if w.usedPercentage >= 100, records[i].hitAt == nil { records[i].hitAt = at }
         } else {

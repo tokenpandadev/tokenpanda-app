@@ -64,7 +64,7 @@ struct FeedTests {
 
     @Test func firstCallLeavesWindowsUntouched() async throws {
         let dir = try tempDir()
-        let now = Date()
+        let now = Date(timeIntervalSince1970: 1791900924)   // the sample's time: its windows have not reset yet
         let reader = FeedReader(dataDir: dir)
         try write("a", try fixture("feed-first"), in: dir, age: 1, now: now)
         var st = await reader.scan(now: now)

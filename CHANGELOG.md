@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.8, unreleased
+
+- The weekly figure no longer jumps between the values each open session last saw. With several sessions open the app takes the highest figure for the current week, and keeps it when the busiest session closes. Week over week keeps the highest value of each week too.
+- A window your plan no longer has goes away. When Claude Code stops sending the 5h window for an account, the app drops the 5h row after the next reply comes without it, instead of showing the old figure as live or "no session since" for good. The panda's eyes, the spoken label and the nudges stop using it at once. Max and Pro see no change.
+- After a window resets while sessions are open but waiting, the row says "new window on the next reply" instead of "no session since".
+
 ## 0.1.7, 2026-10-22
 
 - Settings: Reopen sessions after a restart, off by default. After the Mac starts again, one notification says how many Claude Code sessions were open before. Reopen opens each in Terminal with `claude --resume`, and with Remote Control again for sessions that had it. It waits until the Mac has a network address, so Remote Control can connect, and skips sessions that are open already. Nothing starts without the click. The app keeps a small list of the open sessions while the switch is on and deletes it when you turn it off.

@@ -410,14 +410,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func checkNudges(now: Date) {
         guard Settings.bool(Settings.nudges), let l = feedState.limits, !OpenSessionsRule.isStale(asOf: l.asOf, now: now) else { return }
-        if let w = l.windows["seven_day"], let length = WindowKind.length(forKey: "seven_day"), w.used >= Rules.weeklyNudgeAt, now < w.resetsAt,
+        if let w = l.active("seven_day"), let length = WindowKind.length(forKey: "seven_day"), w.used >= Rules.weeklyNudgeAt, now < w.resetsAt,
            Settings.nudged(Settings.nudgedWeeklyWindow) != w.resetsAt.timeIntervalSince1970 {
             let start = w.resetsAt.addingTimeInterval(-length)
             let body = PaceModel.reading(used: w.used, start: start, reset: w.resetsAt, now: now).map { PaceModel.nudgeBody($0) } ?? ""
             notifier.post(title: "Weekly at \(Int(w.used.rounded()))%", body: body, id: "weekly-\(Int(w.resetsAt.timeIntervalSince1970))")
             Settings.setNudged(Settings.nudgedWeeklyWindow, w.resetsAt.timeIntervalSince1970)
         }
-        if let f = l.windows["five_hour"], now >= f.resetsAt.addingTimeInterval(-Rules.fiveHourNudgeLead), now < f.resetsAt,
+        if let f = l.active("five_hour"), now >= f.resetsAt.addingTimeInterval(-Rules.fiveHourNudgeLead), now < f.resetsAt,
            Settings.nudged(Settings.nudgedFiveHourWindow) != f.resetsAt.timeIntervalSince1970 {
             notifier.post(title: "5h window ends in 15 min", body: "\(Int(f.used.rounded()))% used.", id: "five-\(Int(f.resetsAt.timeIntervalSince1970))")
             Settings.setNudged(Settings.nudgedFiveHourWindow, f.resetsAt.timeIntervalSince1970)

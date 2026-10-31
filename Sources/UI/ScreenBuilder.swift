@@ -49,7 +49,7 @@ public struct LiveInput: Sendable {
 }
 
 public enum ScreenBuilder {
-    static let keys = ["seven_day", "five_hour"]
+    static let keys = Limits.fixedKeys
 
     public static func clock(_ d: Date, _ tz: TimeZone, weekday: Bool = false) -> String {
         PaceModel.clock(d, weekday: weekday, timeZone: tz)
@@ -63,7 +63,9 @@ public enum ScreenBuilder {
         guard !limits.isUnknown(key), let length = WindowKind.length(forKey: key) else { return WindowView(title: title, used: rec.used, mode: .unknown) }
         let weekday = WindowKind.showsWeekday(length: length)
         if now >= rec.resetsAt {
-            return WindowView(title: title, used: rec.used, mode: .resetPassed(reset: PaceModel.resetText(reset: rec.resetsAt, weekday: weekday, timeZone: tz, passed: true)))
+            let reset = PaceModel.resetText(reset: rec.resetsAt, weekday: weekday, timeZone: tz, passed: true)
+            // sessions still feed but dropped the passed window: the next reply brings the new one
+            return WindowView(title: title, used: rec.used, mode: rec.retired ? .nextReply(reset: reset) : .resetPassed(reset: reset))
         }
         let start = rec.resetsAt.addingTimeInterval(-length)
         let stale = OpenSessionsRule.isStale(asOf: limits.asOf, now: now)
@@ -80,10 +82,10 @@ public enum ScreenBuilder {
 
     public static func limitsView(_ i: LiveInput) -> LimitsView {
         if let limits = i.feed.limits {
-            var views = keys.map { windowView(key: $0, limits: limits, now: i.now, tz: i.timeZone) }
-            for key in limits.windows.keys.sorted() where !keys.contains(key) {
-                views.append(windowView(key: key, limits: limits, now: i.now, tz: i.timeZone))
-            }
+            // a window a reply came without is one the plan no longer has: no row
+            let shown = keys + limits.windows.keys.sorted().filter { !keys.contains($0) }
+            let views = shown.filter { !limits.hidden.contains($0) }.map { windowView(key: $0, limits: limits, now: i.now, tz: i.timeZone) }
+            if views.isEmpty { return .noLimits }
             let stale = views.contains { if case .stale = $0.mode { return true } else { return false } }
             return .windows(views, staleNote: stale)
         }
@@ -289,9 +291,10 @@ public enum ScreenBuilder {
     }
 
     /// A window at 100% shows in the panda's eyes until its reset passes, stale or not; the weekly window wins.
+    /// A retired or hidden window never does.
     public static func eyes(_ limits: Limits?, now: Date) -> Eyes {
         func atLimit(_ key: String) -> Bool {
-            guard let w = limits?.windows[key] else { return false }
+            guard let w = limits?.active(key) else { return false }
             return w.used >= 100 && now < w.resetsAt
         }
         if atLimit("seven_day") { return .weeklyLimit }
@@ -312,7 +315,7 @@ public enum ScreenBuilder {
 
     static func itemFigures(_ i: LiveInput) -> ItemState {
         let macText = i.macInBar ? i.mac.map { " CPU \(Int($0.cpuBusy.rounded()))%" } : nil
-        guard let limits = i.feed.limits, let rec = limits.windows["seven_day"], !limits.isUnknown("seven_day"),
+        guard let limits = i.feed.limits, !limits.hidden.contains("seven_day"), let rec = limits.windows["seven_day"], !limits.isUnknown("seven_day"),
               let length = WindowKind.length(forKey: "seven_day") else {
             return ItemState(used: nil, elapsed: nil, over: false, stale: true, warn: i.warn, macText: macText,
                              label: "Claude usage, no figures yet" + (i.warn ? ", Mac warning" : ""))
