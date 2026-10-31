@@ -60,7 +60,8 @@ html.hot a[href]:hover { outline: 2px solid rgba(215, 119, 87, .8); }
 .ln > * { flex: none; }
 .ln .bold { color: var(--ink); font-weight: 700; }
 .ln .dim { color: var(--marker); }
-.ln .quiet { color: #5d626d; }
+.ln .quiet { color: #b8b8b8; }
+.ln .focus { outline: 1px solid var(--accent); outline-offset: 1px; border-radius: 0; }
 .ln .warnc { color: #ffc107; }
 .ln.hov { background: #273746; border-radius: 2px; }
 .ln a { border-radius: 2px; }

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Builds the clickable wireframes of tokenpanda as it is built (0.1.7, main at 4ca4160).
+Screens whose note starts with "Fixed in 0.1.8" or "Fixed in 0.1.9" draw the state after that fix; the flow test
+results in flows_data.py stay the record of the 0.1.7 test.
 
     python3 build.py
 
@@ -159,6 +161,12 @@ def win(title, mode='live', used=0, elapsed=None, over=False, reset='', countdow
     elif mode == 'nosession':
         out.append(L(T(' '), wbar(36, 0)))
         out.append(L(T(' '), T('no session yet  open Claude Code once', 'dim')))
+    elif mode == 'firstreply':
+        out.append(L(T(' '), wbar(36, 0)))
+        out.append(L(T(' '), T('waiting for the first reply', 'dim')))
+    elif mode == 'nextreply':
+        out.append(L(T(' '), wbar(36, 0)))
+        out.append(L(T(' '), T(reset + '  new window on the next reply', 'dim')))
     return ''.join(out)
 
 
@@ -174,7 +182,7 @@ def sessions(kind='two', tipline=False):
     for i, (n, m, used, fig, pct) in enumerate(rows):
         out.append(L(T(' '), fb(n, 'k'), T('  '), fb(m)))
         if kind == 'waiting':
-            out.append(L(T(' '), wbar(24, 0), T('  '), T('waiting for the first reply', 'dim'), hov=False))
+            out.append(L(T(' '), T('waiting for the first reply', 'dim'), hov=False))
         else:
             out.append(L(T(' '), wbar(24, used), T('  ' + ' ' * (16 - len(fig)) + fig + ' ' + pct), hov=tipline and i == 0))
     return ''.join(out)
@@ -265,8 +273,8 @@ reg('pop-live', 'Claude tab, live: weekly over pace, 5h ahead (Max or Pro)', 'Cl
     desk(item('61%', over=True, on=True, href='desk'), over=pop(claude(LIVE_LIMITS))), POP_KEYS)
 reg('pop-session-tip', 'Claude tab, hover on a session figure: list price, lines, effort', 'Claude tab',
     desk(item('61%', over=True, on=True, href='desk'), over=pop(claude(LIVE_LIMITS, tipline=True))
-         + '<div style="position:absolute;left:860px;top:316px;width:360px;height:16px;overflow:hidden;background:#373737;color:var(--ink);font:12px/16px ui-monospace,monospace;white-space:pre"> USD 38.20 list price equivalent  112 added  9 removed  effort high</div>'
-         + mark(856, 312, 372, 24) + tip('<b>Friction.</b> The tooltip is 68 cells wide in a 50 cell view and is drawn from the left edge, so it is cut after "9 remo" and the effort never shows (LineView.swift:203-213; the text from ScreenBuilder.swift:106-107).', 520, 290, 320)), POP_KEYS)
+         + '<div style="position:absolute;left:860px;top:300px;height:32px;background:#373737;color:var(--ink);font:12px/16px ui-monospace,monospace;white-space:pre"> USD 38.20 list price equivalent  112 added \n 9 removed  effort high </div>'
+         + mark(856, 296, 372, 40) + tip('<b>Fixed in 0.1.9.</b> A tooltip wider than the panel breaks over lines at its double spaces, so the lines and the effort show whole (LineView.tipLines). It also shows when the keyboard focuses the figure.', 520, 290, 320)), POP_KEYS)
 reg('pop-projects', 'Claude tab, tokens by project, 7 days (p)', 'Claude tab',
     desk(item('61%', over=True, on=True, href='desk'), over=pop(claude(LIVE_LIMITS, tok=1))), POP_KEYS)
 reg('pop-sessions', 'Claude tab, tokens by session, today (s)', 'Claude tab',
@@ -295,13 +303,17 @@ NOHOOK = (L(T(' '), T('Weekly and 5h window', 'bold')) + L(T(' '), T("needs Clau
           + L(T(' '), T('one statusLine entry in ~/.claude/settings.json', 'dim')))
 
 
-def nohook_lines(prev=False, href='pop-nosession'):
+def nohook_lines(prev=False, href='pop-nosession', err=None, focus=False):
+    btn = A(href, ' Install the status line hook ', 'btnl' + (' focus' if focus else ''))
     return (NOHOOK + L(T(' '), T('your current status line is kept and chained' if prev else 'chained if one exists', 'dim'))
-            + L(T(' '), A(href, ' Install the status line hook ', 'btnl')) + BL + PRIVACY)
+            + L(T(' '), btn) + ''.join(L(T(' '), T(e, 'dim')) for e in (err or [])) + BL + PRIVACY)
 
 
-def claude_nohook(prev=False, href='pop-nosession'):
-    body = header('No usage feed yet  Mac live', 0, False, 'nohook') + BL + nohook_lines(prev, href) + BL + tokens(0) + BL + weeks(W_SAMPLE[:3] + [('12 Oct', None, False, 'no feed yet', None, False)]) + foot(0)
+INSTALL_ERR = ['Could not install the entry: cannot read', 'settings.json: settings.json is not a JSON', 'object']
+
+
+def claude_nohook(prev=False, href='pop-nosession', err=None, focus=False):
+    body = header('No usage feed yet  Mac live', 0, False, 'nohook') + BL + nohook_lines(prev, href, err, focus) + BL + tokens(0) + BL + weeks(W_SAMPLE[:3] + [('12 Oct', None, False, 'no feed yet', None, False)]) + foot(0)
     return fix_html(body)
 
 
@@ -312,18 +324,18 @@ reg('pop-nohook', 'Claude tab, first open: Install the status line hook', 'Setup
          + '<div class="alts"><a class="altg" href="editor-broken.html">settings.json is not valid JSON</a><a class="altg" href="pop-nohook-chained.html">You already have a status line</a></div>'), NK)
 reg('pop-nohook-chained', 'Claude tab, first open with a status line of your own: kept and chained', 'Setup',
     desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude_nohook(True))), NK)
-reg('pop-install-failed', 'Claude tab after Install with an unreadable settings.json: nothing changes here', 'Setup',
-    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude_nohook(href='pop-install-failed'))
-         + mark(ITEM_X - 186, 172, 222, 20) + tip('<b>Broken.</b> The click failed ("settings.json is not a JSON object") and the Claude tab looks exactly as before. The error is drawn only on the Settings tab (Grammar.swift:100-110 has no error line; ScreenBuilder.swift:284 passes hookError to Settings only).', 560, 180, 300)
+reg('pop-install-failed', 'Claude tab after Install with an unreadable settings.json: the reason under the button', 'Setup',
+    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude_nohook(href='pop-install-failed', err=INSTALL_ERR))
+         + mark(ITEM_X - 186, 188, 372, 52) + tip('<b>Fixed in 0.1.9.</b> The error is drawn where the click was, under the button, wrapped over three lines with its reason (LimitsView.noHook carries it; Grammar.dimLines wraps instead of cutting).', 560, 180, 300)
          + '<div class="alts"><a class="altg" href="pop-settings-error.html">Open Settings</a></div>'), NK)
 reg('pop-nosession', 'Claude tab, hook installed, no session yet', 'Setup',
     desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(fix_html(header('No usage feed yet  Mac live', 0) + BL + win('Weekly (all models)', 'nosession') + BL + win('5h window', 'nosession') + BL
                                                                           + sessions('none') + BL + tokens(0) + BL + weeks(W_SAMPLE[:3] + [('12 Oct', None, False, 'no feed yet', None, False)]) + foot(0)))
          + '<div class="alts"><a class="altg" href="term-claude.html">Start Claude Code</a></div>'), POP_KEYS)
-reg('pop-firstcall', 'Claude tab during the first call: sessions open, windows still say open Claude Code once', 'Setup',
-    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(fix_html(header(LIVE_HDR, 0) + BL + win('Weekly (all models)', 'nosession') + BL + win('5h window', 'nosession') + BL
+reg('pop-firstcall', 'Claude tab during the first call: sessions open, both windows wait for the first reply', 'Setup',
+    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(fix_html(header(LIVE_HDR, 0) + BL + win('Weekly (all models)', 'firstreply') + BL + win('5h window', 'firstreply') + BL
                                                                           + sessions('waiting') + BL + tokens(0) + BL + weeks(W_SAMPLE) + foot(0)))
-         + mark(ITEM_X - 186, 106, 372, 120) + tip('<b>Friction.</b> "open Claude Code once" while two sessions are open right under it. The first call never carries rate_limits; the figures come after the first reply. "waiting for the first reply" would be the honest line (Grammar.swift:112).', 560, 100, 300)
+         + mark(ITEM_X - 186, 106, 372, 120) + tip('<b>Fixed in 0.1.9.</b> With a session open that has not replied, both windows say "waiting for the first reply" (LimitsView.firstReply), like the session row. "open Claude Code once" stays for when no session is open.', 560, 100, 300)
          + '<div class="alts"><a class="altg" href="pop-live.html">After the first reply</a></div>'), POP_KEYS)
 
 # ultra
@@ -360,11 +372,11 @@ reg('pop-live-max', 'Claude tab, Max or Pro today: both windows, as before', '5h
 reg('pop-week-near', 'Claude tab, 40 minutes before the weekly reset', 'Weekly reset',
     desk(item('91%', href='desk'), 'Sun 1 Nov 16:20', over=pop(claude(win('Weekly (all models)', used=91, elapsed=99, reset='Resets Sun 17:00', countdown='in 0h 40m', status='Ahead', proj='91% by reset at this rate', allow='13% an hour left') + BL + win('5h window', 'absent'), sess='one', wk=[W_ULTRA[0], W_ULTRA[1], ('26 Oct', 91, False, 'so far', 99, False)], tab_prefix='ultra'))
          + '<div class="alts"><a class="altg" href="pop-week-rolled.html">17:00 passes, no session open</a><a class="altg" href="pop-week-rolled-live.html">17:00 passes, sessions open and idle</a></div>'), UK)
-reg('pop-week-rolled', 'Claude tab, weekly reset passed with no session since', 'Weekly reset',
+reg('pop-week-rolled', 'Claude tab, weekly reset passed with no session since: the new week labelled 2 Nov (0.1.9)', 'Weekly reset',
     desk(item('', dim=True, href='desk'), 'Sun 1 Nov 18:30', over=pop(claude(win('Weekly (all models)', 'passed', reset='Reset Sun 17:00') + BL + win('5h window', 'absent'), sess='none', wk=[W_ULTRA[0], W_ULTRA[1], ('26 Oct', 91, False, '', None, False), ('2 Nov', None, False, 'last seen 91%', None, False)], hdr='Usage as of 16:52, last Claude Code session', tab_prefix='ultra'))), UK)
 reg('pop-week-rolled-live', 'Claude tab, weekly reset passed while idle sessions feed: no session since, under Usage live', 'Weekly reset',
-    desk(item('', dim=True, on=True, href='desk'), 'Sun 1 Nov 17:20', over=pop(claude(win('Weekly (all models)', 'passed', reset='Reset Sun 17:00') + BL + win('5h window', 'absent'), sess='two', wk=[W_ULTRA[0], W_ULTRA[1], ('26 Oct', 91, False, '', None, False), ('2 Nov', None, False, 'last seen 91%', None, False)], tab_prefix='ultra'))
-         + mark(ITEM_X - 186, 106, 372, 56) + tip('<b>Friction.</b> Claude Code drops a window once its reset passes; the idle sessions keep feeding without it, and the app keeps the old record, so the weekly reads "no session since" while two sessions are listed below. It clears with the next reply. Same root as the 5h window.', 520, 100, 320)
+    desk(item('', dim=True, on=True, href='desk'), 'Sun 1 Nov 17:20', over=pop(claude(win('Weekly (all models)', 'nextreply', reset='Reset Sun 17:00') + BL + win('5h window', 'absent'), sess='two', wk=[W_ULTRA[0], W_ULTRA[1], ('26 Oct', 91, False, '', None, False), ('2 Nov', None, False, 'last seen 91%', None, False)], tab_prefix='ultra'))
+         + mark(ITEM_X - 186, 106, 372, 56) + tip('<b>Fixed in 0.1.8 and 0.1.9.</b> The weekly says "new window on the next reply" while idle sessions feed without it (0.1.8). The new week is labelled by its own Monday, 2 Nov, not 26 Oct a second time (0.1.9, ScreenBuilder.weekViews).', 520, 100, 320)
          + '<div class="alts"><a class="altg" href="pop-week-new.html">The next reply</a></div>'), UK)
 reg('pop-week-new', 'Claude tab, the new week arrived: 1% used, last week kept', 'Weekly reset',
     desk(item('1%', on=True, href='desk'), 'Sun 1 Nov 17:24', over=pop(claude(win('Weekly (all models)', used=1, elapsed=0.4, reset='Resets Sun 17:00', countdown='in 6d 23h', status='On pace', proj='limit Tue 09:00 at this rate', allow='0.6% an hour left') + BL + win('5h window', 'absent'), sess='two', wk=[W_ULTRA[0], W_ULTRA[1], ('26 Oct', 91, False, '', None, False), ('2 Nov', 1, False, 'so far', 0.4, False)], tab_prefix='ultra'))), UK)
@@ -417,14 +429,14 @@ reg('desk-quit', 'Menu bar after Quit: the item is gone', 'Menu bar', desk(f'<sp
 # Settings tab
 
 
-def cb(on, label, href, sub=None, indent=' ', subhref=None, subcls='dim'):
-    out = L(T(indent), A(href, ('[x]' if on else '[ ]') + ' ' + esc(label), 'cb'), hov=False)
+def cb(on, label, href, sub=None, indent=' ', subhref=None, subcls='dim', focus=False):
+    out = L(T(indent), A(href, ('[x]' if on else '[ ]') + ' ' + esc(label), 'cb' + (' focus' if focus else '')), hov=False)
     if sub:
         out += L(T(indent + '    '), A(subhref, esc(sub), subcls) if subhref else T(sub, subcls))
     return out
 
 
-def settings_tab(login='off', nudge_note=None, awake=False, awake_open=False, awake_note=None, restore=False, hook=True, hook_err=None, login_err=None, prefix='pop', hdr=LIVE_HDR, macbar=False, listprice=True):
+def settings_tab(login='off', nudge_note=None, awake=False, awake_open=False, awake_note=None, restore=False, hook=True, hook_err=None, login_err=None, prefix='pop', hdr=LIVE_HDR, macbar=False, listprice=True, focus=None):
     body = header(hdr, 2, False, prefix) + BL
     body += cb(login == 'on', 'Open at login', 'pop-settings-login' if login == 'off' else 'pop-settings')
     if login == 'approval':
@@ -432,19 +444,22 @@ def settings_tab(login='off', nudge_note=None, awake=False, awake_open=False, aw
     if login_err:
         body += L(T('     '), T(login_err, 'dim'))
     body += cb(macbar, 'Mac figures in the bar', 'desk-mac')
-    body += cb(True, 'Nudge at 80% and before the 5h end', 'pop-settings', nudge_note)
+    body += cb(True, 'Nudge at 80% and before the 5h end', 'pop-settings', nudge_note, focus=focus == 'nudge')
     body += cb(listprice, 'List price equivalent', 'pop-nochip', 'tokens at list prices, not the plan price')
-    body += cb(awake, 'Keep the Mac awake while Claude works', 'pop-settings-awake' if not awake else 'pop-settings')
+    body += cb(awake, 'Keep the Mac awake while Claude works', 'pop-settings-awake' if not awake else 'pop-settings', 'a closed lid on battery still sleeps')
     if awake:
         body += cb(awake_open, 'also while a session waits for you', 'pop-settings-awake-open' if not awake_open else 'pop-settings-awake', awake_note, indent='     ')
-    body += cb(restore, 'Reopen sessions after a restart', 'pop-settings-restore' if not restore else 'pop-settings', 'asks first, then opens them in Terminal') + BL
+    body += cb(restore, 'Reopen sessions after a restart', 'pop-settings-restore' if not restore else 'pop-settings', 'asks first, then opens them in Terminal')
+    if restore and nudge_note:
+        body += L(T('     '), T(nudge_note, 'dim'))
+    body += BL
     if hook:
         body += L(T(' '), A('editor-restored', 'Remove the status line entry')) + L(T('     '), T('puts back what statusLine held before', 'dim'))
     else:
-        body += L(T(' '), A('editor-after', 'Install the status line entry')) + L(T('     '), T('one statusLine entry in ~/.claude/settings.js', 'dim'))
-    if hook_err:
-        body += L(T('     '), T(hook_err, 'dim'))
-    body += BL + PRIVACY + BL + L(T(' '), A('desk-quit', 'Quit'), T(' ' * 39), A('desk-quit', '&#8984;Q')) + foot(2)
+        body += L(T(' '), A('editor-after', 'Install the status line entry')) + L(T('     '), T('one entry in ~/.claude/settings.json', 'dim'))
+    for e in ([hook_err] if isinstance(hook_err, str) else (hook_err or [])):
+        body += L(T('     '), T(e, 'dim'))
+    body += BL + PRIVACY + L(T(' '), T('tokenpanda 0.1.9', 'dim')) + BL + L(T(' '), A('desk-quit', 'Quit'), T(' ' * 39), A('desk-quit', '&#8984;Q')) + foot(2)
     return body
 
 
@@ -456,23 +471,23 @@ reg('pop-settings-approval', 'Settings, Open at login waits for approval: click 
 reg('pop-settings-awake', 'Settings, Keep the Mac awake on, one session working', 'Settings', desk(item('61%', over=True, on=True, href='desk'), over=pop(settings_tab(awake=True, awake_note='awake  1 session working')) + '<div class="alts"><a class="altg" href="term-pmset.html">pmset -g assertions</a></div>'), SK)
 reg('pop-settings-awake-open', 'Settings, also while a session waits: awake  1 session open', 'Settings', desk(item('61%', over=True, on=True, href='desk'), over=pop(settings_tab(awake=True, awake_open=True, awake_note='awake  1 session open', restore=True))), SK)
 reg('pop-settings-restore', 'Settings, Reopen sessions after a restart on', 'Settings', desk(item('61%', over=True, on=True, href='desk'), over=pop(settings_tab(restore=True)) + '<div class="alts"><a class="altg" href="notif-reopen.html">After a restart</a></div>'), SK)
-reg('pop-settings-nohook', 'Settings, hook not installed: the second line runs past the edge', 'Settings',
+reg('pop-settings-nohook', 'Settings, hook not installed: the second line fits', 'Settings',
     desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(settings_tab(hook=False, hdr='No usage feed yet  Mac live', prefix='nohook'))
-         + mark(ITEM_X - 154, 268, 336, 20) + tip('<b>Friction.</b> "one statusLine entry in ~/.claude/settings.json" is 51 cells in a 47 cell popover and is cut at ".js" (Grammar.swift:318, not cut to width like the error lines). The button says "entry" here and "hook" on the Claude tab.', 520, 380, 320)), keys(Escape='desk-nofeed', Tab='pop-nohook'))
-reg('pop-settings-denied', 'Settings, notifications denied: the note is cut and does not open System Settings', 'Settings',
-    desk(item('61%', over=True, on=True, href='desk'), over=pop(settings_tab(nudge_note='Notifications are off for this app in System'))
-         + mark(ITEM_X - 154, 156, 336, 20) + tip('<b>Friction.</b> The note is 57 cells and loses "Settings" at the edge; it is plain text, so a click does not open System Settings, Notifications (Grammar.swift:279, Notifier.swift:30).', 520, 170, 320)), SK)
-reg('pop-settings-error', 'Settings, the install error under the row', 'Settings',
-    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(settings_tab(hook=False, hook_err='Could not install the entry: cannot read setti', hdr='No usage feed yet  Mac live', prefix='nohook'))
-         + tip('The error is here, cut to the width: "Could not install the entry: cannot read setti". The reason (not a JSON object) is cut off.', 560, 420, 300)), keys(Escape='desk-nofeed', Tab='pop-nohook'))
+         + mark(ITEM_X - 154, 284, 336, 20) + tip('<b>Fixed in 0.1.9.</b> "one entry in ~/.claude/settings.json" fits the indent. With several settings folders it says "one entry in each of" and the folders, wrapped. The button still says "entry" here and "hook" on the Claude tab.', 520, 380, 320)), keys(Escape='desk-nofeed', Tab='pop-nohook'))
+reg('pop-settings-denied', 'Settings, notifications denied: the note fits, under Reopen too', 'Settings',
+    desk(item('61%', over=True, on=True, href='desk'), over=pop(settings_tab(nudge_note='Notifications are off in System Settings', restore=True))
+         + mark(ITEM_X - 154, 156, 336, 20) + tip('<b>Fixed in 0.1.9.</b> "Notifications are off in System Settings" fits, and shows under Reopen sessions too while that is on. Still plain text: a click does not open System Settings, Notifications.', 520, 170, 320)), SK)
+reg('pop-settings-error', 'Settings, the install error under the row, whole', 'Settings',
+    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(settings_tab(hook=False, hook_err=['Could not install the entry: cannot read', 'settings.json: settings.json is not a JSON', 'object'], hdr='No usage feed yet  Mac live', prefix='nohook'))
+         + tip('<b>Fixed in 0.1.9.</b> The error is wrapped over lines with its reason, never cut.', 560, 420, 300)), keys(Escape='desk-nofeed', Tab='pop-nohook'))
 
 # accessibility
-reg('pop-voiceover', 'VoiceOver in the popover: every line is static text, the controls cannot be pressed', 'Access',
-    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude_nohook()) + mark(ITEM_X - 186, 172, 222, 20)
-         + tip('<b>Broken.</b> VoiceOver reads "Install the status line hook, text". It has no button role and no press action, so a VoiceOver user cannot install the feed, switch tabs or tick a setting. LineView.swift:90-97 makes every line an NSAccessibilityElement of role staticText. The style guide (section 9) promises buttons, tabs and checkboxes with state.', 520, 170, 330)), NK)
-reg('pop-keyboard', 'Keyboard in the popover: Tab switches tabs, nothing takes focus, Space does nothing', 'Access',
-    desk(item('61%', over=True, on=True, href='desk'), over=pop(settings_tab())
-         + tip('<b>Broken.</b> Tab, Shift Tab, Esc, m p s and Command Q are the only keys (Controller.swift:529-541). No row takes focus, so a setting cannot be ticked from the keyboard; the style guide promises a focus ring and Space to toggle. The key hints are #505050 on the glass, about 2.1 to 1.', 520, 150, 330)), SK)
+reg('pop-voiceover', 'VoiceOver in the popover: buttons, tabs and checkboxes with their state, pressable', 'Access',
+    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude_nohook(focus=True)) + mark(ITEM_X - 186, 172, 222, 20)
+         + tip('<b>Fixed in 0.1.9.</b> VoiceOver reads "Install the status line hook, button" and VO Space presses it. The tab strip is a tab group of three tabs with the selected one marked; every setting is a checkbox that says checked or unchecked, its dim line as help; a figure\'s tooltip is its help (LineView, Controls.extract). The manual test is docs/testing.html.', 520, 170, 330)), NK)
+reg('pop-keyboard', 'Keyboard in the popover: the focus ring on a setting, Space ticks it', 'Access',
+    desk(item('61%', over=True, on=True, href='desk'), over=pop(settings_tab(focus='nudge'))
+         + tip('<b>Fixed in 0.1.9.</b> Down and Up move a 1 pt accent ring through the tab\'s controls, Left and Right along the tab strip and the section switch, Space or Return presses. Tab still switches tabs and puts the ring on the tab it opened. The key hints are #b8b8b8: 8.7 to 1 on the dark glass, 4.8 to 1 over a white desktop.', 520, 150, 330)), SK)
 
 # ---------- system surfaces ----------
 
@@ -536,7 +551,7 @@ reg('gk-confirm', 'The warning again: Open', 'Install',
     plain(dlg('Open "tokenpanda"?', 'Apple is not able to verify that it is free from malware. Open it only if you are certain it is from a reliable source.', [('Move to Bin', 'finder-apps', False), ('Open Anyway', 'notif-permission', True)])))
 reg('notif-permission', 'First launch: the notification permission prompt, before anything is explained', 'Install',
     desk(item('', dim=True, href='pop-nohook'), 'Thu 15 Oct 14:20', over=notif('"tokenpanda" would like to send you notifications', 'Notifications may include alerts, sounds and icon badges.', [('Allow', 'desk-nofeed'), ("Don't Allow", 'desk-nofeed')])
-         + tip('<b>Friction.</b> Nudges are on by default and the app asks at launch (Controller.swift:124), before the user has seen the popover or knows what a nudge is. No window, no Dock icon: this prompt is the first sign the app runs.', 760, 140, 330)))
+         + tip('<b>Fixed in 0.1.9.</b> The app no longer asks at launch. This prompt comes with the first nudge that is due, or when the user ticks Nudge or Reopen sessions on; a choice made before is read without asking.', 760, 140, 330)))
 reg('desk-hidden', 'macOS 26 and later: the item is not shown until allowed under Menu Bar', 'Install',
     desk(f'<span class="ext"></span>', 'Thu 15 Oct 14:20', over=tip('<b>Friction.</b> The app runs, but the menu bar shows nothing: on macOS 26 and later it must be allowed in System Settings, Menu Bar (README, Install). A full menu bar behind the notch hides it too. No window or Dock icon says the app is running.', 760, 40, 330)
                                                          + '<div class="alts"><a class="altg" href="sys-menubar.html">System Settings, Menu Bar</a></div>'))
@@ -562,8 +577,8 @@ reg('editor-broken', '~/.claude/settings.json that is not valid JSON (a trailing
 reg('editor-restored', '~/.claude/settings.json after Remove: your statusLine back exactly', 'Uninstall',
     editor('settings.json', [('', '{'), ('', '  "statusLine" : {'), ('', '    "type" : "command",'), ('', '    "command" : "~/bin/my-statusline.sh",'), ('', '    "padding" : 2'), ('', '  },'), ('d', '  "model" : ...'), ('', '}')],
            '<div class="alts"><a class="altg" href="editor-empty.html">There was no settings.json before</a><a class="altg" href="finder-bin.html">Quit, move the app to the Bin</a></div>'))
-reg('editor-empty', '~/.claude/settings.json after Remove when there was none: an empty object stays', 'Uninstall',
-    editor('settings.json', [('', '{'), ('', ''), ('', '}')], tip('<b>Friction, small.</b> The install created the file; the removal leaves "{}" behind instead of deleting what it made (Hook.swift:148 removes only the key).', 760, 520, 300)))
+reg('editor-empty', '~/.claude/settings.json after Remove when there was none: 0.1.8 left an empty object, 0.1.9 deletes the file', 'Uninstall',
+    editor('settings.json', [('', '{'), ('', ''), ('', '}')], tip('<b>Fixed in 0.1.9.</b> When Install created the file and nothing else was added, Remove deletes it; this "{}" no longer stays. A file that was there before stays, even empty.', 760, 520, 300)))
 reg('term-claude', 'Terminal: a Claude Code session, the first reply', 'Setup',
     plain(term('Terminal, ~/workspace', [('p', '$ claude'), ('d', ' ...'), ('', '&gt; say ok'), ('', 'ok'), ('d', ' (your status line, unchanged, or nothing)')])
           + '<div class="alts"><a class="altg" href="pop-firstcall.html">Open the popover during the first call</a><a class="altg" href="pop-live.html">Open it after the reply</a></div>', app='Terminal'))
@@ -595,10 +610,11 @@ reg('finder-bin', 'Finder: tokenpanda.app moved to the Bin', 'Uninstall',
 reg('term-leftover', 'After the app is gone: the hook keeps writing, files pile up', 'Uninstall',
     plain(term('Terminal', [('p', '$ ls ~/Library/Application\\ Support/dev.tokenpanda.app/sessions'), ('', '0a1f...json  0b77...json  1c02...json  ...  (214 files)'), ('d', '(one file per Claude Code session since the app was removed; only the app deletes them)')])
           + tip('<b>Friction.</b> The statusLine entry still runs hook.sh, so every session leaves a file that nothing removes. Illustration: the count is an example; the behaviour is from Hook.swift and FeedReader.swift:92-95.', 760, 520, 330), app='Terminal'))
-reg('term-zap', 'brew uninstall --zap: the hook script is gone, so is your own status line', 'Uninstall',
-    plain(term('Terminal, ~/workspace', [('p', '$ brew uninstall --zap tokenpanda'), ('d', '==&gt; Trashing ~/Library/Application Support/dev.tokenpanda.app'), ('p', '$ claude'), ('', '&gt; ...'),
-                                         ('bad', ' (status line empty: statusLine still points at the deleted hook.sh, and your own command was chained inside it)')])
-          + tip('<b>Broken.</b> zap deletes the folder that holds hook.sh while settings.json still points at it. Claude Code runs a missing script; the status line the user had before is gone too, because it ran only through the hook. The caveat asks to Remove first; nothing enforces it.', 760, 500, 330), app='Terminal'))
+reg('term-zap', 'brew uninstall --zap: the app removes its entry first, your own status line comes back', 'Uninstall',
+    plain(term('Terminal, ~/workspace', [('p', '$ brew uninstall --zap tokenpanda'), ('d', '==&gt; Running tokenpanda --remove-status-line'), ('', 'tokenpanda: status line entry removed from ~/.claude'),
+                                         ('d', '==&gt; Trashing ~/Library/Application Support/dev.tokenpanda.app'), ('p', '$ claude'), ('', '&gt; ...'),
+                                         ('ok', ' (your own status line, as before the install)')])
+          + tip('<b>Fixed in 0.1.9.</b> The cask\'s zap stanza runs the app\'s own Remove before it trashes the data folder, in every settings folder; uninstall does not, because it also runs on every upgrade. If the script is gone anyway, the app says so and offers Install again instead of claiming it is installed.', 760, 500, 330), app='Terminal'))
 
 
 # ---------- outcomes and the next place a flow goes: dashed targets, shown with h or in walk mode ----------
