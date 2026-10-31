@@ -5,7 +5,7 @@ import Foundation
 import AppKit
 import Text
 import Feed
-import UI
+@testable import UI
 
 /// 0.1.9: VoiceOver roles and the keyboard, text that fits the panel, the key hint contrast, several settings folders,
 /// the hook script check, the zap safe remove and the smaller fixes.
@@ -59,7 +59,7 @@ struct AccessTests {
         let figures = c.filter { $0.kind == .figure }
         #expect(figures.count >= 6)
         #expect(figures.allSatisfy { $0.help != nil && $0.action == nil })
-        #expect(figures.first?.label.hasPrefix("workspace, Fable 5.1, context 405.6k of 1M") == true)
+        #expect(figures.first?.label == "workspace, Fable 5.1, context 405.6 thousand of 1 million, 41% used")
     }
 
     // MARK: the view: VoiceOver elements, press, keyboard focus
@@ -261,12 +261,20 @@ struct AccessTests {
         // nothing there yet: ~/.claude
         #expect(ConfigFolders.find(home: home, environment: [:]).map(\.lastPathComponent) == [".claude"])
         try fm.createDirectory(at: home.appendingPathComponent(".claude"), withIntermediateDirectories: true)
-        try fm.createDirectory(at: home.appendingPathComponent(".claude-work/projects"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: home.appendingPathComponent(".claude-work"), withIntermediateDirectories: true)
+        try "{}".write(to: home.appendingPathComponent(".claude-work/settings.json"), atomically: true, encoding: .utf8)
+        try fm.createDirectory(at: home.appendingPathComponent(".claude-backup/projects"), withIntermediateDirectories: true)   // a copy with transcripts only
         try fm.createDirectory(at: home.appendingPathComponent(".claude-empty"), withIntermediateDirectories: true)   // neither settings nor projects
         try fm.createDirectory(at: home.appendingPathComponent("elsewhere/cc"), withIntermediateDirectories: true)
-        let found = ConfigFolders.find(home: home, environment: ["CLAUDE_CONFIG_DIR": home.appendingPathComponent("elsewhere/cc").path])
+        let env = ["CLAUDE_CONFIG_DIR": home.appendingPathComponent("elsewhere/cc").path]
+        let found = ConfigFolders.find(home: home, environment: env)
+        // Install goes only where settings live: the backup copy with transcripts only is left out
         #expect(found.map { ConfigFolders.display($0, home: home) } == ["~/.claude", "~/elsewhere/cc", "~/.claude-work"])
-        #expect(found.map { ConfigFolders.id(for: $0, home: home) } == [nil, "elsewhere-cc", "claude-work"])
+        let ids = found.map { ConfigFolders.id(for: $0, home: home) }
+        #expect(ids[0] == nil && ids[1]?.hasPrefix("elsewhere-cc-") == true && ids[2]?.hasPrefix("claude-work-") == true)
+        // its transcripts are still counted
+        #expect(ConfigFolders.transcriptFolders(home: home, environment: env).map { ConfigFolders.display($0, home: home) }
+                == ["~/.claude", "~/elsewhere/cc", "~/.claude-backup", "~/.claude-work"])
         // only a CLAUDE_CONFIG_DIR folder: ~/.claude is not created for it
         let home2 = try tempDir()
         try fm.createDirectory(at: home2.appendingPathComponent("cfg"), withIntermediateDirectories: true)
@@ -290,7 +298,7 @@ struct AccessTests {
         #expect(st.installed && st.anyInstalled && st.targets == ["~/.claude", "~/.claude-work"])
         // two scripts, each chaining its own folder's command, writing to the one sessions folder
         let scriptA = try String(contentsOf: data.appendingPathComponent("hook.sh"), encoding: .utf8)
-        let scriptB = try String(contentsOf: data.appendingPathComponent("hook-claude-work.sh"), encoding: .utf8)
+        let scriptB = try String(contentsOf: set.hooks[1].hookPath, encoding: .utf8)
         #expect(scriptA.contains("PREV='echo A'") && scriptB.contains("PREV='echo B'"))
         #expect(scriptA.contains(data.appendingPathComponent("sessions").path) && scriptB.contains(data.appendingPathComponent("sessions").path))
         // Remove puts both back and the sessions folder goes with the last one
@@ -301,7 +309,7 @@ struct AccessTests {
         #expect((ob["statusLine"] as? [String: Any])?["command"] as? String == "echo B")
         #expect(ob["model"] as? String == "x")
         #expect(!fm.fileExists(atPath: data.appendingPathComponent("sessions").path))
-        #expect(!fm.fileExists(atPath: data.appendingPathComponent("hook-claude-work.sh").path))
+        #expect(!fm.fileExists(atPath: set.hooks[1].hookPath.path))
     }
 
     @Test func aNewFolderLeavesTheOthersInstalledAndInstallAddsIt() throws {
@@ -360,10 +368,12 @@ struct AccessTests {
         let here = URL(fileURLWithPath: #filePath)
         let cask = try String(contentsOf: here.deletingLastPathComponent().appendingPathComponent("../../Casks/tokenpanda.rb").standardizedFileURL, encoding: .utf8)
         let zap = try #require(cask.range(of: "zap ")).lowerBound
-        let flag = try #require(cask.range(of: "--remove-status-line")).lowerBound
+        let flag = try #require(cask.range(of: "dev.tokenpanda.app/remove.sh")).lowerBound
         #expect(flag > zap)   // inside the zap stanza
         let uninstall = try #require(cask.range(of: "uninstall quit:"))
-        #expect(!cask[uninstall.lowerBound..<zap].contains("remove-status-line"))
+        #expect(!cask[uninstall.lowerBound..<zap].contains("remove.sh"))
+        // the zap runs the script with /bin/sh, not the app binary, which Homebrew before 7.0.10 has deleted by then
+        #expect(!cask[zap...].contains("MacOS/tokenpanda"))
     }
 
     // MARK: the .tmp leak
@@ -379,5 +389,146 @@ struct AccessTests {
         _ = await FeedReader(dataDir: dir).scan(now: now)
         #expect(!FileManager.default.fileExists(atPath: old.path))
         #expect(FileManager.default.fileExists(atPath: fresh.path))   // a hook run may be writing it right now
+    }
+
+    // MARK: 0.1.9 check: id collision, remove without the app
+
+    @Test func dashAndUnderscoreFoldersNeverShareAScriptOrBackup() throws {
+        let home = try tempDir(), data = try tempDir()
+        let fm = FileManager.default
+        let dash = home.appendingPathComponent(".claude-work"), under = home.appendingPathComponent(".claude_work")
+        for d in [dash, under] { try fm.createDirectory(at: d, withIntermediateDirectories: true) }
+        try "{\"model\":\"x\"}".write(to: dash.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        try "{\"statusLine\":{\"type\":\"command\",\"command\":\"under.sh\"}}".write(to: under.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        let set = HookSet(folders: [dash, under], dataDir: data, home: home)
+        #expect(Set(set.hooks.map(\.hookPath)).count == 2 && Set(set.hooks.map(\.backupPath)).count == 2)
+        // the id is stable: the same folder gives the same name every time
+        #expect(ConfigFolders.id(for: dash, home: home) == ConfigFolders.id(for: dash, home: home))
+        _ = try set.install()
+        let sDash = try String(contentsOf: set.hooks[0].hookPath, encoding: .utf8), sUnder = try String(contentsOf: set.hooks[1].hookPath, encoding: .utf8)
+        #expect(sDash.contains("PREV=''") && sUnder.contains("PREV='under.sh'"))
+        try set.uninstall(previousCommand: { _ in nil }, previousRefresh: { _ in nil })
+        let od = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: dash.appendingPathComponent("settings.json"))) as? [String: Any])
+        let ou = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: under.appendingPathComponent("settings.json"))) as? [String: Any])
+        #expect(od["statusLine"] == nil && od["model"] as? String == "x")
+        #expect((ou["statusLine"] as? [String: Any])?["command"] as? String == "under.sh")
+    }
+
+    func runSh(_ path: URL) throws -> Int32 {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = [path.path]
+        p.standardOutput = FileHandle.nullDevice
+        try p.run(); p.waitUntilExit()
+        return p.terminationStatus
+    }
+
+    @Test func removeScriptPutsEverythingBackWithoutTheApp() throws {
+        let home = try tempDir(), data = try tempDir().appendingPathComponent("Application Support/dev.tokenpanda.app")
+        let fm = FileManager.default
+        let a = home.appendingPathComponent(".claude"), b = home.appendingPathComponent(".claude_work"), c = home.appendingPathComponent("it's here")
+        for d in [a, b, c] { try fm.createDirectory(at: d, withIntermediateDirectories: true) }
+        try "{\"statusLine\":{\"type\":\"command\",\"command\":\"echo A\",\"padding\":2,\"refreshInterval\":60},\"model\":\"x\"}".write(to: a.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        try "{\"other\":1}".write(to: b.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        // c has no settings.json: Install creates it, the script deletes it again
+        let set = HookSet(folders: [a, b, c], dataDir: data, home: home)
+        _ = try set.install()
+        let script = try #require(set.removeScriptPath)
+        #expect(fm.isExecutableFile(atPath: script.path))
+        // zap on an old Homebrew: the app is gone, the data folder is still there, the script runs
+        #expect(try runSh(script) == 0)
+        let oa = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: a.appendingPathComponent("settings.json"))) as? [String: Any])
+        let sl = try #require(oa["statusLine"] as? [String: Any])
+        #expect(sl["command"] as? String == "echo A" && sl["padding"] as? Int == 2 && sl["refreshInterval"] as? Int == 60 && oa["model"] as? String == "x")
+        let ob = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: b.appendingPathComponent("settings.json"))) as? [String: Any])
+        #expect(ob["statusLine"] == nil && ob["other"] as? Int == 1)
+        #expect(!fm.fileExists(atPath: c.appendingPathComponent("settings.json").path))
+        // a statusLine the user changed since is left alone; running it twice changes nothing
+        try "{\"statusLine\":{\"type\":\"command\",\"command\":\"mine.sh\"}}".write(to: b.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        #expect(try runSh(script) == 0)
+        #expect(try String(contentsOf: b.appendingPathComponent("settings.json"), encoding: .utf8).contains("mine.sh"))
+        // after Remove in the app, nothing is ours: the script goes
+        _ = try set.install()
+        try set.uninstall(previousCommand: { _ in nil }, previousRefresh: { _ in nil })
+        #expect(!fm.fileExists(atPath: script.path))
+    }
+
+    // MARK: 0.1.9 check: what VoiceOver reads instead of glyph names
+
+    @MainActor func spokenTree(_ name: String, tab: Int? = nil) throws -> [(NSAccessibility.Role?, String, String?)] {
+        let input = try #require(Fixtures.all().first { $0.0 == name }?.1)
+        var i = input; if let tab { i.tab = tab }
+        let v = LineView()
+        v.lines = Grammar.popover(ScreenBuilder.screen(i))
+        func walk(_ es: [NSAccessibilityElement]) -> [(NSAccessibility.Role?, String, String?)] {
+            es.flatMap { e in [(e.accessibilityRole(), e.accessibilityLabel() ?? "", e.accessibilityHelp())] + walk((e.accessibilityChildren() as? [NSAccessibilityElement]) ?? []) }
+        }
+        return walk((v.accessibilityChildren() as? [NSAccessibilityElement]) ?? [])
+    }
+
+    static let glyphs: [Character] = ["\u{2588}", "\u{2589}", "\u{258A}", "\u{258B}", "\u{258C}", "\u{258D}", "\u{258E}", "\u{258F}", "\u{2590}",
+                                      "\u{2594}", "\u{26C1}", "\u{26F6}", "\u{26DD}", "\u{2595}", "\u{2502}"]
+
+    @Test @MainActor func noElementIsReadAsGlyphNames() throws {
+        for (name, input) in Fixtures.all() {
+            for tab in 0..<3 {
+                var i = input; i.tab = tab
+                let v = LineView()
+                v.lines = Grammar.popover(ScreenBuilder.screen(i))
+                func walk(_ es: [NSAccessibilityElement]) -> [String] {
+                    es.flatMap { [$0.accessibilityLabel() ?? ""] + walk(($0.accessibilityChildren() as? [NSAccessibilityElement]) ?? []) }
+                }
+                for label in walk((v.accessibilityChildren() as? [NSAccessibilityElement]) ?? []) {
+                    #expect(!label.contains { Self.glyphs.contains($0) }, "\(name) tab \(tab): \(label)")
+                }
+            }
+        }
+    }
+
+    @Test @MainActor func sectionsWeeksAndTheGridSayTheStyleGuidesLabels() throws {
+        let claude = try spokenTree("claude-overpace").map(\.1)
+        #expect(claude.contains("Weekly, all models. 61% used. Resets Sunday 18:00, in 3 days 3 hours. Over pace, limit Sunday 01:20 at this rate. 0.5% an hour left."))
+        #expect(claude.contains("Week of 28 September, 100%, hit the limit Thursday 16:10"))
+        #expect(claude.contains("Week of 12 October, 61%, so far"))
+        #expect(claude.contains("Fable 5.1, 1.02 billion tokens, 49% of 7 days"))
+        #expect(claude.contains("list price equivalent, 1,140 US dollars"))
+        // the section's other lines are not read a second time
+        #expect(!claude.contains { $0.hasPrefix("Resets Sun") || $0 == "0.5% an hour left" })
+        let mac = try spokenTree("mac")
+        let grid = try #require(mac.first { $0.0 == .image })
+        #expect(grid.1 == "Memory 25.5 of 36 gigabytes, 71%, free 10.5 gigabytes, swap 0.9 gigabytes, pressure normal")
+        #expect(mac.filter { $0.0 == .image }.count == 1)
+        #expect(mac.contains { $0.1.hasPrefix("CPU ") && $0.1.contains("% , ") == false && $0.1.contains("cores") })
+        #expect(mac.contains { $0.1.hasPrefix("Battery ") && $0.1.contains("cycles") })
+        // a process row says its figure once, and no help repeats it
+        let row = try #require(mac.first { $0.1.contains("% CPU") })
+        #expect(row.2 == nil)
+    }
+
+    @Test @MainActor func checkboxHelpIsSaidOnceAndTheRuleIsSilent() throws {
+        let t = try spokenTree("settings")
+        let price = try #require(t.first { $0.1 == "List price equivalent" })
+        #expect(price.2 == "tokens at list prices, not the plan price")
+        #expect(!t.contains { $0.0 == .staticText && $0.1 == "tokens at list prices, not the plan price" })
+        #expect(!t.contains { $0.1.contains("\u{2594}") })
+    }
+
+    @Test @MainActor func thePointerLandsOnTheElementUnderIt() throws {
+        let v = LineView()
+        v.lines = Grammar.popover(try screen("settings"))
+        // the Settings tab: line 2 of the header, its cells from the controls
+        let tab = try #require(v.controls.first { $0.label == "Settings" })
+        let r = v.controlRect(tab)
+        let e = try #require(v.element(atViewPoint: NSPoint(x: r.midX, y: r.midY)))
+        #expect(e.accessibilityLabel() == "Settings" && e.accessibilityRole() == .radioButton)
+        let box = try #require(v.controls.first { $0.label == "List price equivalent" })
+        let rb = v.controlRect(box)
+        #expect(v.element(atViewPoint: NSPoint(x: rb.midX, y: rb.midY))?.accessibilityRole() == .checkBox)
+    }
+
+    @Test @MainActor func wrappedTextIsReadOnceAndWhole() throws {
+        let t = try spokenTree("claude-install-failed").map(\.1)
+        #expect(t.contains("Could not install the entry: cannot read settings.json: settings.json is not a JSON object"))
+        #expect(!t.contains { $0.hasPrefix("settings.json: settings.json") || $0 == "object" })
     }
 }

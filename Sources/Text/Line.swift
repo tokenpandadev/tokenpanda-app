@@ -56,10 +56,15 @@ public struct Line: Sendable {
     public var hover: Bool          // highlights across the full width under the pointer
     public var label: String?       // the accessibility label of the line, when it differs from its text
     public var help: String?        // the accessibility help of the line's control: the dim line under a checkbox
+    public var hidden: Bool         // not an element of its own: decoration, or already said by the line that labels its group
+    public var image: Bool          // spoken as an image with a description (the memory grid)
 
-    public init(_ pieces: [Piece] = [], hover: Bool = false, label: String? = nil, help: String? = nil) {
-        self.pieces = pieces; self.hover = hover; self.label = label; self.help = help
+    public init(_ pieces: [Piece] = [], hover: Bool = false, label: String? = nil, help: String? = nil, hidden: Bool = false, image: Bool = false) {
+        self.pieces = pieces; self.hover = hover; self.label = label; self.help = help; self.hidden = hidden; self.image = image
     }
+
+    /// The same line, hidden from VoiceOver.
+    public var silent: Line { var l = self; l.hidden = true; return l }
 
     /// The line as plain text: bars become their glyph runs. Used by the golden tests.
     public var plain: String { pieces.map(\.text).joined() }
@@ -127,7 +132,7 @@ public enum Controls {
                 }
                 if let tip = p.tip {
                     let label = line.label ?? line.plain.trimmingCharacters(in: .whitespaces)
-                    out.append(Control(kind: .figure, action: nil, label: label, checked: nil, help: tip,
+                    out.append(Control(kind: .figure, action: nil, label: label, checked: nil, help: line.help ?? tip,
                                        line: li, startCell: cell, cells: p.cells, key: key("figure|" + (label.split(separator: ",").first.map(String.init) ?? label))))
                 }
                 cell += p.cells

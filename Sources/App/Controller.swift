@@ -84,7 +84,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         hook = HookSet(folders: folders, dataDir: Paths.dataDir)
         // the transcripts of every settings folder found, besides the usual places
         var roots = TranscriptLocator.roots()
-        for f in folders { let r = f.appendingPathComponent("projects", isDirectory: true); if !roots.contains(r) { roots.append(r) } }
+        for f in ConfigFolders.transcriptFolders() { let r = f.appendingPathComponent("projects", isDirectory: true); if !roots.contains(r) { roots.append(r) } }
         store = TranscriptStore(roots: roots)
         super.init()
     }

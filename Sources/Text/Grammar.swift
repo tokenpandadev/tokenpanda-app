@@ -2,6 +2,51 @@
 // SPDX-License-Identifier: MIT
 // The line renderer: one function per component of the style guide, copied from the approved popover draft.
 // Nothing here is reinterpreted; a change to the sheet is a change here.
+import Foundation
+
+/// What VoiceOver says where the panel abbreviates: weekdays and months in full, token figures in words, a
+/// countdown in units. "Sun 18:00" is "Sunday 18:00", "1.02B" is "1.02 billion", "in 3d 3h" is "in 3 days 3 hours".
+public enum Spoken {
+    static let days = ["Mon": "Monday", "Tue": "Tuesday", "Wed": "Wednesday", "Thu": "Thursday", "Fri": "Friday", "Sat": "Saturday", "Sun": "Sunday"]
+    static let months = ["Jan": "January", "Feb": "February", "Mar": "March", "Apr": "April", "May": "May", "Jun": "June", "Jul": "July",
+                         "Aug": "August", "Sep": "September", "Oct": "October", "Nov": "November", "Dec": "December"]
+
+    public static func words(_ s: String) -> String {
+        s.replacingOccurrences(of: "  ", with: ", ").split(separator: " ", omittingEmptySubsequences: false).map { t -> String in
+            var tok = String(t), tail = ""
+            if let last = tok.last, ",.)".contains(last) { tail = String(last); tok.removeLast() }
+            if let d = days[tok] ?? months[tok] { return d + tail }
+            if tok == "USD" { return "US dollars" + tail }
+            if let u = tok.last, "BMk".contains(u), tok.count > 1, Double(tok.dropLast()) != nil {
+                return tok.dropLast() + (u == "B" ? " billion" : u == "M" ? " million" : " thousand") + tail
+            }
+            return tok + tail
+        }.joined(separator: " ")
+    }
+
+    /// "in 3d 3h" and "in 2h 15m" in units.
+    public static func countdown(_ s: String) -> String {
+        s.split(separator: " ").map { t -> String in
+            guard let u = t.last, "dhm".contains(u), let n = Int(t.dropLast()) else { return String(t) }
+            let unit = u == "d" ? "day" : u == "h" ? "hour" : "minute"
+            return "\(n) \(unit)\(n == 1 ? "" : "s")"
+        }.joined(separator: " ")
+    }
+
+    /// "Weekly (all models)" as "Weekly, all models".
+    public static func title(_ s: String) -> String { s.replacingOccurrences(of: " (", with: ", ").replacingOccurrences(of: ")", with: "") }
+
+    /// "[list price equivalent  USD 1,140]" as "list price equivalent, 1,140 US dollars".
+    public static func chip(_ s: String) -> String {
+        var t = s.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        if let r = t.range(of: "USD ") {
+            let after = t[r.upperBound...]
+            let amount = after.prefix { $0.isNumber || $0 == "," || $0 == "." }
+            t = t[..<r.lowerBound] + amount + " US dollars" + after.dropFirst(amount.count)
+        }
+        return t.replacingOccurrences(of: "  ", with: ", ")
+    }
+}
 
 public enum Grammar {
     public static let popCells = 47      // content cells in the 380 pt popover at SF Mono 12
@@ -31,7 +76,7 @@ public enum Grammar {
         }
         return [
             L(sp(" "), sp(line, .dim)),
-            L(sp(String(repeating: "\u{2594}", count: popCells + 1), .accent)),
+            L(sp(String(repeating: "\u{2594}", count: popCells + 1), .accent)).silent,
             Line([sp(" ")] + tabs),
         ]
     }
@@ -75,7 +120,33 @@ public enum Grammar {
             out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: w.used, elapsed: nil)), percentPiece(w.used, dim: true)))
             out.append(L(sp(" "), sp("unknown window", .dim)))
         }
-        return out
+        return spoken(out, label: windowLabel(w))
+    }
+
+    /// The style guide's one label per window section: "Weekly, all models. 61% used. Resets Sunday 18:00, in 3 days
+    /// 3 hours. Over pace, limit Sunday 01:20 at this rate. 0.5% an hour left."
+    public static func windowLabel(_ w: WindowView) -> String {
+        let pct = "\(Int(w.used.rounded()))% used"
+        var parts = [Spoken.title(w.title)]
+        switch w.mode {
+        case .live(let p):
+            parts += [pct, Spoken.words(p.reset) + ", " + Spoken.countdown(p.countdown),
+                      p.projection.map { p.status + ", " + Spoken.words($0) } ?? p.status, p.allowance]
+        case .stale(let asOf, let reset, _): parts += [pct, Spoken.words(reset) + ", as of " + asOf]
+        case .resetPassed(let reset): parts += [Spoken.words(reset) + ", no session since"]
+        case .nextReply(let reset): parts += [Spoken.words(reset) + ", new window on the next reply"]
+        case .absent: parts += ["not in the last feed"]
+        case .quiet: parts += [pct, "not in the last feed"]
+        case .unknown: parts += [pct, "unknown window"]
+        }
+        return parts.joined(separator: ". ") + "."
+    }
+
+    /// A group of lines said once: the first line carries the label, the rest are hidden.
+    static func spoken(_ lines: [Line], label: String) -> [Line] {
+        guard var first = lines.first else { return lines }
+        first.label = label
+        return [first] + lines.dropFirst().map(\.silent)
     }
 
     static func privacy() -> [Line] {
@@ -84,9 +155,9 @@ public enum Grammar {
     }
 
     static func windowEmpty(_ title: String, _ line: String) -> [Line] {
-        [L(sp(" "), sp(title, .bold)),
-         L(sp(" "), .bar(Bar.render(width: popBar, used: 0, elapsed: nil))),
-         L(sp(" "), sp(line, .dim))]
+        spoken([L(sp(" "), sp(title, .bold)),
+                L(sp(" "), .bar(Bar.render(width: popBar, used: 0, elapsed: nil))),
+                L(sp(" "), sp(line, .dim))], label: Spoken.title(title) + ". " + line.replacingOccurrences(of: "  ", with: ", ") + ".")
     }
 
     // the empty and first run states of the approved draft
@@ -157,7 +228,7 @@ public enum Grammar {
             } else {
                 let fig = Piece(s.figure + "  " + Format.rcol("\(s.used)%", 3), .text, tip: s.tip, tipLeft: true)
                 out.append(Line([sp(" "), .bar(bar), sp("  "), fig], hover: true,
-                                label: "\(s.name), \(s.model), context \(s.figure), \(s.used)% used"))
+                                label: "\(s.name), \(s.model), context \(Spoken.words(s.figure)), \(s.used)% used"))
             }
         }
         if more > 0 { out.append(L(sp(" "), sp("and \(more) more", .dim))) }
@@ -168,8 +239,9 @@ public enum Grammar {
     public static func row(_ r: RowView) -> Line {
         let bar = Bar.render(width: rowBar, used: Double(r.share), elapsed: nil, options: BarOptions(color: r.hue, plain: true))
         let fig = Piece(Format.rcol(r.figure, 5), .text, tip: r.tip)
+        // the readout is in the label, so it is not said a second time as help
         return Line([sp(" "), sp(Format.col(r.name, 14)), sp(" "), .bar(bar), sp("  "), fig], hover: true,
-                    label: "\(r.name), \(r.figure), \(r.tip)")
+                    label: "\(r.name), " + Spoken.words(r.tip), help: "")
     }
 
     // 6.6 section switch
@@ -195,8 +267,8 @@ public enum Grammar {
             out.append(L(sp(" "), sp(t.section == 2 ? "no session today" : "nothing in the last 7 days", .dim)))
         }
         for r in list { out.append(row(r)) }
-        if let chip = t.priceChip { out.append(L(sp(" "), sp(chip, .dim))) }
-        if let chip = t.agentChip { out.append(L(sp(" "), sp(chip, .dim))) }
+        if let chip = t.priceChip { out.append(Line([sp(" "), sp(chip, .dim)], label: Spoken.chip(chip))) }
+        if let chip = t.agentChip { out.append(Line([sp(" "), sp(chip, .dim)], label: Spoken.chip(chip))) }
         return out
     }
 
@@ -213,7 +285,10 @@ public enum Grammar {
             pieces.append(sp("  "))
         }
         if let note = w.note { pieces.append(sp("  " + note, .dim)) }
-        return Line(pieces)
+        // "Week of 28 September, 100%, hit the limit Thursday 16:10"
+        var label = "Week of " + Spoken.words(w.date) + ", " + (w.used.map { "\($0)%" } ?? "no figure")
+        if let note = w.note { label += ", " + (w.hit ? "hit the limit " : "") + Spoken.words(note) }
+        return Line(pieces, label: label)
     }
 
     // 6.9 memory grid
@@ -237,7 +312,19 @@ public enum Grammar {
         out.append(L(sp(" "), Piece("\u{26C1}", .accent, wide: true), sp("Used "), sp(m.usedLine, .dim)))
         out.append(L(sp(" "), Piece("\u{26F6}", .dimmer, wide: true), sp("Free "), sp(m.freeLine, .dim)))
         out.append(L(sp(" "), Piece("\u{26DD}", .warning, wide: true), sp("Swap "), sp(m.swapLine, .dim), sp("   "), sp("Pressure " + m.pressure, .dim)))
+        // one image with a description; the cells and the legend glyphs are hidden
+        out = out.map(\.silent)
+        out[0].hidden = false
+        out[0].image = true
+        out[0].label = memoryLabel(m)
         return out
+    }
+
+    /// "Memory 25.5 of 36 gigabytes, 71%, free 10.5 gigabytes, swap 0.9 gigabytes, pressure normal"
+    public static func memoryLabel(_ m: MemView) -> String {
+        let used = m.usedLine.replacingOccurrences(of: " GB (", with: " gigabytes, ").replacingOccurrences(of: ")", with: "")
+        func gb(_ s: String) -> String { s.replacingOccurrences(of: " GB", with: " gigabytes") }
+        return "Memory \(used), free \(gb(m.freeLine)), swap \(gb(m.swapLine)), pressure \(m.pressure)"
     }
 
     // 6.10 checkbox rows
@@ -247,13 +334,15 @@ public enum Grammar {
         var out = [Line([sp(indent), Piece(on ? "[x]" : "[ ]", .text, action: .toggle(key), checked: on, label: label),
                          Piece(" " + label, .text, action: .toggle(key), checked: on, label: label)],
                         hover: true, label: label, help: subs.isEmpty ? nil : subs.joined(separator: ", "))]
-        for sub in subs { out += dimLines(sub, indent: indent.count + 4) }
+        // the dim lines are the checkbox's help: said once, as help, not again as text
+        for sub in subs { out += dimLines(sub, indent: indent.count + 4).map(\.silent) }
         return out
     }
 
     /// Dim text at an indent, wrapped at spaces to the rule's width (popCells + 1, as the header rule) instead of cut at the edge.
     public static func dimLines(_ text: String, indent: Int) -> [Line] {
-        Format.wrap(text, popCells + 1 - indent).map { L(sp(String(repeating: " ", count: indent)), sp($0, .dim)) }
+        // VoiceOver reads the text once, whole, on its first line
+        spoken(Format.wrap(text, popCells + 1 - indent).map { L(sp(String(repeating: " ", count: indent)), sp($0, .dim)) }, label: text)
     }
 
     /// The key hints. m, p and s switch the token sections, so they are named only on the Claude tab, where they work.
@@ -275,14 +364,15 @@ public enum Grammar {
     }
 
     public static func macTab(_ m: MacTab) -> [Line] {
-        var out: [Line] = [L(sp(" "), sp("CPU", .bold))]
-        out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: Double(m.cpu), elapsed: nil)), sp(" \(m.cpu)%")))
-        out.append(L(sp(" "), sp(m.cpuLine, .dim)))
+        func c(_ t: String) -> String { t.replacingOccurrences(of: "  ", with: ", ") }
+        var out: [Line] = spoken([L(sp(" "), sp("CPU", .bold)),
+                                  L(sp(" "), .bar(Bar.render(width: popBar, used: Double(m.cpu), elapsed: nil)), sp(" \(m.cpu)%")),
+                                  L(sp(" "), sp(m.cpuLine, .dim))], label: "CPU \(m.cpu)%, " + c(m.cpuLine))
         if let gpu = m.gpu {
             out.append(blank)
-            out.append(L(sp(" "), sp("GPU", .bold)))
-            out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: Double(gpu), elapsed: nil)), sp(" \(gpu)%")))
-            out.append(L(sp(" "), sp("device utilisation", .dim)))
+            out += spoken([L(sp(" "), sp("GPU", .bold)),
+                           L(sp(" "), .bar(Bar.render(width: popBar, used: Double(gpu), elapsed: nil)), sp(" \(gpu)%")),
+                           L(sp(" "), sp("device utilisation", .dim))], label: "GPU \(gpu)%, device utilisation")
         }
         if let mem = m.memory {
             out.append(blank)
@@ -291,10 +381,10 @@ public enum Grammar {
         }
         if let b = m.battery {
             out.append(blank)
-            out.append(L(sp(" "), sp("Battery", .bold)))
-            out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: Double(b.percent), elapsed: nil)), sp(" \(b.percent)%")))
-            out.append(L(sp(" "), sp(b.line1, .dim)))
-            out.append(L(sp(" "), sp(b.line2, .dim)))
+            out += spoken([L(sp(" "), sp("Battery", .bold)),
+                           L(sp(" "), .bar(Bar.render(width: popBar, used: Double(b.percent), elapsed: nil)), sp(" \(b.percent)%")),
+                           L(sp(" "), sp(b.line1, .dim)),
+                           L(sp(" "), sp(b.line2, .dim))], label: "Battery \(b.percent)%, " + c(b.line1) + ", " + c(b.line2))
         }
         out.append(blank)
         out.append(L(sp(" "), sp("Processes by CPU", .bold)))

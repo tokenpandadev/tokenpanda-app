@@ -231,15 +231,34 @@ public struct Hook: Sendable {
 
 /// The settings folders Claude Code may read on this Mac. A menu bar app does not see the shell's environment, so
 /// CLAUDE_CONFIG_DIR is taken from the app's own environment when it has one, and the home folder is looked at for
-/// the usual places: ~/.claude, ~/.config/claude, and folders named .claude-something (the common CLAUDE_CONFIG_DIR
-/// pattern for a second account) that hold a settings.json or a projects folder. Only names are read here.
+/// the usual places: ~/.claude, ~/.config/claude, and folders named .claude-something or .claude_something (the common
+/// CLAUDE_CONFIG_DIR pattern for a second account). Only names are read here.
+///
+/// Install goes only where Claude Code already keeps settings: ~/.claude, a CLAUDE_CONFIG_DIR folder, and the others
+/// only when they hold a settings.json. A copy that holds only transcripts (a ~/.claude-backup) is read for its
+/// transcripts and left alone; making a settings.json in a folder is how a user opts it in.
 public enum ConfigFolders {
     public static func find(home: URL = FileManager.default.homeDirectoryForCurrentUser,
                             environment: [String: String] = ProcessInfo.processInfo.environment) -> [URL] {
+        folders(home: home, environment: environment, projectsCount: false)
+    }
+
+    /// Every folder with transcripts to count: the install targets and the folders that hold only a projects folder.
+    public static func transcriptFolders(home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                                         environment: [String: String] = ProcessInfo.processInfo.environment) -> [URL] {
+        folders(home: home, environment: environment, projectsCount: true)
+    }
+
+    static func folders(home: URL, environment: [String: String], projectsCount: Bool) -> [URL] {
         let fm = FileManager.default
         func isDir(_ u: URL) -> Bool { var d: ObjCBool = false; return fm.fileExists(atPath: u.path, isDirectory: &d) && d.boolValue }
         let primary = home.appendingPathComponent(".claude", isDirectory: true)
-        var candidates: [URL] = [primary, home.appendingPathComponent(".config/claude", isDirectory: true)]
+        var candidates: [URL] = [primary]
+        func qualifies(_ u: URL) -> Bool {
+            fm.fileExists(atPath: u.appendingPathComponent("settings.json").path) || (projectsCount && isDir(u.appendingPathComponent("projects")))
+        }
+        let xdg = home.appendingPathComponent(".config/claude", isDirectory: true)
+        if qualifies(xdg) { candidates.append(xdg) }
         if let dirs = environment["CLAUDE_CONFIG_DIR"] {
             for d in dirs.split(separator: ",") {
                 let t = (d.trimmingCharacters(in: .whitespaces) as NSString).expandingTildeInPath
@@ -249,7 +268,7 @@ public enum ConfigFolders {
         let names = ((try? fm.contentsOfDirectory(atPath: home.path)) ?? []).filter { $0.hasPrefix(".claude-") || $0.hasPrefix(".claude_") }.sorted()
         for n in names {
             let u = home.appendingPathComponent(n, isDirectory: true)
-            if fm.fileExists(atPath: u.appendingPathComponent("settings.json").path) || isDir(u.appendingPathComponent("projects")) { candidates.append(u) }
+            if qualifies(u) { candidates.append(u) }
         }
         var seen = Set<String>()
         var out: [URL] = []
@@ -261,14 +280,25 @@ public enum ConfigFolders {
         return out.isEmpty ? [primary] : out
     }
 
-    /// The short name of a settings folder for its script and backup file. nil for ~/.claude, which keeps the old names.
+    /// The name of a settings folder's script and backup file. nil for ~/.claude, which keeps the names every earlier
+    /// version used. Otherwise a readable part and a hash of the full resolved path, so two folders never share one:
+    /// ~/.claude-work and ~/.claude_work read alike but hash apart. Earlier versions wrote only ~/.claude's files, so
+    /// there is nothing under an older name to move.
     public static func id(for folder: URL, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> String? {
         let path = folder.standardizedFileURL.path
         if path == home.appendingPathComponent(".claude").standardizedFileURL.path { return nil }
         let base = home.standardizedFileURL.path + "/"
         let rel = path.hasPrefix(base) ? String(path.dropFirst(base.count)) : path
         let cleaned = String(rel.map { $0.isLetter || $0.isNumber ? $0 : "-" }).trimmingCharacters(in: CharacterSet(charactersIn: "-"))
-        return cleaned.isEmpty ? "root" : cleaned
+        let resolved = folder.resolvingSymlinksInPath().standardizedFileURL.path
+        return (cleaned.isEmpty ? "root" : String(cleaned.prefix(40))) + "-" + fnv1a(resolved)
+    }
+
+    /// FNV-1a, 64 bit, as 16 hex digits: stable across launches and versions, unlike Swift's seeded Hasher.
+    static func fnv1a(_ s: String) -> String {
+        var h: UInt64 = 0xcbf29ce484222325
+        for b in s.utf8 { h ^= UInt64(b); h = h &* 0x100000001b3 }
+        return String(format: "%016llx", h)
     }
 
     /// The folder as the user knows it: "~/.claude".
@@ -306,13 +336,60 @@ public struct HookSet: Sendable {
     public func settingsModified() -> [Date?] { hooks.map { $0.settingsModified() } }
 
     /// Installs into every folder that does not have the entry yet. Stops at the first error and says which folder.
+    /// The remove script is rewritten either way, for what got installed.
     public func install(previousFallback: (Hook) -> String? = { _ in nil }) throws -> [(Hook, HookStatus)] {
         var out: [(Hook, HookStatus)] = []
+        defer { writeRemoveScript() }
         for (h, t) in zip(hooks, targets) where !h.status().installed {
             do { out.append((h, try h.install(previousFallback: previousFallback(h)))) }
             catch { throw hooks.count > 1 ? HookError.inFolder(t, error) : error }
         }
         return out
+    }
+
+    /// remove.sh in the data folder: Remove without the app, for brew's zap. Homebrew before 7.0.10 deletes the app before
+    /// it runs a zap script, so the zap runs this file, which lives in the data folder until the zap's own trash step.
+    /// It needs only sh and plutil. Per settings file: only while statusLine still runs our script, it puts back the
+    /// saved entry or removes the key, and deletes a settings.json that Install created and that is empty again.
+    public var removeScriptPath: URL? { hooks.first.map { $0.dataDir.appendingPathComponent("remove.sh") } }
+
+    public static func removeScript(_ hooks: [Hook]) -> String {
+        func q(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+        var out = """
+        #!/bin/sh
+        # tokenpanda's Remove without the app, written by the app at Install and Remove. brew uninstall --zap runs it
+        # before it trashes this folder. For each settings.json: only while its statusLine still runs tokenpanda's script,
+        # put back the entry saved at install, or remove the key; delete the file if Install created it and it is empty.
+        restore() {
+          S="$1"; OURS="$2"; B="$3"
+          [ -f "$S" ] || return 0
+          cmd=$(/usr/bin/plutil -extract statusLine.command raw -o - "$S" 2>/dev/null) || return 0
+          [ "$cmd" = "$OURS" ] || return 0
+          if [ -f "$B" ] && J=$(/usr/bin/plutil -extract statusLine json -o - "$B" 2>/dev/null); then
+            /usr/bin/plutil -replace statusLine -json "$J" "$S"
+          else
+            /usr/bin/plutil -remove statusLine "$S"
+          fi
+          if [ -f "$B" ] && [ "$(/usr/bin/plutil -extract createdSettings raw -o - "$B" 2>/dev/null)" = "true" ] \\
+             && [ "$(/usr/bin/plutil -convert json -o - "$S" 2>/dev/null)" = "{}" ]; then
+            rm -f "$S"
+          fi
+          echo "tokenpanda: status line entry removed from $S"
+        }
+
+        """
+        for h in hooks { out += "restore \(q(h.settingsURL.path)) \(q(h.hookCommand)) \(q(h.backupPath.path))\n" }
+        return out + "exit 0\n"
+    }
+
+    /// Lists the folders whose entry is ours (installed, or pointing at a lost script); with none, the file goes.
+    public func writeRemoveScript() {
+        guard let url = removeScriptPath else { return }
+        let ours = hooks.filter { let st = $0.status(); return st.installed || st.scriptMissing }
+        if ours.isEmpty { try? FileManager.default.removeItem(at: url); return }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? Self.removeScript(ours).write(to: url, atomically: true, encoding: .utf8)
+        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
     }
 
     /// Removes the entry from every folder that has it; the sessions folder goes with the last one.
@@ -324,6 +401,7 @@ public struct HookSet: Sendable {
             do { try h.uninstall(previousCommand: previousCommand(h), previousRefresh: previousRefresh(h), removeSessions: false) }
             catch { if firstError == nil { firstError = hooks.count > 1 ? HookError.inFolder(t, error) : error } }
         }
+        writeRemoveScript()
         if let firstError { throw firstError }
         if !hooks.contains(where: { $0.status().installed }), let first = hooks.first { try? FileManager.default.removeItem(at: first.sessionsDir) }
     }

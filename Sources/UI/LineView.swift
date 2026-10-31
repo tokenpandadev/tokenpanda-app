@@ -69,6 +69,8 @@ public final class LineView: NSView {
     var elements: [String: PanelElement] = [:]
     /// The focused control's element, written on the main actor, read by AppKit's accessibility on the main thread.
     nonisolated(unsafe) var focusedElement: PanelElement? = nil
+    /// The elements the VoiceOver pointer can land on, innermost first; written on the main actor.
+    nonisolated(unsafe) var hitList: [PanelElement] = []
     public var onAction: ((Action) -> Void)?
     /// Snapshot mode: paint the draft's stage colour under the tint, since there is no desktop behind an offscreen view.
     public var drawsStage = false
@@ -170,14 +172,17 @@ public final class LineView: NSView {
             let idx = byLine[li] ?? []
             let actionable = idx.filter { controls[$0].kind != .figure }
             if actionable.isEmpty {
-                // a line of text; a figure's readout is its help, and the keyboard can focus it
+                // a line of text; a figure's readout is its help, and the keyboard can focus it. A hidden line is
+                // decoration (the rule, grid cells) or said already by the line that labels its group.
+                if line.hidden { continue }
                 let text = line.label ?? line.plain.trimmingCharacters(in: .whitespaces)
                 guard !text.isEmpty else { continue }
                 let key = idx.first.map { "c|" + controls[$0].key } ?? "t|\(li)|\(text.prefix(24))"
                 let e = element(key)
-                e.setAccessibilityRole(.staticText)
+                e.setAccessibilityRole(line.image ? .image : .staticText)
                 e.setAccessibilityLabel(text)
-                e.setAccessibilityHelp(idx.first.flatMap { controls[$0].help } ?? line.help)
+                let help = idx.first.flatMap { controls[$0].help } ?? line.help
+                e.setAccessibilityHelp(help?.isEmpty == true ? nil : help)
                 e.setAccessibilityParent(self)
                 e.rect = lineRect
                 e.control = idx.first
@@ -218,7 +223,7 @@ public final class LineView: NSView {
                     e.setAccessibilityValue(nil)
                 }
                 e.setAccessibilityLabel(c.label)
-                e.setAccessibilityHelp(c.help)
+                e.setAccessibilityHelp(c.help?.isEmpty == true ? nil : c.help)
                 e.setAccessibilityParent(parent)
                 e.rect = controlRect(c)
                 e.control = ci
@@ -230,6 +235,10 @@ public final class LineView: NSView {
         }
         elements = used
         focusedElement = focus.flatMap { accessibilityElement(forControl: $0) }
+        hitList = children.flatMap { e -> [PanelElement] in
+            let kids = (e.accessibilityChildren() as? [PanelElement]) ?? []
+            return kids + [e]   // a tab before its group, so the pointer lands on the tab
+        }
         setAccessibilityChildren(children)
         for e in changed { NSAccessibility.post(element: e, notification: .valueChanged) }
     }
@@ -311,6 +320,19 @@ public final class LineView: NSView {
         default: return nil
         }
     }
+
+    /// VoiceOver's pointer and the trackpad commander ask which element is under a screen point: the drawn line's.
+    public override func accessibilityHitTest(_ point: NSPoint) -> Any? {
+        let rects: [NSRect] = MainActor.assumeIsolated {
+            guard let w = window else { return [] }
+            return hitList.map { w.convertToScreen(convert($0.rect, to: nil)) }
+        }
+        if let i = rects.firstIndex(where: { $0.contains(point) }) { return hitList[i] }
+        return super.accessibilityHitTest(point)
+    }
+
+    /// The element under a point in the view's own coordinates, for the tests.
+    func element(atViewPoint p: NSPoint) -> PanelElement? { hitList.first { $0.rect.contains(p) } }
 
     public override var accessibilityFocusedUIElement: Any? {
         focusedElement ?? super.accessibilityFocusedUIElement
