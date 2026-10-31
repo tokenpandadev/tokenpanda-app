@@ -472,4 +472,63 @@ struct WindowsTests {
         #expect(lines.map(\.plain).contains(" waiting for the first reply"))
         #expect(lines.allSatisfy { $0.cells <= Grammar.popCells })
     }
+
+    // MARK: re-check 3
+
+    @Test func removeWithoutTheBackupPutsTheLongerIntervalBack() throws {
+        let dir = try tempDir()
+        let settings = dir.appendingPathComponent("settings.json")
+        let hook = Hook(settingsURL: settings, dataDir: dir)
+        try "{\"statusLine\":{\"type\":\"command\",\"command\":\"~/bin/my.sh\",\"refreshInterval\":60}}".write(to: settings, atomically: true, encoding: .utf8)
+        #expect(hook.status().slowerRefresh == 60)
+        let st = try hook.install()
+        #expect(st.previousCommand == "~/bin/my.sh" && st.slowerRefresh == 60)
+        // Application Support deleted: the backup is gone; the app's stored values are the fallback
+        try FileManager.default.removeItem(at: hook.backupPath)
+        try hook.uninstall(previousCommand: st.previousCommand, previousRefresh: st.slowerRefresh)
+        let o = try #require(JSONSerialization.jsonObject(with: try Data(contentsOf: settings)) as? [String: Any])
+        let sl = try #require(o["statusLine"] as? [String: Any])
+        #expect(sl["command"] as? String == "~/bin/my.sh")
+        #expect(sl["refreshInterval"] as? Int == 60)
+    }
+
+    @Test func theInstallTextSaysTheStatusLineThenRefreshesEveryFiveSeconds() {
+        let slow = HookStatus(installed: false, previousCommand: "~/bin/my.sh", slowerRefresh: 60)
+        let i = Fixtures.input(feedState: FeedState(), hook: slow)
+        let v = ScreenBuilder.limitsView(i)
+        #expect(v == .noHook(previous: "~/bin/my.sh", slowerRefresh: true))
+        let claude = Grammar.limits(v)
+        #expect(claude.map(\.plain).contains(" your status line then refreshes every 5 s"))
+        let settings = Grammar.settingsTab(ScreenBuilder.screen(i).settings)
+        #expect(settings.map(\.plain).contains("     your status line then refreshes every 5 s"))
+        #expect((claude + settings).filter { $0.plain.contains("every 5 s") }.allSatisfy { $0.cells <= Grammar.popCells })
+        // without a longer interval of the user's own, no such line
+        let plain = Grammar.limits(ScreenBuilder.limitsView(Fixtures.input(feedState: FeedState(), hook: HookStatus(installed: false, previousCommand: "~/bin/my.sh")))).map(\.plain)
+        #expect(!plain.contains(" your status line then refreshes every 5 s"))
+    }
+
+    @Test func aReplyWhoseWindowsAllPassedIsNotPlanless() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        let five = t0.addingTimeInterval(20)
+        try write("s", feed("s", windows: ["seven_day": (30, week), "five_hour": (50, five)], cost: 1), in: dir, at: t0)
+        _ = await reader.scan(now: t0)
+        // a reply carrying only a 5h window that passed by the scan
+        try write("s", feed("s", windows: ["five_hour": (51, five)], cost: 2), in: dir, at: five.addingTimeInterval(-1))
+        let l = try #require(await reader.scan(now: five.addingTimeInterval(2)).limits)
+        #expect(!l.planless)
+        #expect(ScreenBuilder.limitsView(Fixtures.input(feedState: FeedState(limits: l, lastWriteAt: Fixtures.now))) != .noLimits)
+    }
+
+    @Test func aWindowWithANullResetIsNotAFormatChange() async throws {
+        let raw = Data("{\"session_id\":\"s\",\"context_window\":{\"current_usage\":{\"input_tokens\":5}},\"cost\":{\"total_cost_usd\":2},\"rate_limits\":{\"five_hour\":{\"used_percentage\":0,\"resets_at\":null}}}".utf8)
+        let snap = try #require(SnapshotParser.parse(raw, writtenAt: t0))
+        #expect(!snap.rateLimitsUnreadable && snap.rateLimitsCarriedWindows)
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        try write("s", raw, in: dir, at: t0)
+        let st = await reader.scan(now: t0)
+        #expect(!st.formatChanged)
+        #expect(ScreenBuilder.limitsView(Fixtures.input(feedState: st)) != .formatChanged)
+    }
 }

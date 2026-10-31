@@ -40,8 +40,11 @@ public struct HookStatus: Sendable, Equatable {
     public var installed: Bool
     public var previousCommand: String?   // a status line command that is not ours, when one exists
     public var hooksDisabled: Bool        // disableAllHooks is true: Claude Code runs no status line from this file
-    public init(installed: Bool, previousCommand: String?, hooksDisabled: Bool = false) {
-        self.installed = installed; self.previousCommand = previousCommand; self.hooksDisabled = hooksDisabled
+    /// The user's own refreshInterval when it is longer than 5 s: before install the one Install would lower,
+    /// from install the one it lowered, for Remove to put back when the backup file is gone.
+    public var slowerRefresh: Double?
+    public init(installed: Bool, previousCommand: String?, hooksDisabled: Bool = false, slowerRefresh: Double? = nil) {
+        self.installed = installed; self.previousCommand = previousCommand; self.hooksDisabled = hooksDisabled; self.slowerRefresh = slowerRefresh
     }
 }
 
@@ -72,6 +75,12 @@ public struct Hook: Sendable {
 
     public init(settingsURL: URL, dataDir: URL) { self.settingsURL = settingsURL; self.dataDir = dataDir }
 
+    /// A refreshInterval longer than the hook's own, which Install lowers to 5.
+    static func slower(_ statusLine: [String: Any]?) -> Double? {
+        guard let n = (statusLine?["refreshInterval"] as? NSNumber)?.doubleValue, n > Double(refreshInterval) else { return nil }
+        return n
+    }
+
     func isOurs(_ command: String) -> Bool { command == hookCommand || command == hookPath.path }
 
     /// Reads the statusLine key and disableAllHooks, which switches the status line off. Anything else stays unread.
@@ -82,7 +91,7 @@ public struct Hook: Sendable {
             return HookStatus(installed: false, previousCommand: nil, hooksDisabled: disabled)
         }
         if isOurs(cmd) { return HookStatus(installed: true, previousCommand: nil, hooksDisabled: disabled) }
-        return HookStatus(installed: false, previousCommand: cmd, hooksDisabled: disabled)
+        return HookStatus(installed: false, previousCommand: cmd, hooksDisabled: disabled, slowerRefresh: Self.slower(sl))
     }
 
     /// The modification time of settings.json, so a caller can re-read it only when it changed. nil when it does not exist.
@@ -142,13 +151,14 @@ public struct Hook: Sendable {
         }
         settings["statusLine"] = sl
         try writeSettings(settings)
-        return HookStatus(installed: true, previousCommand: previous)
+        return HookStatus(installed: true, previousCommand: previous, slowerRefresh: Self.slower(before))
     }
 
     /// Puts the statusLine object back as it was before install, or removes the key when there was none.
     /// Touches settings.json only while the entry is still ours; a statusLine the user changed since stays as it is.
-    /// previousCommand is the fallback when the backup file is missing. The script, the backup and the sessions folder are removed.
-    public func uninstall(previousCommand: String?) throws {
+    /// previousCommand and previousRefresh are the fallback when the backup file is missing. The script, the backup and the
+    /// sessions folder are removed.
+    public func uninstall(previousCommand: String?, previousRefresh: Double? = nil) throws {
         let fm = FileManager.default
         if fm.fileExists(atPath: settingsURL.path) {
             guard var settings = readSettings() else { throw HookError.cannotReadSettings("settings.json is not a JSON object") }
@@ -158,6 +168,7 @@ public struct Hook: Sendable {
                     if let before = backup { settings["statusLine"] = before } else { settings.removeValue(forKey: "statusLine") }
                 } else if let previousCommand, var sl = current {
                     sl["command"] = previousCommand
+                    if let r = previousRefresh { sl["refreshInterval"] = r == r.rounded() ? Int(r) as Any : r as Any }
                     settings["statusLine"] = sl
                 } else {
                     settings.removeValue(forKey: "statusLine")

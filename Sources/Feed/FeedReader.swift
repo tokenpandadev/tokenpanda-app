@@ -55,7 +55,9 @@ public struct Limits: Sendable, Equatable, Codable {
     /// A stored key the scan does not carry is retired, not deleted. `repliedAt` is the time of the newest reply in this
     /// scan: a key absent from a reply that came after its reset is hidden, since a reply carries every window the plan
     /// has. Before its reset a missing window only goes quiet.
-    public mutating func apply(_ rateLimits: [String: LimitWindow], at: Date, repliedAt: Date? = nil) {
+    /// `carriedWindows` says whether any raw feed had a window entry, before passed or unreadable ones were dropped;
+    /// only a reply with none at all makes the limits planless.
+    public mutating func apply(_ rateLimits: [String: LimitWindow], at: Date, repliedAt: Date? = nil, carriedWindows: Bool? = nil) {
         for (key, w) in rateLimits {
             hidden.remove(key)
             guard let old = windows[key] else {
@@ -81,7 +83,7 @@ public struct Limits: Sendable, Equatable, Codable {
             windows[key] = rec
         }
         for key in windows.keys where rateLimits[key] == nil { windows[key]?.retired = true }
-        if !rateLimits.isEmpty { planless = false } else if repliedAt != nil { planless = true }
+        if carriedWindows ?? !rateLimits.isEmpty { planless = false } else if repliedAt != nil { planless = true }
         if let r = repliedAt {
             for key in Set(windows.keys).union(Self.fixedKeys) where rateLimits[key] == nil {
                 if let rec = windows[key], r < rec.resetsAt { continue }
@@ -168,6 +170,7 @@ public actor FeedReader {
         var lastWrite: Date? = nil
         var repliedAt: Date? = nil
         var formatChanged = false
+        var carriedWindows = false
         var nextFigures: [String: ReplyFigures] = [:]
         for name in names where name.hasSuffix(".json") {
             let url = sessionsDir.appendingPathComponent(name)
@@ -186,6 +189,7 @@ public actor FeedReader {
             } else if snap.rateLimits != nil || replied {
                 // a reply without rate_limits (an API key, Bedrock, Vertex) is a feed with no plan windows
                 feeds.append(snap.rateLimits ?? [:])
+                if snap.rateLimitsCarriedWindows { carriedWindows = true }
                 if mtime > (newestLimits ?? .distantPast) { newestLimits = mtime }
                 if replied { repliedAt = max(repliedAt ?? mtime, mtime) }
             }
@@ -195,7 +199,7 @@ public actor FeedReader {
         figuresSeen = nextFigures
         if let t = newestLimits, t > (limits?.asOf ?? .distantPast) {
             var l = limits ?? Limits(asOf: t)
-            l.apply(Limits.merge(feeds, now: now), at: t, repliedAt: repliedAt)
+            l.apply(Limits.merge(feeds, now: now), at: t, repliedAt: repliedAt, carriedWindows: carriedWindows)
             if l != limits {
                 limits = l
                 persist()

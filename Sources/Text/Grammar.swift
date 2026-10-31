@@ -103,15 +103,15 @@ public enum Grammar {
                 out.append(L(sp(" "), sp("Macs, so the real figure may be higher", .dim)))
             }
             return out
-        case .noHook(let previous):
+        case .noHook(let previous, let slowerRefresh):
             var out: [Line] = [
                 L(sp(" "), sp("Weekly and 5h window", .bold)),
                 L(sp(" "), sp("needs Claude Code's status line feed", .dim)),
                 L(sp(" "), sp("one statusLine entry in ~/.claude/settings.json", .dim)),
                 L(sp(" "), sp(previous == nil ? "chained if one exists" : "your current status line is kept and chained", .dim)),
-                L(sp(" "), Piece(" Install the status line hook ", .tabSelected, action: .install)),
-                blank,
             ]
+            if slowerRefresh { out.append(L(sp(" "), sp(refreshLine, .dim))) }
+            out += [L(sp(" "), Piece(" Install the status line hook ", .tabSelected, action: .install)), blank]
             out += privacy()
             return out
         case .noSession:
@@ -119,8 +119,7 @@ public enum Grammar {
                 + windowEmpty("5h window", "no session yet  open Claude Code once")
         case .noLimits:
             return [L(sp(" "), sp("Weekly and 5h window", .bold)),
-                    L(sp(" "), sp("these sessions carry no plan limits", .dim)),
-                    L(sp(" "), sp("API key, Bedrock and Vertex have none", .dim))]
+                    L(sp(" "), sp("these sessions carry no plan limits", .dim))]
         case .hooksDisabled:
             return [L(sp(" "), sp("Weekly and 5h window", .bold)),
                     L(sp(" "), sp("disableAllHooks is on in settings.json", .dim)),
@@ -300,7 +299,7 @@ public enum Grammar {
         }
         out += cbRow("restoreSessions", "Reopen sessions after a restart", s.restoreSessions, "asks first, then opens them in Terminal")
         out.append(blank)
-        out += hookRow(installed: s.hookInstalled, error: s.hookError)
+        out += hookRow(installed: s.hookInstalled, error: s.hookError, slowerRefresh: s.hookSlowerRefresh)
         out.append(blank)
         out += privacy()
         out.append(blank)
@@ -326,12 +325,16 @@ public enum Grammar {
     /// The Open at login row's action key. Not a preference: the state is the system's.
     public static let loginKey = "openAtLogin"
 
+    /// Said where the click is when Install lowers the user's own refreshInterval: their command then runs that often too.
+    static let refreshLine = "your status line then refreshes every 5 s"
+
     /// The status line entry: one click installs it, one click removes it and puts the previous entry back.
-    public static func hookRow(installed: Bool, error: String?) -> [Line] {
+    public static func hookRow(installed: Bool, error: String?, slowerRefresh: Bool = false) -> [Line] {
         let label = installed ? "Remove the status line entry" : "Install the status line entry"
         let action: Action = installed ? .uninstall : .install
         var out = [Line([sp(" "), Piece(label, .text, action: action)], hover: true, label: label)]
         out.append(L(sp("     "), sp(installed ? "puts back what statusLine held before" : "one statusLine entry in ~/.claude/settings.json", .dim)))
+        if !installed, slowerRefresh { out.append(L(sp("     "), sp(refreshLine, .dim))) }
         if let error {
             out.append(L(sp("     "), sp(Format.col(error, popCells - 5).trimmingCharacters(in: .whitespaces), .dim)))
         }

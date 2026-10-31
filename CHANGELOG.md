@@ -6,7 +6,7 @@
 - A window your plan no longer has goes away. When Claude Code stops sending the 5h window for an account, the row keeps its last figure without countdown or pace until that window's reset, then goes after the next reply that comes without it. Before, the old figure showed as live, or "no session since" stayed for good. The panda's eyes, the spoken label and the nudges stop using it at once. Max and Pro see no change.
 - After switching accounts with /login, or with two accounts open at once, the windows show the newer account's figures at once instead of "unknown window".
 - When your sessions run on an API key, Bedrock or Vertex after using a subscription, the old plan figures are no longer drawn as live: the panel says these sessions carry no plan limits.
-- If your own status line refreshes less often than every 5 seconds, Install sets it to 5 so open sessions stay listed; Remove puts your own value back.
+- If your own status line refreshes less often than every 5 seconds, Install sets it to 5 so open sessions stay listed, and the Install text says so; Remove puts your own value back, also when the app's backup file is gone.
 - With disableAllHooks on in settings.json, the panel says Claude Code runs no status line, instead of waiting for a feed that never comes.
 - After /compact or a resume, a session reads "compacted or resumed  next reply updates it" instead of "waiting for the first reply", and the line fits the panel.
 - If a Claude Code update renames the limit fields, the panel says the feed format changed instead of "no plan limits".

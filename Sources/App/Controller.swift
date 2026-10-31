@@ -474,6 +474,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 let st = try hook.install()
                 hookError = nil
                 if let p = st.previousCommand { Settings.defaults.set(p, forKey: Settings.hookPreviousCommand) }
+                if let r = st.slowerRefresh { Settings.defaults.set(r, forKey: Settings.hookPreviousRefresh) }
                 startFeedWatch()
             } catch {
                 hookFailed("install", error)
@@ -481,9 +482,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             readHookStatus()
         case .uninstall:
             do {
-                try hook.uninstall(previousCommand: Settings.defaults.string(forKey: Settings.hookPreviousCommand))
+                try hook.uninstall(previousCommand: Settings.defaults.string(forKey: Settings.hookPreviousCommand),
+                                   previousRefresh: Settings.defaults.object(forKey: Settings.hookPreviousRefresh) as? Double)
                 hookError = nil
                 Settings.defaults.removeObject(forKey: Settings.hookPreviousCommand)
+                Settings.defaults.removeObject(forKey: Settings.hookPreviousRefresh)
                 stopFeedWatch()
             } catch {
                 hookFailed("remove", error)

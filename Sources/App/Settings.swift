@@ -14,6 +14,7 @@ enum Settings {
     static let keepAwakeWhileOpen = "keepAwakeWhileOpen"
     static let restoreSessions = "restoreSessions"
     static let hookPreviousCommand = "hookPreviousCommand"
+    static let hookPreviousRefresh = "hookPreviousRefresh"   // the user's refreshInterval Install lowered, for Remove without the backup
     static let nudgedWeeklyWindow = "nudgedWeeklyWindow"
     static let nudgedFiveHourWindow = "nudgedFiveHourWindow"
 

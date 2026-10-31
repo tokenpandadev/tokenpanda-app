@@ -35,7 +35,7 @@ public struct WindowView: Sendable, Equatable {
 
 public enum LimitsView: Sendable, Equatable {
     case windows([WindowView], staleNote: Bool)
-    case noHook(previous: String?)
+    case noHook(previous: String?, slowerRefresh: Bool = false)   // slowerRefresh: the user's status line refreshes less often than 5 s
     case noSession
     case noLimits          // the sessions' replies carry no plan windows (an API key, Bedrock, Vertex)
     case hooksDisabled     // disableAllHooks is on: Claude Code runs no status line
@@ -155,10 +155,11 @@ public struct SettingsTab: Sendable, Equatable {
     public var keepAwakeWhileOpen: Bool   // the indented second row, shown only while keepAwake is on
     public var awakeNote: String?   // "awake  2 sessions working" or "awake  1 session open", only while the power assertion is held
     public var restoreSessions: Bool
+    public var hookSlowerRefresh: Bool   // Install would set the user's longer refreshInterval to 5 s: one line says so
     public init(macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String? = nil, hookInstalled: Bool = false, hookError: String? = nil,
                 keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awakeNote: String? = nil, openAtLogin: LoginItem = .off, loginError: String? = nil,
-                restoreSessions: Bool = false) {
-        self.restoreSessions = restoreSessions
+                restoreSessions: Bool = false, hookSlowerRefresh: Bool = false) {
+        self.restoreSessions = restoreSessions; self.hookSlowerRefresh = hookSlowerRefresh
         self.openAtLogin = openAtLogin; self.loginError = loginError
         self.macInBar = macInBar; self.nudges = nudges; self.listPrice = listPrice; self.nudgeNote = nudgeNote
         self.hookInstalled = hookInstalled; self.hookError = hookError; self.keepAwake = keepAwake

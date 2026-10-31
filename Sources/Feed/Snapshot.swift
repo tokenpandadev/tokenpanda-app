@@ -26,6 +26,7 @@ public struct Snapshot: Sendable, Equatable {
     public var linesRemoved: Int?
     public var rateLimits: [String: LimitWindow]?   // absent on the first call of a session
     public var rateLimitsUnreadable = false          // rate_limits had entries besides spend_limit and none read as a window
+    public var rateLimitsCarriedWindows = false      // rate_limits had a window entry, read or not (passed, null reset)
     public var writtenAt: Date
 
     public init(sessionId: String, writtenAt: Date) { self.sessionId = sessionId; self.writtenAt = writtenAt }
@@ -63,8 +64,11 @@ public enum SnapshotParser {
                       let used = number(w["used_percentage"]), let reset = number(w["resets_at"]) else { continue }
                 windows[key] = LimitWindow(key: key, usedPercentage: used, resetsAt: Date(timeIntervalSince1970: reset))
             }
-            // a renamed field would make every window vanish: say so instead of reading it as an account without limits
-            if windows.isEmpty, r.keys.contains(where: { $0 != "spend_limit" }) {
+            s.rateLimitsCarriedWindows = r.contains { $0.key != "spend_limit" && $0.value is [String: Any] }
+            // a renamed field would make every window vanish: say so instead of reading it as an account without limits.
+            // An entry that has used_percentage but no reset yet (null) is a known shape, not a format change.
+            let unknownShape = r.contains { k, v in k != "spend_limit" && (v as? [String: Any]).map { $0["used_percentage"] == nil } == true }
+            if windows.isEmpty, unknownShape {
                 s.rateLimitsUnreadable = true
             } else {
                 s.rateLimits = windows

@@ -96,7 +96,7 @@ public enum ScreenBuilder {
             return .windows(views, staleNote: stale)
         }
         if i.feed.lastWriteAt == nil {
-            return i.hook.installed ? .noSession : .noHook(previous: i.hook.previousCommand)
+            return i.hook.installed ? .noSession : .noHook(previous: i.hook.previousCommand, slowerRefresh: i.hook.slowerRefresh != nil)
         }
         // a feed arrived and carried no rate_limits: after the first reply that means the account has none to show
         let answered = i.feed.sessions.contains { $0.snapshot.currentUsageTokens != nil }
@@ -293,7 +293,7 @@ public enum ScreenBuilder {
         let settings = SettingsTab(macInBar: i.macInBar, nudges: i.nudges, listPrice: i.listPrice, nudgeNote: i.nudgeNote,
                                    hookInstalled: i.hook.installed, hookError: i.hookError, keepAwake: i.keepAwake,
                                    keepAwakeWhileOpen: i.keepAwakeWhileOpen, awakeNote: awakeNote(i.awake), openAtLogin: i.login, loginError: i.loginError,
-                                   restoreSessions: i.restoreSessions)
+                                   restoreSessions: i.restoreSessions, hookSlowerRefresh: !i.hook.installed && i.hook.slowerRefresh != nil)
         return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: settings)
     }
 
