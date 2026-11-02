@@ -26,6 +26,7 @@ enum Rules {
     static let keepAwakeGrace: TimeInterval = 10 * 60         // a session works while its figures moved this recently
     static let restoreSettle: TimeInterval = 15               // after launch, before the restart notification is posted
     static let restoreNetworkWait: TimeInterval = 120         // the longest the restore waits for a network
+    static let endedSettle: TimeInterval = 3                  // after a session's process is gone, before its window is checked
 }
 
 /// The main actor state: the status item, the popover, the timers, and the readers it asks.
@@ -63,8 +64,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var login = LoginItem.off                    // the system's status, read when the popover opens and while Settings shows
     var loginError: String? = nil                // the last register or unregister error
     var restore: RestoreRecord? = nil            // the sessions open now, kept on disk only while the setting is on
-    var restoreSaved: [String] = []              // the session ids last written, so the file is written only when they change
+    var restoreSaved: [String] = []              // the sessions last written (id, name, options), so the file is written only when they change
     var pendingReopen: [RestoreRecord.Entry] = []   // the sessions the restart notification offers
+    var launches: [Int32: (id: String, launch: RestoreRecord.Launch)] = [:]   // by process: how each running session was started
+    var sessionWatch = SessionWatch()           // the running sessions by process, to tell when one ends
+    var endedEntries: [String: RestoreRecord.Entry] = [:]   // the sessions an end notification offers, by notification id
 
     var item: NSStatusItem!
     let popover = NSPopover()
@@ -127,6 +131,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // an entry installed by an earlier version gets its remove script now, so brew's zap needs no click first
         hook.writeRemoveScript()
         notifier.onReopen = { [weak self] in self?.reopen() }
+        notifier.onReopenEnded = { [weak self] id in self?.reopenEnded(id) }
         offerRestore(now: Date())   // before the first scan, which writes this boot's record over the last one
         notifier.refreshState()   // no prompt at launch: the first nudge that is due asks
         startFeedWatch()
@@ -339,7 +344,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         pendingReopen = lost
         restoreLog.info("restore: \(lost.count, privacy: .public) sessions were open before this boot")
         let n = lost.count
-        let names = Array(Set(lost.map { ($0.folder as NSString).lastPathComponent })).sorted().joined(separator: ", ")
+        let names = SessionNames.list(lost.map(\.label), named: Set(lost.compactMap(\.name)))
         Task { @MainActor in
             // right after login the notification centre may not show anything yet: wait a little, and for the network,
             // which Remote Control needs when the sessions start
@@ -348,7 +353,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             await notifier.authorize()
             restoreLog.info("restore: posting the offer")
             notifier.post(title: "\(n) Claude Code session\(n == 1 ? " was" : "s were") open before the restart",
-                          body: "In \(names). Reopen opens \(n == 1 ? "it" : "each") in Terminal.", id: "reopen-\(Int(boot.timeIntervalSince1970))",
+                          body: "\(names). Reopen opens \(n == 1 ? "it" : "each") in Terminal as \(n == 1 ? "it was" : "they were") started.", id: "reopen-\(Int(boot.timeIntervalSince1970))",
                           category: Notifier.reopenCategory)
         }
     }
@@ -387,28 +392,85 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// Each scan while the setting is on: the open sessions go into the record, written only when the set of ids changes.
     func recordSessions(now: Date) {
         guard Settings.bool(Settings.restoreSessions) else { return }
+        let live = LiveSession.read(settingsFolders: folders)
+        readLaunches(live)
+        var byId: [String: RestoreRecord.Launch] = [:]
+        for (_, v) in launches { byId[v.id] = v.launch }
         var r = restore ?? RestoreRecord(lastScan: now)
-        r.apply(feedState.sessions, now: now)
+        r.apply(feedState.sessions, launches: byId, now: now)
         restore = r
-        let ids = r.entries.map(\.id)
-        if ids != restoreSaved { restoreSaved = ids; r.save(to: Paths.restoreFile) }
+        // written when a session comes or goes, or a name or the options change
+        let key = r.entries.map { [$0.id, $0.name ?? "", ($0.options ?? []).joined(separator: "\u{1}")].joined(separator: "\u{2}") }
+        if key != restoreSaved { restoreSaved = key; r.save(to: Paths.restoreFile) }
+        watchEnds(live, now: now)
+    }
+
+    /// Reads the start options of each session process not seen before, once per process; the name is read every time,
+    /// as /rename changes it.
+    func readLaunches(_ live: [LiveSession]) {
+        var next: [Int32: (id: String, launch: RestoreRecord.Launch)] = [:]
+        for s in live {
+            var options = launches[s.pid]?.launch.options
+            if launches[s.pid]?.id != s.sessionId || options == nil {
+                options = ProcessTable.arguments(of: s.pid).flatMap { LaunchOptions.kept(fromArguments: $0) }
+            }
+            next[s.pid] = (s.sessionId, RestoreRecord.Launch(name: s.name, options: options))
+        }
+        launches = next
+    }
+
+    /// A session that ended while its window stays open gets one notification with its name and a Reopen button.
+    func watchEnds(_ live: [LiveSession], now: Date) {
+        let gone = sessionWatch.apply(live) { ProcessTable.parent(of: $0) }
+        for w in gone {
+            guard let parent = w.parent else { continue }
+            let entry = restore?.entries.first { $0.id == w.sessionId }
+                ?? w.folder.map { RestoreRecord.Entry(id: w.sessionId, folder: $0, transcript: nil, lastSeen: now, name: w.name) }
+            guard var e = entry else { continue }
+            if let n = w.name { e.name = n }
+            Task { @MainActor in
+                // a closed window takes its shell with it a moment later; a shutdown closes them all
+                try? await Task.sleep(for: .seconds(Rules.endedSettle))
+                guard ProcessTable.isRunning(parent),
+                      !LiveSession.read(settingsFolders: folders).contains(where: { $0.sessionId == e.id }) else { return }
+                let id = "ended-\(e.id)-\(Int(now.timeIntervalSince1970))"
+                endedEntries[id] = e
+                restoreLog.info("restore: a session ended while its window stays open")
+                let at = now.formatted(date: .omitted, time: .shortened)
+                notifier.postAsking(title: "\(e.label) ended", body: "At \(at). Its Terminal window is still open. Reopen starts it again as it was started.",
+                                    id: id, category: Notifier.endedCategory)
+            }
+        }
+    }
+
+    /// Reopen on an end notification: that one session, as it was started.
+    func reopenEnded(_ notificationId: String) {
+        guard let e = endedEntries.removeValue(forKey: notificationId) else { return }
+        guard !LiveSession.read(settingsFolders: folders).contains(where: { $0.sessionId == e.id }) else { return }
+        openInTerminal([e])
     }
 
     /// Reopen: one Terminal file per session in a private folder, opened through Launch Services so no Automation
     /// permission is needed. Each file deletes itself when Terminal runs it.
     func reopen() {
         // a session already open again, from a Terminal window or an earlier click, is not opened a second time
-        let openNow = Set(feedState.sessions.map(\.snapshot.sessionId))
+        let openNow = Set(feedState.sessions.map(\.snapshot.sessionId)).union(LiveSession.read(settingsFolders: folders).map(\.sessionId))
         let entries = pendingReopen.filter { !openNow.contains($0.id) }
         pendingReopen = []
         restoreLog.info("reopen: \(entries.count, privacy: .public) of the offered sessions, the others are open already")
         guard !entries.isEmpty else { return }
+        openInTerminal(entries)
+    }
+
+    /// One Terminal file per session, each starting the session with its name and options.
+    func openInTerminal(_ entries: [RestoreRecord.Entry]) {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("tokenpanda-reopen-" + UUID().uuidString, isDirectory: true)
         guard (try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])) != nil else { return }
         var files: [URL] = []
         for e in entries {
-            guard let text = Reopen.script(id: e.id, folder: e.folder, remoteControl: Reopen.hadRemoteControl(transcript: e.transcript)) else { continue }
+            guard let text = Reopen.script(id: e.id, folder: e.folder, name: e.name, options: e.options,
+                                           remoteControl: Reopen.hadRemoteControl(transcript: e.transcript)) else { continue }
             let url = dir.appendingPathComponent(e.id + ".command")
             guard fm.createFile(atPath: url.path, contents: Data(text.utf8), attributes: [.posixPermissions: 0o600]) else { continue }
             try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
@@ -485,7 +547,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if key == Settings.keepAwake || key == Settings.keepAwakeWhileOpen { updateAwake(now: Date()) }
             if key == Settings.restoreSessions {
                 if Settings.bool(key) { notifier.requestIfNeeded(); recordSessions(now: Date()) }
-                else { restore = nil; restoreSaved = []; try? FileManager.default.removeItem(at: Paths.restoreFile) }
+                else { restore = nil; restoreSaved = []; launches = [:]; sessionWatch = SessionWatch(); try? FileManager.default.removeItem(at: Paths.restoreFile) }
             }
         case .install:
             do {

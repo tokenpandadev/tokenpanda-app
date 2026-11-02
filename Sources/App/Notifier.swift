@@ -12,8 +12,11 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private let available: Bool
     nonisolated static let reopenCategory = "reopen"
     nonisolated static let reopenAction = "reopen"
+    nonisolated static let endedCategory = "ended"
     /// Called on the main actor when the user clicks Reopen, or the restore notification itself.
     var onReopen: (() -> Void)?
+    /// Called with the notification's id when the user clicks Reopen on a session's end notification, or the notification.
+    var onReopenEnded: ((String) -> Void)?
 
     override init() {
         available = Bundle.main.bundleURL.pathExtension == "app" && Bundle.main.bundleIdentifier != nil
@@ -22,7 +25,8 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         let reopen = UNNotificationAction(identifier: Self.reopenAction, title: "Reopen", options: [])
-        center.setNotificationCategories([UNNotificationCategory(identifier: Self.reopenCategory, actions: [reopen], intentIdentifiers: [])])
+        center.setNotificationCategories([UNNotificationCategory(identifier: Self.reopenCategory, actions: [reopen], intentIdentifiers: []),
+                                          UNNotificationCategory(identifier: Self.endedCategory, actions: [reopen], intentIdentifiers: [])])
     }
 
     var noteForSettings: String? {
@@ -87,6 +91,10 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         let action = response.actionIdentifier
         if category == Self.reopenCategory, action == Self.reopenAction || action == UNNotificationDefaultActionIdentifier {
             Task { @MainActor in self.onReopen?() }
+        }
+        if category == Self.endedCategory, action == Self.reopenAction || action == UNNotificationDefaultActionIdentifier {
+            let id = response.notification.request.identifier
+            Task { @MainActor in self.onReopenEnded?(id) }
         }
         completionHandler()
     }

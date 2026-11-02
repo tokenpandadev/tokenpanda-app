@@ -56,16 +56,47 @@ struct RestoreTests {
     }
 
     @Test func scriptValidatesAndQuotes() {
-        #expect(Reopen.script(id: "not-a-uuid; rm -rf ~", folder: "/tmp", remoteControl: false) == nil)
-        #expect(Reopen.script(id: id, folder: "/no/such/folder", remoteControl: false) == nil)
-        let s = Reopen.script(id: id, folder: "/tmp", remoteControl: false)
-        #expect(s == "#!/bin/zsh -l\nrm -f -- \"$0\"\ncd '/tmp' || exit 1\nclaude --resume '\(id)'\n")
+        #expect(Reopen.script(id: "not-a-uuid; rm -rf ~", folder: "/tmp", name: nil, options: nil, remoteControl: false) == nil)
+        #expect(Reopen.script(id: id, folder: "/no/such/folder", name: nil, options: nil, remoteControl: false) == nil)
+        let s = Reopen.script(id: id, folder: "/tmp", name: nil, options: nil, remoteControl: false)
+        #expect(s == "#!/bin/zsh -l\nrm -f -- \"$0\"\ncd '/tmp' || exit 1\n'claude' '--resume' '\(id)'\nexec \"${SHELL:-/bin/zsh}\" -l\n")
         #expect(Reopen.quote("it's") == "'it'\\''s'")
     }
 
+    @Test func scriptStartsTheSessionAsItWasStarted() throws {
+        let s = try #require(Reopen.script(id: id, folder: "/tmp", name: "Docs", options: ["--add-dir", "/a b", "--model", "opus"], remoteControl: true))
+        let full = "'claude' '--resume' '\(id)' '--add-dir' '/a b' '--model' 'opus' '--name' 'Docs'"
+        #expect(s.contains("t=$SECONDS\n" + full + " '--remote-control'\nif (( $? != 0 && SECONDS - t < 20 )); then\n"))
+        #expect(s.contains("  t=$SECONDS\n  " + full + "\n  if (( $? != 0 && SECONDS - t < 20 )); then\n"))
+        #expect(s.hasSuffix("    'claude' '--resume' '\(id)'\n  fi\nfi\nexec \"${SHELL:-/bin/zsh}\" -l\n"))
+    }
+
     @Test func remoteControlFallsBackToAPlainResume() throws {
-        let s = try #require(Reopen.script(id: id, folder: "/tmp", remoteControl: true))
-        #expect(s.contains("claude --resume '\(id)' --remote-control || claude --resume '\(id)'\n"))
+        let s = try #require(Reopen.script(id: id, folder: "/tmp", name: nil, options: nil, remoteControl: true))
+        #expect(s.contains("'claude' '--resume' '\(id)' '--remote-control'\nif (( $? != 0 && SECONDS - t < 20 )); then\n  'claude' '--resume' '\(id)'\nfi\n"))
+    }
+
+    @Test func nameAndOptionsAreRecordedAndKept() {
+        var r = RestoreRecord(lastScan: t0)
+        r.apply([open(id)], launches: [id: .init(name: "Backend", options: ["--add-dir", "/x"])], now: t0)
+        #expect(r.entries.first?.name == "Backend")
+        #expect(r.entries.first?.label == "Backend")
+        // the session file is gone (the process ended first): the last name and options stay
+        r.apply([open(id)], now: t0.addingTimeInterval(5))
+        #expect(r.entries.first?.options == ["--add-dir", "/x"])
+        #expect(r.entries.first?.name == "Backend")
+        var u = RestoreRecord(lastScan: t0)
+        u.apply([open(id, folder: "/Users/someone/project")], now: t0)
+        #expect(u.entries.first?.label == "project")
+    }
+
+    @Test func anOldRecordStillLoads() throws {
+        let json = #"{"entries":[{"id":"\#(id)","folder":"/tmp","lastSeen":1800000000}],"lastScan":1800000000}"#
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("old-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data(json.utf8).write(to: url)
+        let r = try #require(RestoreRecord.load(from: url))
+        #expect(r.entries.first?.name == nil && r.entries.first?.options == nil)
     }
 
     @Test func remoteControlIsReadFromTheTranscript() throws {

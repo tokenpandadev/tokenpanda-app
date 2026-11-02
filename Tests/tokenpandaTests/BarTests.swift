@@ -138,12 +138,13 @@ struct BarTests {
         #expect(s[5] == " [ ] Keep the Mac awake while Claude works")
         #expect(s[6] == "     a closed lid on battery still sleeps")
         #expect(s[7] == " [ ] Reopen sessions after a restart")
-        #expect(s[8] == "     asks first, then opens them in Terminal")
-        #expect(s[10] == " Install the status line entry")
-        #expect(s[11] == "     one entry in ~/.claude/settings.json")
-        #expect(s[13] == " This app makes no network calls. Usage comes")
-        #expect(s[14] == " from Claude Code's own status feed on this Mac.")
-        #expect(s[16] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
+        #expect(s[8] == "     asks first, then opens each as it was")
+        #expect(s[9] == "     started, and says when one ends on its own")
+        #expect(s[11] == " Install the status line entry")
+        #expect(s[12] == "     one entry in ~/.claude/settings.json")
+        #expect(s[14] == " This app makes no network calls. Usage comes")
+        #expect(s[15] == " from Claude Code's own status feed on this Mac.")
+        #expect(s[17] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
     }
 
     @Test func keepAwakeRowSaysWhenItHoldsTheMacAwake() {
@@ -169,17 +170,17 @@ struct BarTests {
     @Test func hookRowRemovesWhenInstalledAndShowsTheError() {
         let lines = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: true,
                                                     hookError: "Could not remove the entry: cannot write settings.json: denied"))
-        #expect(lines[10].plain == " Remove the status line entry")
-        #expect(lines[10].pieces[1].action == .uninstall)
-        #expect(lines[11].plain == "     puts back what statusLine held before")
+        #expect(lines[11].plain == " Remove the status line entry")
+        #expect(lines[11].pieces[1].action == .uninstall)
+        #expect(lines[12].plain == "     puts back what statusLine held before")
         // the error is wrapped over lines, never cut: every word of it is there
-        #expect(lines[12].plain.hasPrefix("     Could not remove the entry"))
-        let err = lines[12...].prefix { !$0.plain.isEmpty }
+        #expect(lines[13].plain.hasPrefix("     Could not remove the entry"))
+        let err = lines[13...].prefix { !$0.plain.isEmpty }
         #expect(err.allSatisfy { $0.cells <= Grammar.popCells + 1 })
         #expect(err.map { $0.plain.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
                 == "Could not remove the entry: cannot write settings.json: denied")
         let off = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, hookInstalled: false))
-        #expect(off[10].pieces[1].action == .install)
+        #expect(off[11].pieces[1].action == .install)
     }
 
     @Test func openAtLoginRowShowsTheSystemsState() throws {

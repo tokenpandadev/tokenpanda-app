@@ -415,7 +415,7 @@ public enum Grammar {
         if s.keepAwake {
             out += cbRow("keepAwakeWhileOpen", "also while a session waits for you", s.keepAwakeWhileOpen, s.awakeNote, indent: "     ")
         }
-        out += cbRow("restoreSessions", "Reopen sessions after a restart", s.restoreSessions, "asks first, then opens them in Terminal",
+        out += cbRow("restoreSessions", "Reopen sessions after a restart", s.restoreSessions, "asks first, then opens each as it was started, and says when one ends on its own",
                      more: s.restoreSessions ? [s.nudgeNote].compactMap { $0 } : [])
         out.append(blank)
         out += hookRow(installed: s.hookInstalled, someInstalled: s.hookSomeInstalled, error: s.hookError, slowerRefresh: s.hookSlowerRefresh,

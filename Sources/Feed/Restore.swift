@@ -3,7 +3,8 @@
 import Foundation
 
 // Session restore: which Claude Code sessions were open when the Mac last went down, and the Terminal file that resumes one.
-// The record holds the session id, the folder and the transcript path, nothing of what was written. It lives only on this Mac.
+// The record holds the session id, the folder, the transcript path, the session's name and the options it was started with,
+// nothing of what was written. It lives only on this Mac.
 
 public struct RestoreRecord: Sendable, Equatable, Codable {
     public struct Entry: Sendable, Equatable, Codable {
@@ -11,9 +12,20 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
         public var folder: String
         public var transcript: String?
         public var lastSeen: Date
-        public init(id: String, folder: String, transcript: String?, lastSeen: Date) {
-            self.id = id; self.folder = folder; self.transcript = transcript; self.lastSeen = lastSeen
+        public var name: String?          // the session's name (-n or /rename), when it has one
+        public var options: [String]?     // the start options a reopen keeps; nil when they could not be read
+        public init(id: String, folder: String, transcript: String?, lastSeen: Date, name: String? = nil, options: [String]? = nil) {
+            self.id = id; self.folder = folder; self.transcript = transcript; self.lastSeen = lastSeen; self.name = name; self.options = options
         }
+        /// What the notifications call the session: its name, or its folder's name when it has none.
+        public var label: String { name ?? (folder as NSString).lastPathComponent }
+    }
+
+    /// How one session was started, read while it runs.
+    public struct Launch: Sendable, Equatable {
+        public var name: String?
+        public var options: [String]?
+        public init(name: String?, options: [String]?) { self.name = name; self.options = options }
     }
     public var entries: [Entry]
     public var lastScan: Date
@@ -26,12 +38,17 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
     public static let offerWithin: TimeInterval = 7 * 24 * 3600
 
     /// Applies one scan's open sessions: seen ones are refreshed, others drop out once keepFor has passed since their last feed.
-    public mutating func apply(_ sessions: [OpenSession], now: Date) {
+    /// A session's name and options come from launches, by session id; when it is missing there, the last ones read stay.
+    public mutating func apply(_ sessions: [OpenSession], launches: [String: Launch] = [:], now: Date) {
         var byId: [String: Entry] = [:]
         for e in entries where now.timeIntervalSince(e.lastSeen) <= Self.keepFor { byId[e.id] = e }
         for s in sessions {
             guard let folder = s.snapshot.projectDir else { continue }
-            byId[s.snapshot.sessionId] = Entry(id: s.snapshot.sessionId, folder: folder, transcript: s.snapshot.transcriptPath, lastSeen: now)
+            let id = s.snapshot.sessionId
+            let old = byId[id]
+            let launch = launches[id]
+            byId[id] = Entry(id: id, folder: folder, transcript: s.snapshot.transcriptPath, lastSeen: now,
+                             name: launch.map { $0.name } ?? old?.name, options: launch?.options ?? old?.options)
         }
         entries = byId.values.sorted { $0.id < $1.id }
         lastScan = now
@@ -77,13 +94,4 @@ public enum Reopen {
         return d.range(of: remoteControlMarker) != nil
     }
 
-    /// The script. A login shell, so claude is found the way a Terminal window finds it. The file deletes itself first.
-    /// With Remote Control, a start that fails falls back to a plain resume.
-    public static func script(id: String, folder: String, remoteControl: Bool) -> String? {
-        var isDir: ObjCBool = false
-        guard isSessionId(id), FileManager.default.fileExists(atPath: folder, isDirectory: &isDir), isDir.boolValue else { return nil }
-        let resume = "claude --resume " + quote(id)
-        let run = remoteControl ? resume + " --remote-control || " + resume : resume
-        return "#!/bin/zsh -l\nrm -f -- \"$0\"\ncd " + quote(folder) + " || exit 1\n" + run + "\n"
-    }
 }
