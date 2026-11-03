@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.10, unreleased
+## 0.1.10, 2026-11-03
 
 - Reopen after a restart starts each session as it was started: with its name and the options it was started with (extra folders, appended system prompt, model, permission mode and the rest), not as a plain `claude --resume`. A start prompt typed after the options is not sent again. If that start fails within 20 seconds, the same without Remote Control follows, then a plain resume. The app reads the options from the session's process and its name from Claude Code's own session file; without that file, sessions still reopen, with a plain resume.
 - The restart notification names the sessions ("Backend, Docs, Website, Infra and 7 more") instead of their folder. A session without a name shows its folder, counted when several share it.
