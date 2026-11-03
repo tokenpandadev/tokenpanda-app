@@ -16,9 +16,18 @@ public struct Usage: Sendable, Equatable {
         self.input = input; self.output = output; self.cacheRead = cacheRead; self.cacheWrite = cacheWrite
         self.cacheWrite5m = cacheWrite5m; self.cacheWrite1h = cacheWrite1h
     }
-    public var total: Int { input + output + cacheRead + cacheWrite }
+    /// Added with saturation: counts near Int.max in a broken transcript line cap the sum instead of trapping.
+    public var total: Int { input.saturatingAdd(output).saturatingAdd(cacheRead).saturatingAdd(cacheWrite) }
     /// The prompt size for a tiered price: everything the model read.
-    public var promptSize: Int { input + cacheRead + cacheWrite }
+    public var promptSize: Int { input.saturatingAdd(cacheRead).saturatingAdd(cacheWrite) }
+}
+
+public extension Int {
+    /// The sum, held at Int.max or Int.min instead of trapping on overflow.
+    func saturatingAdd(_ other: Int) -> Int {
+        let (r, overflow) = addingReportingOverflow(other)
+        return overflow ? (other > 0 ? .max : .min) : r
+    }
 }
 
 public struct PriceRow: Sendable, Equatable {
@@ -37,7 +46,7 @@ public struct PriceRow: Sendable, Equatable {
         var p = (input, cacheWrite5m, cacheWrite1h, cacheRead, output)
         if let from = longPromptFrom, let l = longPrompt, u.promptSize > from { p = (l[0], l[1], l[2], l[3], l[4]) }
         let w5: Int, w1: Int
-        if let a = u.cacheWrite5m, let b = u.cacheWrite1h, a + b > 0 { w5 = a; w1 = b } else { w5 = u.cacheWrite; w1 = 0 }
+        if let a = u.cacheWrite5m, let b = u.cacheWrite1h, a.saturatingAdd(b) > 0 { w5 = a; w1 = b } else { w5 = u.cacheWrite; w1 = 0 }
         let m = 1_000_000.0
         return Double(u.input) * p.0 / m + Double(w5) * p.1 / m + Double(w1) * p.2 / m
             + Double(u.cacheRead) * p.3 / m + Double(u.output) * p.4 / m

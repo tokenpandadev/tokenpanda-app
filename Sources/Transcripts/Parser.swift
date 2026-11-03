@@ -55,6 +55,9 @@ public enum TranscriptParser {
         public var record: UsageRecord
     }
 
+    /// The largest token count one message is taken to carry.
+    public static let maxCount = 1 << 40
+
     /// Decodes one line. Returns nil for anything that is not an assistant line with a usage object,
     /// for a synthetic model, and for a line that cannot be read.
     public static func parse(line: Data, file: TranscriptFile) -> Parsed? {
@@ -62,6 +65,10 @@ public enum TranscriptParser {
         guard raw.type == "assistant", let m = raw.message, let id = m.id, let model = m.model, model != "<synthetic>",
               let u = m.usage, let ts = raw.timestamp else { return nil }
         guard let date = iso.date(from: ts) ?? isoPlain.date(from: ts) else { return nil }
+        // a count no message can have (negative, or past about a trillion) marks a broken line: skipped, not summed
+        let counts = [u.input_tokens, u.output_tokens, u.cache_read_input_tokens, u.cache_creation_input_tokens,
+                      u.cache_creation?.ephemeral_5m_input_tokens, u.cache_creation?.ephemeral_1h_input_tokens].compactMap { $0 }
+        guard counts.allSatisfy({ $0 >= 0 && $0 <= maxCount }) else { return nil }
         let project = raw.cwd.map { ($0 as NSString).lastPathComponent } ?? TranscriptLocator.projectName(fromFolder: file.projectFolder)
         let usage = Usage(input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0,
                           cacheWrite: u.cache_creation_input_tokens ?? 0,

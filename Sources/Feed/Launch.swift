@@ -42,7 +42,8 @@ public struct LiveSession: Sendable, Equatable {
             let dir = f.appendingPathComponent("sessions", isDirectory: true)
             guard let names = try? fm.contentsOfDirectory(atPath: dir.path) else { continue }
             for n in names where n.hasSuffix(".json") {
-                guard let d = try? Data(contentsOf: dir.appendingPathComponent(n)), d.count < 64 * 1024,
+                // the size is checked before the read: a session file is a few hundred bytes
+                guard let d = SafeFile.read(dir.appendingPathComponent(n), maxBytes: 64 * 1024 - 1),
                       let s = parse(d), !seen.contains(s.pid), ProcessTable.isRunning(s.pid) else { continue }
                 seen.insert(s.pid)
                 out.append(s)

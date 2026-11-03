@@ -97,6 +97,12 @@ public struct Hook: Sendable {
 
     func isOurs(_ command: String) -> Bool { command == hookCommand || command == hookPath.path }
 
+    /// Why settings.json could not be read as settings.
+    static func unreadable(_ url: URL) -> String {
+        guard let size = SafeFile.regularFileSize(url.path) else { return "settings.json is not a regular file" }
+        return size > SafeFile.jsonLimit ? "settings.json is over 1 MB" : "settings.json is not a JSON object"
+    }
+
     /// Reads the statusLine key and disableAllHooks, which switches the status line off. Anything else stays unread.
     public func status() -> HookStatus {
         let obj = readSettings()
@@ -120,7 +126,7 @@ public struct Hook: Sendable {
     }
 
     func readSettings() -> [String: Any]? {
-        guard let d = try? Data(contentsOf: settingsURL) else { return nil }
+        guard let d = SafeFile.read(settingsURL) else { return nil }
         return (try? JSONSerialization.jsonObject(with: d)) as? [String: Any]
     }
 
@@ -131,7 +137,7 @@ public struct Hook: Sendable {
     }
 
     func readBackupFile() -> [String: Any]? {
-        guard let d = try? Data(contentsOf: backupPath) else { return nil }
+        guard let d = SafeFile.read(backupPath) else { return nil }
         return (try? JSONSerialization.jsonObject(with: d)) as? [String: Any]
     }
 
@@ -153,7 +159,7 @@ public struct Hook: Sendable {
         var settings: [String: Any] = [:]
         let created = !fm.fileExists(atPath: settingsURL.path)
         if !created {
-            guard let s = readSettings() else { throw HookError.cannotReadSettings("settings.json is not a JSON object") }
+            guard let s = readSettings() else { throw HookError.cannotReadSettings(Self.unreadable(settingsURL)) }
             settings = s
         }
         let existing = settings["statusLine"] as? [String: Any]
@@ -193,7 +199,7 @@ public struct Hook: Sendable {
     public func uninstall(previousCommand: String?, previousRefresh: Double? = nil, removeSessions: Bool = true) throws {
         let fm = FileManager.default
         if fm.fileExists(atPath: settingsURL.path) {
-            guard var settings = readSettings() else { throw HookError.cannotReadSettings("settings.json is not a JSON object") }
+            guard var settings = readSettings() else { throw HookError.cannotReadSettings(Self.unreadable(settingsURL)) }
             let current = settings["statusLine"] as? [String: Any]
             if let cmd = current?["command"] as? String, isOurs(cmd) {
                 let created = (readBackupFile()?["createdSettings"] as? Bool) ?? false
@@ -201,7 +207,9 @@ public struct Hook: Sendable {
                     if let before = backup { settings["statusLine"] = before } else { settings.removeValue(forKey: "statusLine") }
                 } else if let previousCommand, var sl = current {
                     sl["command"] = previousCommand
-                    if let r = previousRefresh { sl["refreshInterval"] = r == r.rounded() ? Int(r) as Any : r as Any }
+                    if let r = previousRefresh, r.isFinite {
+                        if let whole = Int(exactly: r) { sl["refreshInterval"] = whole } else { sl["refreshInterval"] = r }
+                    }
                     settings["statusLine"] = sl
                 } else {
                     settings.removeValue(forKey: "statusLine")

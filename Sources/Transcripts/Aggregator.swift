@@ -37,13 +37,13 @@ public enum Aggregator {
     /// Groups sorted by the figure, largest first; more than five becomes four and "other".
     public static func groups(_ records: [UsageRecord], key: (UsageRecord) -> String, name: (String) -> String) -> [TokenGroup] {
         var sums: [String: Int] = [:]
-        for r in records { sums[key(r), default: 0] += r.usage.total }
-        let total = sums.values.reduce(0, +)
+        for r in records { sums[key(r), default: 0] = sums[key(r), default: 0].saturatingAdd(r.usage.total) }
+        let total = sums.values.reduce(0) { $0.saturatingAdd($1) }
         guard total > 0 else { return [] }
         var sorted = sums.map { ($0.key, $0.value) }.sorted { $0.1 == $1.1 ? $0.0 < $1.0 : $0.1 > $1.1 }
         var out: [TokenGroup] = []
         if sorted.count > maxRows {
-            let rest = sorted[(maxRows - 1)...].reduce(0) { $0 + $1.1 }
+            let rest = sorted[(maxRows - 1)...].reduce(0) { $0.saturatingAdd($1.1) }
             sorted = Array(sorted.prefix(maxRows - 1))
             out = sorted.map { TokenGroup(name: name($0.0), key: $0.0, tokens: $0.1, share: Int((Double($0.1) / Double(total) * 100).rounded())) }
             out.append(TokenGroup(name: "other", key: "other", tokens: rest, share: Int((Double(rest) / Double(total) * 100).rounded())))
@@ -60,8 +60,8 @@ public enum Aggregator {
         let today = records.filter { $0.timestamp >= midnight && $0.timestamp <= now }
         let week = records.filter { $0.timestamp >= d7 && $0.timestamp <= now }
         let month = records.filter { $0.timestamp >= d30 && $0.timestamp <= now }
-        let total7 = week.reduce(0) { $0 + $1.usage.total }
-        let agent7 = week.filter(\.isAgent).reduce(0) { $0 + $1.usage.total }
+        let total7 = week.reduce(0) { $0.saturatingAdd($1.usage.total) }
+        let agent7 = week.filter(\.isAgent).reduce(0) { $0.saturatingAdd($1.usage.total) }
         var price = 0.0
         var unpriced: Set<String> = []
         for r in week {
@@ -73,7 +73,7 @@ public enum Aggregator {
             bySessionToday: groups(today, key: \.session, name: { String($0.prefix(8)) }),
             agentShare7d: total7 > 0 ? Int((Double(agent7) / Double(total7) * 100).rounded()) : 0,
             listPrice7d: price, unpricedModels: unpriced.count,
-            tokensToday: today.reduce(0) { $0 + $1.usage.total }, tokens7d: total7, tokens30d: month.reduce(0) { $0 + $1.usage.total },
-            total7d: total7, totalToday: today.reduce(0) { $0 + $1.usage.total })
+            tokensToday: today.reduce(0) { $0.saturatingAdd($1.usage.total) }, tokens7d: total7, tokens30d: month.reduce(0) { $0.saturatingAdd($1.usage.total) },
+            total7d: total7, totalToday: today.reduce(0) { $0.saturatingAdd($1.usage.total) })
     }
 }

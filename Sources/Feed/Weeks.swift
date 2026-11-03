@@ -34,7 +34,14 @@ public struct WeekRecords: Sendable, Equatable, Codable {
 
     public static func load(from url: URL) -> WeekRecords {
         let dec = JSONDecoder(); dec.dateDecodingStrategy = .secondsSince1970
-        if let d = try? Data(contentsOf: url), let r = try? dec.decode(WeekRecords.self, from: d) { return r }
+        if let d = SafeFile.read(url), var r = try? dec.decode(WeekRecords.self, from: d) {
+            // the feed parser's ranges: a record out of them is dropped, never drawn
+            r.records = r.records.filter {
+                $0.lastUsed.isFinite && $0.lastUsed >= 0 && $0.lastUsed <= SnapshotParser.maxPercent
+                    && $0.resetsAt.timeIntervalSince1970 >= 0 && $0.resetsAt.timeIntervalSince1970 < SnapshotParser.maxEpoch
+            }
+            return r
+        }
         return WeekRecords()
     }
 

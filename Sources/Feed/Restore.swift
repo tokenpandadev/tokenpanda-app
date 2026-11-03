@@ -61,7 +61,7 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
     }
 
     public static func load(from url: URL) -> RestoreRecord? {
-        guard let d = try? Data(contentsOf: url) else { return nil }
+        guard let d = SafeFile.read(url) else { return nil }
         let dec = JSONDecoder(); dec.dateDecodingStrategy = .secondsSince1970
         return try? dec.decode(RestoreRecord.self, from: d)
     }
@@ -89,8 +89,10 @@ public enum Reopen {
     /// if it stops appearing, sessions still reopen, without Remote Control.
     public static let remoteControlMarker = Data("\"type\":\"bridge-session\"".utf8)
 
+    /// transcript_path comes from the feed: it is opened only when it is a regular file, never a FIFO or a device.
     public static func hadRemoteControl(transcript: String?) -> Bool {
-        guard let t = transcript, let d = try? Data(contentsOf: URL(fileURLWithPath: t), options: .mappedIfSafe) else { return false }
+        guard let t = transcript, SafeFile.isRegularFile(t),
+              let d = try? Data(contentsOf: URL(fileURLWithPath: t), options: .mappedIfSafe) else { return false }
         return d.range(of: remoteControlMarker) != nil
     }
 

@@ -20,6 +20,11 @@ public struct Limits: Sendable, Equatable, Codable {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             used = try c.decode(Double.self, forKey: .used)
             resetsAt = try c.decode(Date.self, forKey: .resetsAt)
+            // the same ranges the feed parser keeps: a broken limits.json is dropped, never drawn
+            guard used.isFinite, used >= 0, used <= SnapshotParser.maxPercent,
+                  resetsAt.timeIntervalSince1970 >= 0, resetsAt.timeIntervalSince1970 < SnapshotParser.maxEpoch else {
+                throw DecodingError.dataCorruptedError(forKey: .used, in: c, debugDescription: "out of range")
+            }
             previousResetsAt = try c.decodeIfPresent(Date.self, forKey: .previousResetsAt)
             contradicts = try c.decodeIfPresent(Bool.self, forKey: .contradicts) ?? false
             retired = try c.decodeIfPresent(Bool.self, forKey: .retired) ?? false
@@ -153,7 +158,7 @@ public actor FeedReader {
     public init(dataDir: URL) {
         sessionsDir = dataDir.appendingPathComponent("sessions", isDirectory: true)
         limitsFile = dataDir.appendingPathComponent("limits.json")
-        if let d = try? Data(contentsOf: limitsFile) {
+        if let d = SafeFile.read(limitsFile) {
             let dec = JSONDecoder(); dec.dateDecodingStrategy = .secondsSince1970
             limits = try? dec.decode(Limits.self, from: d)
         }
@@ -185,7 +190,7 @@ public actor FeedReader {
                 try? fm.removeItem(at: url)
                 continue
             }
-            guard let data = try? Data(contentsOf: url), let snap = SnapshotParser.parse(data, writtenAt: mtime) else { continue }
+            guard let data = SafeFile.read(url), let snap = SnapshotParser.parse(data, writtenAt: mtime) else { continue }
             if mtime > (lastWrite ?? .distantPast) { lastWrite = mtime }
             let figures = ReplyFigures(tokens: snap.currentUsageTokens, cost: snap.totalCostUSD)
             // a reply: a session seen before whose figures moved; the first sight of a file after launch is not one

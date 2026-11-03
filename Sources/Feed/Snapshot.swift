@@ -45,23 +45,23 @@ public enum SnapshotParser {
         if let m = d["model"] as? [String: Any] { s.modelDisplayName = m["display_name"] as? String; s.modelId = m["id"] as? String }
         if let e = d["effort"] as? [String: Any] { s.effortLevel = e["level"] as? String }
         if let c = d["context_window"] as? [String: Any] {
-            s.contextWindowSize = number(c["context_window_size"]).map { Int($0) }
-            s.contextUsedPercentage = number(c["used_percentage"])
+            s.contextWindowSize = count(c["context_window_size"])
+            s.contextUsedPercentage = percent(c["used_percentage"])
             if let u = c["current_usage"] as? [String: Any] {
                 let keys = ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"]
-                s.currentUsageTokens = keys.reduce(0) { $0 + Int(number(u[$1]) ?? 0) }
+                s.currentUsageTokens = keys.reduce(0) { $0 + (count(u[$1]) ?? 0) }
             }
         }
         if let c = d["cost"] as? [String: Any] {
-            s.totalCostUSD = number(c["total_cost_usd"])
-            s.linesAdded = number(c["total_lines_added"]).map { Int($0) }
-            s.linesRemoved = number(c["total_lines_removed"]).map { Int($0) }
+            s.totalCostUSD = number(c["total_cost_usd"]).flatMap { $0 >= 0 && $0 <= maxCost ? $0 : nil }
+            s.linesAdded = count(c["total_lines_added"])
+            s.linesRemoved = count(c["total_lines_removed"])
         }
         if let r = d["rate_limits"] as? [String: Any] {
             var windows: [String: LimitWindow] = [:]
             for (key, value) in r {
                 guard key != "spend_limit", let w = value as? [String: Any],
-                      let used = number(w["used_percentage"]), let reset = number(w["resets_at"]) else { continue }
+                      let used = percent(w["used_percentage"]), let reset = number(w["resets_at"]), reset >= 0, reset < maxEpoch else { continue }
                 windows[key] = LimitWindow(key: key, usedPercentage: used, resetsAt: Date(timeIntervalSince1970: reset))
             }
             s.rateLimitsCarriedWindows = r.contains { $0.key != "spend_limit" && $0.value is [String: Any] }
@@ -78,8 +78,27 @@ public enum SnapshotParser {
     }
 
     static func number(_ v: Any?) -> Double? {
-        guard let n = v as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
+        guard let n = v as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID(), n.doubleValue.isFinite else { return nil }
         return n.doubleValue
+    }
+
+    /// The largest count the feed can sensibly carry (tokens, lines, a context window): about a trillion. Anything past it,
+    /// negative or not a whole number is ignored, so a broken file can never trap a conversion or a sum.
+    static let maxCount = 1 << 40
+    static let maxCost = 1e9
+    /// A percentage past this is not a reading; 100 is the limit, a little over it is seen.
+    static let maxPercent = 1000.0
+    /// resets_at before the year 2286.
+    static let maxEpoch = 1e10
+
+    static func count(_ v: Any?) -> Int? {
+        guard let d = number(v), d >= 0, d <= Double(maxCount) else { return nil }
+        return Int(exactly: d.rounded())
+    }
+
+    static func percent(_ v: Any?) -> Double? {
+        guard let d = number(v), d >= 0, d <= maxPercent else { return nil }
+        return d
     }
 }
 
