@@ -74,7 +74,7 @@
 <tr><th>Module</th><th>Owns</th><th>Talks to</th></tr>
 <tr><td>App</td><td>entry point, the status item, the popover, keyboard, the main actor state</td><td>everything</td></tr>
 <tr><td>Feed</td><td>reads the snapshot files the hook writes, one per session, watches the folder, computes staleness, the open sessions list and which of them are working</td><td>Pace, Sessions</td></tr>
-<tr><td>Hook</td><td>the hook script as a resource, installing the statusLine entry with consent, chaining an existing command, removing it and restoring the entry from before</td><td>Feed</td></tr>
+<tr><td>Hook</td><td>the hook script, kept in the code (identical to hook/statusline.sh, a test checks it) and written to the data folder at Install, installing the statusLine entry with consent, chaining an existing command, removing it and restoring the entry from before</td><td>Feed</td></tr>
 <tr><td>Transcripts</td><td>finds and streams the JSONL files, dedupes, aggregates by window, model, project, session, agent share</td><td>Prices</td></tr>
 <tr><td>Prices</td><td>the bundled five column price table, cost per message</td><td>Transcripts, Sessions</td></tr>
 <tr><td>Pace</td><td>window length by key name, status, projection, allowance, countdown</td><td>Feed, UI</td></tr>
@@ -453,7 +453,7 @@ from Claude Code's own status feed on this Mac.</pre>
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
 <pre>scripts/build-app.sh 0.1.10  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
-                             # Contents/Resources (hook.sh, AppIcon.icns), Info.plist (LSUIElement true,
+                             # Contents/Resources (AppIcon.icns), Info.plist (LSUIElement true,
                              # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.10.zip and its SHA-256</pre>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>

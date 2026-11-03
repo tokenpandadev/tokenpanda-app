@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-FileCopyrightText: 2026 tokenpanda
 # SPDX-License-Identifier: MIT
-# Builds the .app bundle from the release binary: Info.plist with LSUIElement, the hook script and the app icon as resources,
+# Builds the .app bundle from the release binary: Info.plist with LSUIElement, the app icon as a resource,
 # an ad hoc signature, then a zip with its SHA-256. No Xcode, no network.
 #   scripts/build-app.sh [version]
 set -eu
@@ -19,7 +19,6 @@ BIN=".build/release/$NAME"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/$NAME"
-cp hook/statusline.sh "$APP/Contents/Resources/hook.sh"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

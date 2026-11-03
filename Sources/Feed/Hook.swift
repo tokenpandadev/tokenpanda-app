@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 
-// The status line hook: the script as a resource, installed only on an explicit click, chaining an existing command.
+// The status line hook: the script, kept in the code, installed only on an explicit click, chaining an existing command.
 // settings.json is otherwise off limits: this file reads the statusLine key and disableAllHooks, and changes only statusLine.
 
 public enum HookScript {
