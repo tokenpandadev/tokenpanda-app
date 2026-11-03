@@ -36,6 +36,7 @@ public struct LiveInput: Sendable {
     public var timeZone: TimeZone
     public var calendar: Calendar
     public var version: String?        // the bundle's CFBundleShortVersionString; nil in a bare debug binary
+    public var sessionNames: [String: String] = [:]   // session id to the name set with -n or /rename, from Claude Code's sessions files
 
     public init(feed: FeedState, hook: HookStatus, tokens: TokenSummary?, transcriptsRootsExist: Bool, transcriptsError: String?,
                 mac: MacSample?, weeks: WeekRecords, macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String?, hookError: String? = nil,
@@ -119,7 +120,8 @@ public enum ScreenBuilder {
             let figure = (snap.currentUsageTokens.map { Format.contextTokens($0) } ?? "0") + " of " + Format.contextTokens(size, decimal: false)
             var tip = Format.usd(snap.totalCostUSD ?? 0, cents: true) + " list price equivalent  \(snap.linesAdded ?? 0) added  \(snap.linesRemoved ?? 0) removed"
             if let e = snap.effortLevel { tip += "  effort \(e)" }
-            return SessionView(name: snap.projectName ?? snap.sessionId.prefix(8).description, model: snap.modelDisplayName ?? "",
+            // the session's own name (-n or /rename) first: several sessions in one folder are told apart by it
+            return SessionView(name: i.sessionNames[snap.sessionId] ?? snap.projectName ?? snap.sessionId.prefix(8).description, model: snap.modelDisplayName ?? "",
                                hue: Tokens.hue(forFamily: family), used: Int((snap.contextUsedPercentage ?? 0).rounded()),
                                figure: figure, tip: tip, waiting: snap.currentUsageTokens == nil,
                                compacted: snap.currentUsageTokens == nil && (snap.totalCostUSD ?? 0) > 0)

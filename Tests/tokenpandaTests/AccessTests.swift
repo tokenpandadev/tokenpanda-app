@@ -67,6 +67,18 @@ struct AccessTests {
         #expect(session?.label == "workspace, Fable 5.1, context 405.6 thousand of 1 million, 41% used")
     }
 
+    @Test func openSessionsShowTheSessionNameThenTheFolder() throws {
+        var input = try #require(Fixtures.all().first { $0.0 == "claude-overpace" }?.1)
+        let ids = input.feed.sessions.map(\.snapshot.sessionId)
+        try #require(!ids.isEmpty)
+        input.sessionNames = [ids[0]: "Planning"]
+        let plain = Grammar.popover(ScreenBuilder.screen(input)).map(\.plain)
+        #expect(plain.contains { $0.hasPrefix(" Planning  ") })
+        input.sessionNames = [ids[0]: String(repeating: "Website, LinkedIn, halftone ", count: 3)]
+        let long = Grammar.popover(ScreenBuilder.screen(input)).map(\.plain).first { $0.hasPrefix(" Website") }
+        #expect(long.map { $0.count <= Grammar.popCells + 1 } == true)
+    }
+
     @Test func downReachesTheMacFigures() throws {
         let c = Controls.extract(Grammar.popover(try screen("mac")))
         let labels = c.filter { $0.kind == .figure }.map(\.label)

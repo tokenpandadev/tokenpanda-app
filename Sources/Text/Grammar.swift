@@ -224,7 +224,10 @@ public enum Grammar {
         for s in list {
             // the name and model are in the figure line's label; said once, there. A waiting session has no figure line
             // with a label, so its name line stays.
-            let nameLine = L(sp(" "), sp(s.name), sp("  "), sp(s.model, .dim))
+            // a long session name is cut so name and model stay on one line inside the panel
+            let room = max(8, popCells - 2 - s.model.count)
+            let name = s.name.count > room ? String(s.name.prefix(room - 1)) + "\u{2026}" : s.name
+            let nameLine = L(sp(" "), sp(name), sp("  "), sp(s.model, .dim))
             out.append(s.waiting ? nameLine : nameLine.silent)
             let bar = Bar.render(width: rowBar, used: s.waiting ? 0 : Double(s.used), elapsed: nil, options: BarOptions(color: s.hue, plain: true))
             if s.waiting {

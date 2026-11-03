@@ -66,6 +66,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var restore: RestoreRecord? = nil            // the sessions open now, kept on disk only while the setting is on
     var restoreSaved: [String] = []              // the sessions last written (id, name, options), so the file is written only when they change
     var pendingReopen: [RestoreRecord.Entry] = []   // the sessions the restart notification offers
+    var sessionNames: [String: String] = [:]   // the open sessions' names, read at each scan, for the Open sessions rows
     var launches: [Int32: (id: String, launch: RestoreRecord.Launch)] = [:]   // by process: how each running session was started
     var sessionWatch = SessionWatch()           // the running sessions by process, to tell when one ends
     var endedEntries: [String: RestoreRecord.Entry] = [:]   // the sessions an end notification offers, by notification id
@@ -203,6 +204,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let now = Date()
         feedState = await feed.scan(now: now)
         working.apply(feedState.sessions)
+        sessionNames = Dictionary(LiveSession.read(settingsFolders: folders).compactMap { s in s.name.map { (s.sessionId, $0) } },
+                                  uniquingKeysWith: { a, _ in a })
         updateAwake(now: now)
         recordSessions(now: now)
         refreshFolders()
@@ -506,13 +509,15 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     // MARK: rendering
 
     var input: LiveInput {
-        LiveInput(feed: feedState, hook: hookStatus, tokens: tokens, transcriptsRootsExist: transcriptsRootsExist, transcriptsError: transcriptsError,
+        var i = LiveInput(feed: feedState, hook: hookStatus, tokens: tokens, transcriptsRootsExist: transcriptsRootsExist, transcriptsError: transcriptsError,
                   mac: mac, weeks: weeks, macInBar: Settings.bool(Settings.macFiguresInBar), nudges: Settings.bool(Settings.nudges),
                   listPrice: Settings.bool(Settings.listPriceEquivalent), nudgeNote: notifier.noteForSettings, hookError: hookError,
                   keepAwake: Settings.bool(Settings.keepAwake),
                   keepAwakeWhileOpen: Settings.bool(Settings.keepAwakeWhileOpen), awake: awake, login: login, loginError: loginError,
                   restoreSessions: Settings.bool(Settings.restoreSessions), warn: warning, tab: tab, section: section, now: Date(),
                   version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
+        i.sessionNames = sessionNames
+        return i
     }
 
     func render() {
