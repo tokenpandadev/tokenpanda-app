@@ -30,7 +30,7 @@ struct WindowsTests {
             for (k, (u, reset)) in windows { r[k] = ["used_percentage": u, "resets_at": reset.timeIntervalSince1970] }
             d["rate_limits"] = r
         }
-        return try! JSONSerialization.data(withJSONObject: d)
+        return (try? JSONSerialization.data(withJSONObject: d)) ?? Data()
     }
 
     func write(_ sid: String, _ data: Data, in dir: URL, at t: Date) throws {
@@ -264,7 +264,9 @@ struct WindowsTests {
         let dir = try tempDir()
         // limits.json as 0.1.7 wrote it: no retired, no hidden; the 5h reset passed hours ago
         let stored = """
-        {"asOf":\(t0.timeIntervalSince1970 - 600),"windows":{"five_hour":{"contradicts":false,"previousResetsAt":\(t0.timeIntervalSince1970 - 32400),"used":1,"resetsAt":\(t0.timeIntervalSince1970 - 14400)},"seven_day":{"contradicts":false,"used":28,"resetsAt":\(week.timeIntervalSince1970)}}}
+        {"asOf":\(t0.timeIntervalSince1970 - 600),"windows":{\
+        "five_hour":{"contradicts":false,"previousResetsAt":\(t0.timeIntervalSince1970 - 32400),"used":1,"resetsAt":\(t0.timeIntervalSince1970 - 14400)},\
+        "seven_day":{"contradicts":false,"used":28,"resetsAt":\(week.timeIntervalSince1970)}}}
         """
         try Data(stored.utf8).write(to: dir.appendingPathComponent("limits.json"))
         let reader = FeedReader(dataDir: dir)

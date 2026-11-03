@@ -3,6 +3,9 @@
 import Foundation
 import Pace
 
+/// The keys Limits.Record decodes, the same names its synthesized encoding writes. At file level: types nest one deep.
+enum LimitsRecordKey: String, CodingKey { case used, resetsAt, previousResetsAt, contradicts, retired }
+
 /// The last limits the feed carried, kept so the figures survive the per session files being dropped.
 /// Only the windows and the snapshot time: no path, no model, no session id.
 public struct Limits: Sendable, Equatable, Codable {
@@ -15,9 +18,8 @@ public struct Limits: Sendable, Equatable, Codable {
         public init(used: Double, resetsAt: Date, previousResetsAt: Date? = nil, contradicts: Bool = false, retired: Bool = false) {
             self.used = used; self.resetsAt = resetsAt; self.previousResetsAt = previousResetsAt; self.contradicts = contradicts; self.retired = retired
         }
-        enum CodingKeys: String, CodingKey { case used, resetsAt, previousResetsAt, contradicts, retired }
         public init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: CodingKeys.self)
+            let c = try decoder.container(keyedBy: LimitsRecordKey.self)
             used = try c.decode(Double.self, forKey: .used)
             resetsAt = try c.decode(Date.self, forKey: .resetsAt)
             // the same ranges the feed parser keeps: a broken limits.json is dropped, never drawn
