@@ -58,6 +58,7 @@ public struct Line: Sendable {
     public var help: String?        // the accessibility help of the line's control: the dim line under a checkbox
     public var hidden: Bool         // not an element of its own: decoration, or already said by the line that labels its group
     public var image: Bool          // spoken as an image with a description (the memory grid)
+    public var focusable = false    // a key figure (Weekly, 5h, CPU, GPU, memory, battery): the keyboard ring stops on it too
 
     public init(_ pieces: [Piece] = [], hover: Bool = false, label: String? = nil, help: String? = nil, hidden: Bool = false, image: Bool = false) {
         self.pieces = pieces; self.hover = hover; self.label = label; self.help = help; self.hidden = hidden; self.image = image
@@ -109,6 +110,16 @@ public enum Controls {
             return "\(base)#\(n)"
         }
         for (li, line) in lines.enumerated() {
+            let before = out.count
+            defer {
+                // a key figure with no control of its own: one focusable figure over the whole line, said by its label
+                if line.focusable, !line.hidden, out.count == before {
+                    let label = line.label ?? line.plain.trimmingCharacters(in: .whitespaces)
+                    let title = line.plain.filter { !$0.isNumber }.trimmingCharacters(in: .whitespaces)
+                    out.append(Control(kind: .figure, action: nil, label: label, checked: nil, help: line.help,
+                                       line: li, startCell: 0, cells: line.cells, key: key("figure|" + title)))
+                }
+            }
             var cell = 0
             var i = 0
             let ps = line.pieces

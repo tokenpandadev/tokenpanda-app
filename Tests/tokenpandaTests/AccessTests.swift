@@ -58,8 +58,19 @@ struct AccessTests {
         // a session figure and the model rows: focusable, their readout is the help
         let figures = c.filter { $0.kind == .figure }
         #expect(figures.count >= 6)
-        #expect(figures.allSatisfy { $0.help != nil && $0.action == nil })
-        #expect(figures.first?.label == "workspace, Fable 5.1, context 405.6 thousand of 1 million, 41% used")
+        #expect(figures.allSatisfy { $0.action == nil })
+        // the key figures come first: the window sections, said whole, for the Down key too
+        #expect(figures.first?.label.hasPrefix("Weekly, all models.") == true)
+        #expect(figures.contains { $0.label.hasPrefix("5h window.") })
+        #expect(figures.contains { $0.label.hasPrefix("Week of ") })
+        let session = figures.first { $0.help != nil }
+        #expect(session?.label == "workspace, Fable 5.1, context 405.6 thousand of 1 million, 41% used")
+    }
+
+    @Test func downReachesTheMacFigures() throws {
+        let c = Controls.extract(Grammar.popover(try screen("mac")))
+        let labels = c.filter { $0.kind == .figure }.map(\.label)
+        for p in ["CPU ", "GPU ", "Memory ", "Battery "] { #expect(labels.contains { $0.hasPrefix(p) }, "\(p)") }
     }
 
     // MARK: the view: VoiceOver elements, press, keyboard focus

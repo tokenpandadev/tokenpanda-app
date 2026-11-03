@@ -120,7 +120,7 @@ public enum Grammar {
             out.append(L(sp(" "), .bar(Bar.render(width: popBar, used: w.used, elapsed: nil)), percentPiece(w.used, dim: true)))
             out.append(L(sp(" "), sp("unknown window", .dim)))
         }
-        return spoken(out, label: windowLabel(w))
+        return spoken(out, label: windowLabel(w), focusable: true)
     }
 
     /// The style guide's one label per window section: "Weekly, all models. 61% used. Resets Sunday 18:00, in 3 days
@@ -143,9 +143,10 @@ public enum Grammar {
     }
 
     /// A group of lines said once: the first line carries the label, the rest are hidden.
-    static func spoken(_ lines: [Line], label: String) -> [Line] {
+    static func spoken(_ lines: [Line], label: String, focusable: Bool = false) -> [Line] {
         guard var first = lines.first else { return lines }
         first.label = label
+        first.focusable = focusable
         return [first] + lines.dropFirst().map(\.silent)
     }
 
@@ -157,7 +158,7 @@ public enum Grammar {
     static func windowEmpty(_ title: String, _ line: String) -> [Line] {
         spoken([L(sp(" "), sp(title, .bold)),
                 L(sp(" "), .bar(Bar.render(width: popBar, used: 0, elapsed: nil))),
-                L(sp(" "), sp(line, .dim))], label: Spoken.title(title) + ". " + line.replacingOccurrences(of: "  ", with: ", ") + ".")
+                L(sp(" "), sp(line, .dim))], label: Spoken.title(title) + ". " + line.replacingOccurrences(of: "  ", with: ", ") + ".", focusable: true)
     }
 
     // the empty and first run states of the approved draft
@@ -293,7 +294,9 @@ public enum Grammar {
         // "Week of 28 September, 100%, hit the limit Thursday 16:10"
         var label = "Week of " + Spoken.words(w.date) + ", " + (w.used.map { "\($0)%" } ?? "no figure")
         if let note = w.note { label += ", " + (w.hit ? "hit the limit " : "") + Spoken.words(note) }
-        return Line(pieces, label: label)
+        var line = Line(pieces, label: label)
+        line.focusable = true   // the Down key stops on each week too
+        return line
     }
 
     // 6.9 memory grid
@@ -322,6 +325,7 @@ public enum Grammar {
         out[0].hidden = false
         out[0].image = true
         out[0].label = memoryLabel(m)
+        out[0].focusable = true
         return out
     }
 
@@ -372,12 +376,12 @@ public enum Grammar {
         func c(_ t: String) -> String { t.replacingOccurrences(of: "  ", with: ", ") }
         var out: [Line] = spoken([L(sp(" "), sp("CPU", .bold)),
                                   L(sp(" "), .bar(Bar.render(width: popBar, used: Double(m.cpu), elapsed: nil)), sp(" \(m.cpu)%")),
-                                  L(sp(" "), sp(m.cpuLine, .dim))], label: "CPU \(m.cpu)%, " + c(m.cpuLine))
+                                  L(sp(" "), sp(m.cpuLine, .dim))], label: "CPU \(m.cpu)%, " + c(m.cpuLine), focusable: true)
         if let gpu = m.gpu {
             out.append(blank)
             out += spoken([L(sp(" "), sp("GPU", .bold)),
                            L(sp(" "), .bar(Bar.render(width: popBar, used: Double(gpu), elapsed: nil)), sp(" \(gpu)%")),
-                           L(sp(" "), sp("device utilisation", .dim))], label: "GPU \(gpu)%, device utilisation")
+                           L(sp(" "), sp("device utilisation", .dim))], label: "GPU \(gpu)%, device utilisation", focusable: true)
         }
         if let mem = m.memory {
             out.append(blank)
@@ -390,7 +394,7 @@ public enum Grammar {
             out += spoken([L(sp(" "), sp("Battery", .bold)),
                            L(sp(" "), .bar(Bar.render(width: popBar, used: Double(b.percent), elapsed: nil)), sp(" \(b.percent)%")),
                            L(sp(" "), sp(b.line1, .dim)),
-                           L(sp(" "), sp(b.line2, .dim))], label: "Battery \(b.percent)%, " + c(b.line1) + ", " + c(b.line2))
+                           L(sp(" "), sp(b.line2, .dim))], label: "Battery \(b.percent)%, " + c(b.line1) + ", " + c(b.line2), focusable: true)
         }
         out.append(blank)
         out.append(L(sp(" "), sp("Processes by CPU", .bold)))
