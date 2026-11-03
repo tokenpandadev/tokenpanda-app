@@ -12,7 +12,7 @@ public enum HookScript {
     # The status line hook. Copies the feed Claude Code hands it to one file per session, atomically,
     # then hands the same input to the status line command that was configured before, if any.
     # It parses nothing and needs nothing but sh. The app fills in DIR and PREV at install time.
-    DIR="__DIR__"
+    DIR='__DIR__'
     PREV='__PREV__'
     input=$(cat)
     sid=$(printf '%s' "$input" | sed -n 's/.*"session_id":"\\([0-9a-fA-F-]*\\)".*/\\1/p' | head -n 1)
@@ -27,12 +27,13 @@ public enum HookScript {
 
     """
 
-    /// The script with DIR and PREV filled in. PREV is single quoted for sh.
+    /// The script with DIR and PREV filled in, both single quoted for sh: inside single quotes nothing expands, and a single
+    /// quote in the text is written as '\'' (close, an escaped quote, open again).
     public static func render(sessionsDir: String, previousCommand: String?) -> String {
-        let prev = (previousCommand ?? "").replacingOccurrences(of: "'", with: "'\\''")
+        func q(_ s: String) -> String { s.replacingOccurrences(of: "'", with: "'\\''") }
         return template
-            .replacingOccurrences(of: "__DIR__", with: sessionsDir.replacingOccurrences(of: "\"", with: "\\\""))
-            .replacingOccurrences(of: "__PREV__", with: prev)
+            .replacingOccurrences(of: "__DIR__", with: q(sessionsDir))
+            .replacingOccurrences(of: "__PREV__", with: q(previousCommand ?? ""))
     }
 }
 
@@ -219,13 +220,64 @@ public struct Hook: Sendable {
     }
 
     /// The system JSON writer re-serialises the file: pretty printed with slashes unescaped; indentation and key order may change.
-    /// In content only the statusLine key differs.
+    /// In content only the statusLine key differs. A settings.json that is a link (into a dotfiles folder) stays a link: the
+    /// file it points at is written, atomically, and keeps its mode; a new file is made owner only.
     func writeSettings(_ settings: [String: Any]) throws {
         do {
             let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .withoutEscapingSlashes])
-            try FileManager.default.createDirectory(at: settingsURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try data.write(to: settingsURL, options: .atomic)
+            try SettingsFile.write(data, to: settingsURL)
         } catch { throw HookError.cannotWriteSettings(error.localizedDescription) }
+    }
+}
+
+/// Writes settings.json the way an editor that respects links does.
+enum SettingsFile {
+    /// The file a path finally names, following links (relative ones from their own folder). A link to a file that does
+    /// not exist yet names that file. More than 32 hops is a loop.
+    static func resolve(_ url: URL) throws -> URL {
+        let fm = FileManager.default
+        var current = url.standardizedFileURL
+        for _ in 0..<32 {
+            guard let type = (try? fm.attributesOfItem(atPath: current.path))?[.type] as? FileAttributeType, type == .typeSymbolicLink else {
+                return current
+            }
+            let dest = try fm.destinationOfSymbolicLink(atPath: current.path)
+            current = (dest.hasPrefix("/") ? URL(fileURLWithPath: dest) : current.deletingLastPathComponent().appendingPathComponent(dest)).standardizedFileURL
+        }
+        throw POSIXError(.ELOOP)
+    }
+
+    /// Writes data to the file the path names: a temporary file in the same folder, made with the old file's mode (0600 for
+    /// a new file), then renamed over it. Neither a link nor a mode is ever replaced or widened.
+    static func write(_ data: Data, to url: URL) throws {
+        let fm = FileManager.default
+        let target = try resolve(url)
+        let dir = target.deletingLastPathComponent()
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        var mode: mode_t = 0o600
+        var st = stat()
+        if stat(target.path, &st) == 0 { mode = st.st_mode & 0o7777 }
+        let tmp = dir.appendingPathComponent(".\(target.lastPathComponent).tokenpanda-\(UUID().uuidString)")
+        let fd = open(tmp.path, O_WRONLY | O_CREAT | O_EXCL, mode)
+        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        var ok = false
+        defer { if !ok { unlink(tmp.path) } }
+        var failure: Int32 = 0
+        data.withUnsafeBytes { buf in
+            guard let base = buf.baseAddress else { return }
+            var off = 0
+            while off < buf.count {
+                let n = Darwin.write(fd, base + off, buf.count - off)
+                if n < 0 { if errno == EINTR { continue }; failure = errno; return }
+                off += n
+            }
+        }
+        if failure == 0, fchmod(fd, mode) != 0 { failure = errno }   // the umask may have narrowed it at open
+        if failure == 0, fsync(fd) != 0 { failure = errno }
+        close(fd)
+        if failure != 0 { throw POSIXError(POSIXErrorCode(rawValue: failure) ?? .EIO) }
+        guard rename(tmp.path, target.path) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        ok = true
     }
 }
 

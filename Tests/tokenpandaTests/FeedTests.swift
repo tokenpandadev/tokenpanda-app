@@ -133,7 +133,7 @@ struct FeedTests {
 
     @Test func renderedScriptQuotesThePreviousCommand() {
         let s = HookScript.render(sessionsDir: "/tmp/x y/sessions", previousCommand: "echo 'hi' | cat")
-        #expect(s.contains("DIR=\"/tmp/x y/sessions\""))
+        #expect(s.contains("DIR='/tmp/x y/sessions'"))
         #expect(s.contains("PREV='echo '\\''hi'\\'' | cat'"))
         #expect(!(s.contains("__DIR__")))
         #expect(HookScript.render(sessionsDir: "/d", previousCommand: nil).contains("PREV=''"))
