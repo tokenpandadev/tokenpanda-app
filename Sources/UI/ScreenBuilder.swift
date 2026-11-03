@@ -196,8 +196,8 @@ public enum ScreenBuilder {
         let lastReset = [current?.resetsAt, i.weeks.records.last?.resetsAt].compactMap { $0 }.filter { $0 <= i.now }.max()
         if let r = lastReset, i.now < r.addingTimeInterval(weeklyLength) { thisWeek = label(r.addingTimeInterval(weeklyLength)) }
         if let c = current, i.now >= c.resetsAt {
-            // the window rolled while no session fed: the current row has no figure, only the last value seen
-            out.append(WeekView(date: thisWeek, used: nil, note: "last seen \(Int(c.used.rounded()))%"))
+            // the window rolled while no session fed: the new week has no figure until the next reply (the old week keeps its own)
+            out.append(WeekView(date: thisWeek, used: nil, note: "no reply yet"))
         } else if current == nil {
             out.append(WeekView(date: thisWeek, used: nil, note: "no feed yet"))
         }

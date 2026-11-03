@@ -136,6 +136,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         startFeedWatch()
         startTimers(open: false)
         Task { await refreshFeed(); await refreshTranscripts(); await sampleMac(full: false) }
+        // macOS 26 can keep a new item switched off under System Settings, Menu Bar, and a full bar hides items behind
+        // the notch: then nothing says the app runs. Checked once, a few seconds after the first launch in a bundle.
+        if Bundle.main.bundleIdentifier != nil, !Settings.defaults.bool(forKey: Self.hiddenHintKey) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in self?.checkItemShows(tries: 10) }
+        }
 
         #if DEBUG
         // debug flag: after 45 s, open the popover and write the three live tabs to PNG (for the CPU measurement)
@@ -541,6 +546,35 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 
+    static let hiddenHintKey = "hiddenItemHintShown"
+
+    /// Is the status item on screen? Not when macOS keeps it switched off or the notch covers it. While the menu bar
+    /// itself is away (a full screen app), ask again later.
+    func checkItemShows(tries: Int) {
+        guard NSMenu.menuBarVisible() else {
+            if tries > 0 { DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in self?.checkItemShows(tries: tries - 1) } }
+            return
+        }
+        let shows: Bool = {
+            guard let w = item.button?.window, w.occlusionState.contains(.visible) else { return false }
+            let mid = NSPoint(x: w.frame.midX, y: w.frame.midY)
+            return NSScreen.screens.contains { $0.frame.contains(mid) }
+        }()
+        Settings.defaults.set(true, forKey: Self.hiddenHintKey)   // once: shown now, or seen and never needed
+        guard !shows else { log.info("status item visible, no menu bar hint needed"); return }
+        log.info("status item not visible, showing the menu bar hint")
+        let alert = NSAlert()
+        alert.messageText = "tokenpanda is running"
+        alert.informativeText = "Its icon is hidden in the menu bar. You can switch it on in System Settings, Menu Bar."
+        alert.addButton(withTitle: "Open Menu Bar Settings")
+        alert.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn,
+           let url = URL(string: "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+
     func perform(_ a: Action) {
         switch a {
         case .tab(let t): tab = t
@@ -579,6 +613,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             removeScriptError = hook.writeRemoveScript()
             readHookStatus()
         case .quit: NSApp.terminate(nil)
+        case .openNotificationSettings:
+            popover.performClose(nil)
+            let id = Paths.bundleId
+            if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
+                NSWorkspace.shared.open(url)
+            }
         }
         render()
     }

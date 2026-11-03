@@ -100,7 +100,12 @@ public struct Hook: Sendable {
     /// Why settings.json could not be read as settings.
     static func unreadable(_ url: URL) -> String {
         guard let size = SafeFile.regularFileSize(url.path) else { return "settings.json is not a regular file" }
-        return size > SafeFile.jsonLimit ? "settings.json is over 1 MB" : "settings.json is not a JSON object"
+        if size > SafeFile.jsonLimit { return "settings.json is over 1 MB" }
+        // valid JSON that is not an object (an array, a string) against text that is not JSON at all
+        if let data = try? Data(contentsOf: url), (try? JSONSerialization.jsonObject(with: data, options: .fragmentsAllowed)) != nil {
+            return "settings.json is not a JSON object"
+        }
+        return "settings.json is not valid JSON"
     }
 
     /// Reads the statusLine key and disableAllHooks, which switches the status line off. Anything else stays unread.

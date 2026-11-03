@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.12, 2026-11-03
+
+- If the menu bar icon is hidden a few seconds after the first launch (switched off under System Settings, Menu Bar, or behind the notch on a full bar), one window says that tokenpanda is running, with a button that opens the Menu Bar settings. It shows once.
+- "Notifications are off in System Settings" under Nudge and Reopen is now a link that opens the Notifications settings.
+- The Install button has one name everywhere: "Install the status line entry", on the Claude tab as in Settings.
+- After a weekly reset with no session since, the new week's row says "no reply yet" instead of repeating the old week's figure.
+- A settings.json that is not valid JSON now says so ("is not valid JSON"); "is not a JSON object" is kept for valid JSON that is not an object.
+
 ## 0.1.11, 2026-11-03
 
 - Light mode: the panel follows your Mac. With a light appearance it turns light, with the same layout and the same frosted glass, and it switches as soon as you change the setting. Every text colour stays readable over a white or a black desktop.

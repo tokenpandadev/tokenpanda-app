@@ -196,6 +196,17 @@ struct HardeningTests {
         do { _ = try hook.install() } catch { #expect("\(error)".contains("over 1 MB")) }
     }
 
+    @Test func aBrokenSettingsFileSaysItIsNotValidJSON() throws {
+        let dir = try tempDir()
+        let settings = dir.appendingPathComponent("settings.json")
+        try #"{"model": "opus""#.write(to: settings, atomically: true, encoding: .utf8)
+        let hook = Hook(settingsURL: settings, dataDir: dir.appendingPathComponent("data"))
+        do { _ = try hook.install(); Issue.record("installed into a broken file") } catch { #expect("\(error)".contains("is not valid JSON")) }
+        // valid JSON that is not an object keeps its own reason
+        try "[1, 2]".write(to: settings, atomically: true, encoding: .utf8)
+        do { _ = try hook.install(); Issue.record("installed into an array") } catch { #expect("\(error)".contains("is not a JSON object")) }
+    }
+
     @Test func transcriptPathIsOpenedOnlyWhenItIsARegularFile() throws {
         let dir = try tempDir()
         let t = dir.appendingPathComponent("t.jsonl")

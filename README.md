@@ -54,7 +54,7 @@ brew install tokenpandadev/tap/tokenpanda
 
 The Open Anyway step applies after a Homebrew install too.
 
-On first launch the Claude tab offers one button, Install the status line hook. Click it, start a Claude Code session, and the figures arrive after the first reply. If you already have a status line, it keeps working.
+On first launch the Claude tab offers one button, Install the status line entry. Click it, start a Claude Code session, and the figures arrive after the first reply. If you already have a status line, it keeps working.
 
 If you use more than one settings folder, Install writes the entry into ~/.claude, a `CLAUDE_CONFIG_DIR` folder the app can see, and `~/.config/claude` or any `~/.claude-something` folder that holds a settings.json; those sessions feed too. Install lists the folders before you click. A folder with only transcripts in it, such as a backup copy, is left out; to include one, put a settings.json in it. A folder made later shows up in Settings as Install again.
 
@@ -96,7 +96,7 @@ You need a Mac on macOS 14 or later with the Command Line Tools or Xcode. Swift 
 ```sh
 swift build
 swift test -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
-scripts/build-app.sh 0.1.11
+scripts/build-app.sh 0.1.12
 open build/tokenpanda.app
 ```
 

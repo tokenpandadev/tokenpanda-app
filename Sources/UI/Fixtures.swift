@@ -118,13 +118,13 @@ public enum Fixtures {
         settings.keepAwake = true; settings.awake = .working(2)   // the sample's two open sessions, both working
         settings.login = .on
         settings.restoreSessions = true
-        settings.version = "0.1.9"
+        settings.version = "0.1.12"
         // the first call: two sessions open, neither has replied, no rate_limits yet
         let waitingSnap = openSessions.map { var o = $0; o.snapshot.rateLimits = nil; o.snapshot.currentUsageTokens = nil; o.snapshot.totalCostUSD = 0; return o }
         let firstReply = input(feedState: FeedState(limits: nil, sessions: waitingSnap, lastWriteAt: now.addingTimeInterval(-2)))
-        // Install refused: settings.json is not a JSON object
+        // Install refused: settings.json is not valid JSON
         var installFailed = input(feedState: fresh, hook: HookStatus(installed: false, previousCommand: nil))
-        installFailed.hookError = "Could not install the entry: cannot read settings.json: settings.json is not a JSON object"
+        installFailed.hookError = "Could not install the entry: cannot read settings.json: settings.json is not valid JSON"
         // two settings folders, the entry in one, its script gone in the other, and the error of the last Install
         var folders = input(hook: HookStatus(installed: false, previousCommand: nil, scriptMissing: true, anyInstalled: true,
                                              targets: ["~/.claude", "~/.claude-work"]), tab: 2)

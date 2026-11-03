@@ -9,6 +9,7 @@ public enum Action: Sendable, Hashable {
     case install
     case uninstall
     case quit
+    case openNotificationSettings   // the "Notifications are off" note: opens System Settings, Notifications
 }
 
 public struct BarCell: Sendable, Hashable {
@@ -132,7 +133,7 @@ public enum Controls {
                     switch a {
                     case .tab, .section: kind = .tab
                     case .toggle: kind = p.checked == nil ? .button : .checkbox
-                    case .install, .uninstall, .quit: kind = .button
+                    case .install, .uninstall, .quit, .openNotificationSettings: kind = .button
                     }
                     let label = p.label ?? line.label ?? text.trimmingCharacters(in: .whitespaces)
                     out.append(Control(kind: kind, action: a, label: label, checked: p.checked, help: p.tip ?? line.help,

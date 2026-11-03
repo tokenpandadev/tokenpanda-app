@@ -229,17 +229,17 @@ struct AccessTests {
 
     @Test func wrapKeepsEveryWordAndFitsTheWidth() {
         #expect(Format.wrap("awake  2 sessions working", 42) == ["awake  2 sessions working"])
-        let w = Format.wrap("Could not install the entry: cannot read settings.json: settings.json is not a JSON object", 46)
+        let w = Format.wrap("Could not install the entry: cannot read settings.json: settings.json is not valid JSON", 46)
         #expect(w.allSatisfy { $0.count <= 46 })
-        #expect(w.joined(separator: " ") == "Could not install the entry: cannot read settings.json: settings.json is not a JSON object")
+        #expect(w.joined(separator: " ") == "Could not install the entry: cannot read settings.json: settings.json is not valid JSON")
         #expect(Format.wrap(String(repeating: "x", count: 50), 20) == [String(repeating: "x", count: 20), String(repeating: "x", count: 20), String(repeating: "x", count: 10)])
     }
 
     @Test func installErrorShowsOnTheClaudeTabWithItsReason() throws {
         let lines = Grammar.popover(try screen("claude-install-failed")).map(\.plain)
-        let at = try #require(lines.firstIndex { $0.contains("Install the status line hook") })
+        let at = try #require(lines.firstIndex { $0.contains("Install the status line entry") })
         let text = lines[(at + 1)...].prefix { !$0.isEmpty }.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: " ")
-        #expect(text == "Could not install the entry: cannot read settings.json: settings.json is not a JSON object")
+        #expect(text == "Could not install the entry: cannot read settings.json: settings.json is not valid JSON")
     }
 
     @Test func settingsNotesFit() {
@@ -248,13 +248,20 @@ struct AccessTests {
         let plain = lines.map(\.plain)
         // the note under Nudge, and under Reopen while that is on: one line each, whole
         #expect(plain.filter { $0 == "     Notifications are off in System Settings" }.count == 2)
+        // and each is a button that opens the setting, said with what it does
+        let links = Controls.extract(lines).filter { $0.action == .openNotificationSettings }
+        #expect(links.count == 2)
+        #expect(links.allSatisfy { $0.kind == .button && $0.label == "Notifications are off in System Settings, open System Settings" })
+        // any other note stays help text, not a control
+        let quiet = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, nudgeNote: "Notifications need the app bundle"))
+        #expect(!Controls.extract(quiet).contains { $0.action == .openNotificationSettings })
         #expect(plain.contains("     one entry in ~/.claude/settings.json"))
         #expect(plain.contains("     a closed lid on battery still sleeps"))
     }
 
     @Test func versionLineInSettings() throws {
         let plain = Grammar.popover(try screen("settings")).map(\.plain)
-        #expect(plain.contains(" tokenpanda 0.1.9"))
+        #expect(plain.contains(" tokenpanda 0.1.12"))
         var i = Fixtures.input(tab: 2); i.version = nil
         #expect(!Grammar.popover(ScreenBuilder.screen(i)).map(\.plain).contains { $0.contains("tokenpanda 0") })
     }
@@ -276,7 +283,7 @@ struct AccessTests {
         let input = try #require(Fixtures.all().first { $0.0 == "claude-week-rolled" }?.1)
         let weeks = ScreenBuilder.weekViews(input)
         #expect(weeks.map(\.date) == ["28 Sep", "5 Oct", "12 Oct", "19 Oct"])
-        #expect(weeks.last?.note == "last seen 61%")
+        #expect(weeks.last?.note == "no reply yet")
         #expect(Set(weeks.map(\.date)).count == weeks.count)
     }
 
@@ -635,7 +642,7 @@ struct AccessTests {
 
     @Test @MainActor func wrappedTextIsReadOnceAndWhole() throws {
         let t = try spokenTree("claude-install-failed").map(\.1)
-        #expect(t.contains("Could not install the entry: cannot read settings.json: settings.json is not a JSON object"))
+        #expect(t.contains("Could not install the entry: cannot read settings.json: settings.json is not valid JSON"))
         #expect(!t.contains { $0.hasPrefix("settings.json: settings.json") || $0 == "object" })
     }
 

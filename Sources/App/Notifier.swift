@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 import UserNotifications
+import Text
 
 /// The nudges and the session restore offer through the macOS notification centre. UNUserNotificationCenter needs an
 /// app bundle; from a bare executable (swift run) the centre cannot be created, so the notifier stays silent and says so.
@@ -31,7 +32,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     var noteForSettings: String? {
         switch state {
-        case .denied: return "Notifications are off in System Settings"
+        case .denied: return Grammar.notificationsOff
         case .unavailable: return "Notifications need the app bundle"
         default: return nil
         }

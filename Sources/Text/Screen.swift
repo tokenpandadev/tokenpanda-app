@@ -87,7 +87,7 @@ public struct WeekView: Sendable, Equatable {
     public var date: String          // "21 Sep"
     public var used: Int?            // nil: no figure (an empty bar with a note)
     public var hit: Bool
-    public var note: String?         // "Thu 16:10", "so far", "no feed yet", "last seen 61%"
+    public var note: String?         // "Thu 16:10", "so far", "no feed yet", "no reply yet"
     public var elapsed: Double?      // the current week carries the tick
     public var over: Bool
     public init(date: String, used: Int?, hit: Bool = false, note: String? = nil, elapsed: Double? = nil, over: Bool = false) {

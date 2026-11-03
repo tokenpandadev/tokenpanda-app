@@ -49,6 +49,7 @@ public enum Spoken {
 }
 
 public enum Grammar {
+    public static let notificationsOff = "Notifications are off in System Settings"
     public static let popCells = 47      // content cells in the 380 pt popover at SF Mono 12
     public static let popBar = 36        // the window bar
     public static let rowBar = 24
@@ -190,7 +191,7 @@ public enum Grammar {
             }
             out.append(L(sp(" "), sp(previous == nil ? "chained if one exists" : "your current status line is kept and chained", .dim)))
             if slowerRefresh { out.append(L(sp(" "), sp(refreshLine, .dim))) }
-            out.append(L(sp(" "), Piece(" Install the status line hook ", .tabSelected, action: .install, label: "Install the status line hook")))
+            out.append(L(sp(" "), Piece(" Install the status line entry ", .tabSelected, action: .install, label: "Install the status line entry")))
             if let error { out += dimLines(error, indent: 1) }
             out.append(blank)
             out += privacy()
@@ -346,8 +347,17 @@ public enum Grammar {
         var out = [Line([sp(indent), Piece(on ? "[x]" : "[ ]", .text, action: .toggle(key), checked: on, label: label),
                          Piece(" " + label, .text, action: .toggle(key), checked: on, label: label)],
                         hover: true, label: label, help: subs.isEmpty ? nil : subs.joined(separator: ", "))]
-        // the dim lines are the checkbox's help: said once, as help, not again as text
-        for sub in subs { out += dimLines(sub, indent: indent.count + 4).map(\.silent) }
+        // the dim lines are the checkbox's help: said once, as help, not again as text. The notifications note is the one
+        // exception: a link that opens the setting, so it is a control of its own.
+        for sub in subs {
+            if sub == notificationsOff {
+                let pad = String(repeating: " ", count: indent.count + 4)
+                out.append(Line([sp(pad), Piece(sub, .dim, action: .openNotificationSettings, label: sub + ", open System Settings")],
+                                hover: true, label: sub + ", open System Settings"))
+            } else {
+                out += dimLines(sub, indent: indent.count + 4).map(\.silent)
+            }
+        }
         return out
     }
 
