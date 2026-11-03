@@ -2,9 +2,7 @@
 
 ## 0.1.9, 2026-11-03
 
-- VoiceOver reads the Mac tab in order again: CPU, GPU, memory and battery were skipped because their figures change every 2 s, and each change made VoiceOver lose its place and jump to the processes.
 - On a plan without a 5h window (Ultra), the nudge setting reads "Nudge at 80%" instead of "Nudge at 80% and before the 5h end".
-- VoiceOver says "Memory" once, in the memory description, and the stale note "limits are shared with the Claude app and other Macs" as one sentence.
 - VoiceOver names the app on the menu bar item: "tokenpanda, Weekly 7% used, ahead, resets Sunday 17:00".
 - VoiceOver can press every control. The tabs, the Models, Projects and Sessions switch, every setting, Install, Remove and Quit are buttons, tabs and checkboxes, each saying its state (selected, checked or not). A session figure's tooltip is read as its help, a setting's dim line too, once.
 - VoiceOver reads figures in words instead of glyph names: each window section is one sentence ("Weekly, all models. 61% used. Resets Sunday 18:00, in 3 days 3 hours. Over pace, ..."), each week row one line ("Week of 28 September, 100%, hit the limit Thursday 16:10"), the memory grid one image with a description, and the CPU, GPU and battery bars their percent and detail. The rule under the header and the grid cells are skipped. Text that wraps over lines is read once, whole. VoiceOver's pointer lands on the element under it. Checked with VoiceOver speaking on 3 November, following docs/testing.html.
