@@ -457,9 +457,9 @@ from Claude Code's own status feed on this Mac.</pre>
 
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
-<pre>scripts/build-app.sh 0.1.10  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
+<pre>scripts/build-app.sh 0.1.11  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
                              # Contents/Resources (AppIcon.icns, PrivacyInfo.xcprivacy), Info.plist (LSUIElement true,
-                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.10.zip and its SHA-256</pre>
+                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.11.zip and its SHA-256</pre>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>
 <p>Ad hoc signing does not satisfy Gatekeeper on a downloaded file, and since macOS Sequoia Control-click no longer overrides it. Apple's current page (published 2026-05-27) gives the flow, which the README repeats:</p>

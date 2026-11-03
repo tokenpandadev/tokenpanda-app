@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.11, unreleased
+## 0.1.11, 2026-11-03
 
 - Light mode: the panel follows your Mac. With a light appearance it turns light, with the same layout and the same frosted glass, and it switches as soon as you change the setting. Every text colour stays readable over a white or a black desktop.
 - The Mac tab names Claude Code "Claude Code" in the process list. Claude Code's native install runs a file named after its version, so the list showed "2.1.317".
