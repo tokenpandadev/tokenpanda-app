@@ -163,6 +163,7 @@ public struct SettingsTab: Sendable, Equatable {
     public var hookTargets: [String]     // the settings folders, "~/.claude"
     public var hookScriptMissing: Bool   // settings.json points at a hook script that is gone
     public var version: String?          // "tokenpanda 0.1.9", under the privacy lines
+    public var fiveHour = true           // false once the feed has plan figures without a 5h window (Ultra): the nudge row names 80% only
     public init(macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String? = nil, hookInstalled: Bool = false, hookError: String? = nil,
                 keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awakeNote: String? = nil, openAtLogin: LoginItem = .off, loginError: String? = nil,
                 restoreSessions: Bool = false, hookSlowerRefresh: Bool = false, hookSomeInstalled: Bool = false, hookTargets: [String] = ["~/.claude"],

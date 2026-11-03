@@ -97,7 +97,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.target = self
         item.button?.action = #selector(togglePopover)
-        item.button?.setAccessibilityLabel("Claude usage")
+        item.button?.setAccessibilityLabel("tokenpanda, Claude usage")
 
         popover.behavior = .transient
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -461,7 +461,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             lastItem = st
             item.button?.image = ItemImage.make(st)
             item.button?.alphaValue = st.stale ? 0.5 : 1
-            item.button?.setAccessibilityLabel(st.label)
+            item.button?.setAccessibilityLabel("tokenpanda, " + st.label)   // VoiceOver names the app first, then the figures
         }
         if popover.isShown {
             let screen = ScreenBuilder.screen(i)

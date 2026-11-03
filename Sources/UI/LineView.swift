@@ -177,7 +177,10 @@ public final class LineView: NSView {
                 if line.hidden { continue }
                 let text = line.label ?? line.plain.trimmingCharacters(in: .whitespaces)
                 guard !text.isEmpty else { continue }
-                let key = idx.first.map { "c|" + controls[$0].key } ?? "t|\(li)|\(text.prefix(24))"
+                // keyed by its place and its visible words without figures, not by the spoken label: the Mac figures
+                // change every 2 s, and a new element each time made VoiceOver lose its place and jump on
+                let stable = line.image ? "image" : String(line.plain.filter { !$0.isNumber }.trimmingCharacters(in: .whitespaces).prefix(24))
+                let key = idx.first.map { "c|" + controls[$0].key } ?? "t|\(li)|\(stable)"
                 let e = element(key)
                 e.setAccessibilityRole(line.image ? .image : .staticText)
                 e.setAccessibilityLabel(text)

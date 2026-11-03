@@ -105,6 +105,35 @@ struct AccessTests {
         #expect((after.accessibilityValue() as? NSNumber)?.intValue == 1)
     }
 
+    @Test func theNudgeRowNamesThe5hEndOnlyWhenThePlanHasIt() throws {
+        var input = try #require(Fixtures.all().first { $0.0 == "settings" }?.1)
+        #expect(Grammar.popover(ScreenBuilder.screen(input)).contains { $0.plain.contains("Nudge at 80% and before the 5h end") })
+        input.feed.limits?.windows.removeValue(forKey: "five_hour")   // Ultra: weekly only
+        let lines = Grammar.popover(ScreenBuilder.screen(input))
+        #expect(lines.contains { $0.plain.hasSuffix("Nudge at 80%") })
+        #expect(!lines.contains { $0.plain.contains("5h end") })
+    }
+
+    @Test @MainActor func macFiguresKeepTheirElementsWhenTheNumbersMove() throws {
+        // CPU, memory and battery change every 2 s; VoiceOver's cursor must stay on the same element
+        let v = LineView()
+        let s = try screen("mac")
+        v.lines = Grammar.popover(s)
+        func find(_ p: String) -> NSAccessibilityElement? {
+            (v.accessibilityChildren() as? [NSAccessibilityElement])?.first { ($0.accessibilityLabel() ?? "").hasPrefix(p) }
+        }
+        let cpu = try #require(find("CPU ")), mem = try #require(find("Memory ")), bat = try #require(find("Battery "))
+        var m = s.mac; m.cpu += 7; m.cpuLine = "user 31%  system 9%  10 cores"
+        if var b = m.battery { b.percent -= 3; m.battery = b }
+        if var mm = m.memory { mm.usedCells = min(mm.usedCells + 9, 190); mm.usedLine = "27.1 of 36 GB (75%)"; m.memory = mm }
+        var s2 = s; s2.mac = m
+        v.lines = Grammar.popover(s2)
+        #expect(find("CPU ") === cpu)
+        #expect(find("Memory ") === mem)
+        #expect(find("Battery ") === bat)
+        #expect(cpu.accessibilityLabel()?.contains("user 31%") == true)
+    }
+
     @Test @MainActor func keyboardFocusMovesInReadingOrderAndPresses() throws {
         let v = LineView()
         var pressed: [Action] = []

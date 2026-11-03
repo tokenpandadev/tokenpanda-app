@@ -170,8 +170,10 @@ public enum Grammar {
                 out += windowSection(w)
             }
             if staleNote {
-                out.append(L(sp(" "), sp("limits are shared with the Claude app and other", .dim)))
-                out.append(L(sp(" "), sp("Macs, so the real figure may be higher", .dim)))
+                // one sentence for VoiceOver, said once, not as two broken lines
+                out += spoken([L(sp(" "), sp("limits are shared with the Claude app and other", .dim)),
+                               L(sp(" "), sp("Macs, so the real figure may be higher", .dim))],
+                              label: "limits are shared with the Claude app and other Macs, so the real figure may be higher")
             }
             return out
         case .noHook(let previous, let slowerRefresh, let error, let targets):
@@ -379,7 +381,8 @@ public enum Grammar {
         }
         if let mem = m.memory {
             out.append(blank)
-            out.append(L(sp(" "), sp("Memory", .bold)))
+            // the title is in the image's description ("Memory 25.5 of 36 gigabytes, ..."), so it is not said twice
+            out.append(L(sp(" "), sp("Memory", .bold)).silent)
             out += memGrid(mem)
         }
         if let b = m.battery {
@@ -402,7 +405,7 @@ public enum Grammar {
     public static func settingsTab(_ s: SettingsTab) -> [Line] {
         var out = loginRow(s.openAtLogin, error: s.loginError)
         out += cbRow("macFiguresInBar", "Mac figures in the bar", s.macInBar, nil)
-        out += cbRow("nudges", "Nudge at 80% and before the 5h end", s.nudges, s.nudgeNote)
+        out += cbRow("nudges", s.fiveHour ? "Nudge at 80% and before the 5h end" : "Nudge at 80%", s.nudges, s.nudgeNote)
         out += cbRow("listPriceEquivalent", "List price equivalent", s.listPrice, "tokens at list prices, not the plan price")
         out += cbRow("keepAwake", "Keep the Mac awake while Claude works", s.keepAwake, "a closed lid on battery still sleeps")
         if s.keepAwake {

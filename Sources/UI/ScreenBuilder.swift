@@ -306,7 +306,9 @@ public enum ScreenBuilder {
                                    restoreSessions: i.restoreSessions, hookSlowerRefresh: !i.hook.installed && i.hook.slowerRefresh != nil,
                                    hookSomeInstalled: i.hook.anyInstalled && !i.hook.installed, hookTargets: i.hook.targets,
                                    hookScriptMissing: i.hook.scriptMissing, version: i.version.map { "tokenpanda " + $0 })
-        return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: settings)
+        var s = settings
+        if let l = i.feed.limits, l.active("seven_day") != nil, l.active("five_hour") == nil { s.fiveHour = false }
+        return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: s)
     }
 
     /// A window at 100% shows in the panda's eyes until its reset passes, stale or not; the weekly window wins.
