@@ -422,7 +422,7 @@ public enum Grammar {
                      more: s.restoreSessions ? [s.nudgeNote].compactMap { $0 } : [])
         out.append(blank)
         out += hookRow(installed: s.hookInstalled, someInstalled: s.hookSomeInstalled, error: s.hookError, slowerRefresh: s.hookSlowerRefresh,
-                       targets: s.hookTargets, scriptMissing: s.hookScriptMissing)
+                       targets: s.hookTargets, scriptMissing: s.hookScriptMissing, removeScriptError: s.removeScriptError)
         out.append(blank)
         out += privacy()
         if let v = s.version { out.append(L(sp(" "), sp(v, .dim))) }
@@ -453,7 +453,7 @@ public enum Grammar {
     /// The status line entry: one click installs it, one click removes it and puts the previous entry back.
     /// With several settings folders installed in some and not in others, both rows show: Install adds the missing ones.
     public static func hookRow(installed: Bool, someInstalled: Bool = false, error: String?, slowerRefresh: Bool = false,
-                               targets: [String] = ["~/.claude"], scriptMissing: Bool = false) -> [Line] {
+                               targets: [String] = ["~/.claude"], scriptMissing: Bool = false, removeScriptError: String? = nil) -> [Line] {
         var out: [Line] = []
         if !installed {
             let label = "Install the status line entry"
@@ -470,8 +470,12 @@ public enum Grammar {
             out.append(L(sp("     "), sp("puts back what statusLine held before", .dim)))
         }
         if let error { out += dimLines(error, indent: 5) }
+        if let e = removeScriptError { out += dimLines(removeScriptNote + e, indent: 5) }
         return out
     }
+
+    /// Said when remove.sh cannot be written: the zap runs it to put the previous status line back.
+    public static let removeScriptNote = "Could not write remove.sh, so brew uninstall --zap cannot put your status line back: "
 
     public static func popover(_ s: Screen) -> [Line] {
         var out = header(line: s.headerLine, tab: s.tab, warn: s.warn) + [blank]

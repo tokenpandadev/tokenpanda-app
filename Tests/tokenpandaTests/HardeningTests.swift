@@ -3,6 +3,7 @@
 import Testing
 import Foundation
 import Feed
+import Text
 import Prices
 @testable import Transcripts
 
@@ -233,5 +234,40 @@ struct HardeningTests {
         try h2.close()
         let after = await store.refresh(now: now, chunk: 1024, maxLine: 4096)
         #expect(after.records.count == 3)
+    }
+
+    // MARK: failed writes are said
+
+    @Test func aRemoveScriptThatCannotBeWrittenIsReported() throws {
+        let dir = try tempDir()
+        let data = dir.appendingPathComponent("data", isDirectory: true)
+        let set = HookSet(folders: [dir], dataDir: data, home: dir.appendingPathComponent("home"))
+        _ = try set.install()
+        let script = try #require(set.removeScriptPath)
+        #expect(set.writeRemoveScript() == nil)
+        #expect(FileManager.default.isExecutableFile(atPath: script.path))
+        // a folder where the script goes: the write fails and says why
+        try FileManager.default.removeItem(at: script)
+        try FileManager.default.createDirectory(at: script, withIntermediateDirectories: true)
+        try "x".write(to: script.appendingPathComponent("keep"), atomically: true, encoding: .utf8)
+        let error = set.writeRemoveScript()
+        #expect(error != nil)
+    }
+
+    @Test func theSettingsTabShowsTheRemoveScriptError() {
+        let lines = Grammar.hookRow(installed: true, error: nil, removeScriptError: "permission denied")
+        let text = lines.map { $0.pieces.map(\.text).joined() }.joined(separator: " ")
+        #expect(text.contains("remove.sh"))
+        #expect(text.contains("permission denied"))
+        #expect(!Grammar.hookRow(installed: true, error: nil).map { $0.pieces.map(\.text).joined() }.joined().contains("remove.sh"))
+    }
+
+    @Test func recordsThatCannotBeWrittenReturnTheError() throws {
+        let dir = try tempDir()
+        let blocked = dir.appendingPathComponent("weeks.json", isDirectory: true)
+        try FileManager.default.createDirectory(at: blocked.appendingPathComponent("x"), withIntermediateDirectories: true)
+        #expect(WeekRecords().save(to: blocked) != nil)
+        #expect(RestoreRecord(lastScan: Date()).save(to: blocked) != nil)
+        #expect(WeekRecords().save(to: dir.appendingPathComponent("ok.json")) == nil)
     }
 }

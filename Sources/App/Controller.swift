@@ -42,6 +42,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var feedState = FeedState()
     var hookStatus = HookStatus(installed: false, previousCommand: nil)
     var hookError: String? = nil
+    var removeScriptError: String? = nil   // remove.sh could not be written, shown under the status line row
     var settingsModified: [Date?] = []   // the settings.json files are read again only when one of these moves
     let log = Logger(subsystem: Paths.bundleId, category: "hook")
     let restoreLog = Logger(subsystem: Paths.bundleId, category: "restore")
@@ -130,7 +131,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         readHookStatus()
         // an entry installed by an earlier version gets its remove script now, so brew's zap needs no click first
-        hook.writeRemoveScript()
+        removeScriptError = hook.writeRemoveScript()
         notifier.onReopen = { [weak self] in self?.reopen() }
         notifier.onReopenEnded = { [weak self] id in self?.reopenEnded(id) }
         offerRestore(now: Date())   // before the first scan, which writes this boot's record over the last one
@@ -517,6 +518,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                   restoreSessions: Settings.bool(Settings.restoreSessions), warn: warning, tab: tab, section: section, now: Date(),
                   version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
         i.sessionNames = sessionNames
+        i.removeScriptError = removeScriptError
         return i
     }
 
@@ -566,6 +568,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             } catch {
                 hookFailed("install", error)
             }
+            removeScriptError = hook.writeRemoveScript()
             readHookStatus()
         case .uninstall:
             do {
@@ -575,6 +578,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             } catch {
                 hookFailed("remove", error)
             }
+            removeScriptError = hook.writeRemoveScript()
             readHookStatus()
         case .quit: NSApp.terminate(nil)
         }

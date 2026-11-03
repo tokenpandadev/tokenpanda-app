@@ -66,13 +66,20 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
         return try? dec.decode(RestoreRecord.self, from: d)
     }
 
-    /// Written owner only.
-    public func save(to url: URL) {
+    /// Written owner only. A failure is logged and returned.
+    @discardableResult
+    public func save(to url: URL) -> Error? {
         let enc = JSONEncoder(); enc.dateEncodingStrategy = .secondsSince1970; enc.outputFormatting = .sortedKeys
-        guard let d = try? enc.encode(self) else { return }
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? d.write(to: url, options: .atomic)
-        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        do {
+            let d = try enc.encode(self)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try d.write(to: url, options: .atomic)
+            try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+            return nil
+        } catch {
+            FileLog.failed(url.lastPathComponent, error)
+            return error
+        }
     }
 }
 

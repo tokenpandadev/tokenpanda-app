@@ -443,13 +443,27 @@ public struct HookSet: Sendable {
     }
 
     /// Lists the folders whose entry is ours (installed, or pointing at a lost script); with none, the file goes.
-    public func writeRemoveScript() {
-        guard let url = removeScriptPath else { return }
+    /// Returns why it could not be written, for the Settings tab, and logs it: without it brew's zap cannot put the entry back.
+    @discardableResult
+    public func writeRemoveScript() -> String? {
+        guard let url = removeScriptPath else { return nil }
+        let fm = FileManager.default
         let ours = hooks.filter { let st = $0.status(); return st.installed || st.scriptMissing }
-        if ours.isEmpty { try? FileManager.default.removeItem(at: url); return }
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? Self.removeScript(ours).write(to: url, atomically: true, encoding: .utf8)
-        try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        if ours.isEmpty {
+            if fm.fileExists(atPath: url.path) {
+                do { try fm.removeItem(at: url) } catch { FileLog.failed("remove.sh (delete)", error) }
+            }
+            return nil
+        }
+        do {
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try Self.removeScript(ours).write(to: url, atomically: true, encoding: .utf8)
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+            return nil
+        } catch {
+            FileLog.failed("remove.sh", error)
+            return error.localizedDescription
+        }
     }
 
     /// Removes the entry from every folder that has it; the sessions folder goes with the last one.

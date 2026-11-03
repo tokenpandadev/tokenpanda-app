@@ -37,6 +37,7 @@ public struct LiveInput: Sendable {
     public var calendar: Calendar
     public var version: String?        // the bundle's CFBundleShortVersionString; nil in a bare debug binary
     public var sessionNames: [String: String] = [:]   // session id to the name set with -n or /rename, from Claude Code's sessions files
+    public var removeScriptError: String? = nil       // why remove.sh could not be written, shown under the status line row
 
     public init(feed: FeedState, hook: HookStatus, tokens: TokenSummary?, transcriptsRootsExist: Bool, transcriptsError: String?,
                 mac: MacSample?, weeks: WeekRecords, macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String?, hookError: String? = nil,
@@ -309,6 +310,7 @@ public enum ScreenBuilder {
                                    hookSomeInstalled: i.hook.anyInstalled && !i.hook.installed, hookTargets: i.hook.targets,
                                    hookScriptMissing: i.hook.scriptMissing, version: i.version.map { "tokenpanda " + $0 })
         var s = settings
+        s.removeScriptError = i.removeScriptError
         if let l = i.feed.limits, l.active("seven_day") != nil, l.active("five_hour") == nil { s.fiveHour = false }
         return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: s)
     }

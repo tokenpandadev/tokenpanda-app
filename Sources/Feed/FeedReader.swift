@@ -223,9 +223,12 @@ public actor FeedReader {
     func persist() {
         guard let limits else { return }
         let enc = JSONEncoder(); enc.dateEncodingStrategy = .secondsSince1970
-        if let d = try? enc.encode(limits) {
-            try? FileManager.default.createDirectory(at: limitsFile.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? d.write(to: limitsFile, options: .atomic)
+        do {
+            let d = try enc.encode(limits)
+            try FileManager.default.createDirectory(at: limitsFile.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try d.write(to: limitsFile, options: .atomic)
+        } catch {
+            FileLog.failed("limits.json", error)
         }
     }
 }

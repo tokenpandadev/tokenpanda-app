@@ -45,11 +45,18 @@ public struct WeekRecords: Sendable, Equatable, Codable {
         return WeekRecords()
     }
 
-    public func save(to url: URL) {
+    /// A failure is logged and returned.
+    @discardableResult
+    public func save(to url: URL) -> Error? {
         let enc = JSONEncoder(); enc.dateEncodingStrategy = .secondsSince1970
-        if let d = try? enc.encode(self) {
-            try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? d.write(to: url, options: .atomic)
+        do {
+            let d = try enc.encode(self)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try d.write(to: url, options: .atomic)
+            return nil
+        } catch {
+            FileLog.failed(url.lastPathComponent, error)
+            return error
         }
     }
 }

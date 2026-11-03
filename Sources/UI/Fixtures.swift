@@ -131,6 +131,7 @@ public enum Fixtures {
         folders.hookError = "Could not install the entry: ~/.claude-work: cannot write settings.json: You don\u{2019}t have permission"
         folders.nudgeNote = "Notifications are off in System Settings"
         folders.restoreSessions = true
+        folders.removeScriptError = "You don\u{2019}t have permission"
         // the weekly reset on Sunday 18:00 passed half an hour ago with no session: the row after 12 Oct says 19 Oct
         var rolled = input(feedState: FeedState(limits: limits(weekly: 61, asOf: date(2026, 10, 18, 17, 40)), sessions: [], lastWriteAt: date(2026, 10, 18, 17, 40)))
         rolled.now = date(2026, 10, 18, 18, 30)
