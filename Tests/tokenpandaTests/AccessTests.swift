@@ -305,6 +305,23 @@ struct AccessTests {
         #expect(lum(Tokens.quiet) < lum(Tokens.text))
     }
 
+    @Test func everyTextTokenPassesAAEvenOverAWhiteDesktop() {
+        let dark = over(Tokens.tint, Tokens.stage), bright = over(Tokens.tint, Tokens.white)
+        // every colour drawn as text: figures, titles, the dim lines, the foot, the accent glyphs, the hit mark, a hovered tab
+        let text: [(String, RGBA)] = [("text", Tokens.text), ("bold", Tokens.bold), ("dim", Tokens.dim), ("quiet", Tokens.quiet),
+                                      ("accent", Tokens.accent), ("warning", Tokens.warning), ("white", Tokens.white)]
+        for (name, c) in text {
+            #expect(ratio(c, dark) >= 4.5, "\(name) over the dark stage")
+            #expect(ratio(c, bright) >= 4.5, "\(name) over white")
+        }
+        // the hues and the coral fill bars only, never text: 3 to 1 for graphics (WCAG 1.4.11)
+        for c in [Tokens.magenta, Tokens.yellow, Tokens.cyan, Tokens.green, Tokens.blue, Tokens.blue2, Tokens.procWhite, Tokens.coral] {
+            #expect(ratio(c, bright) >= 3)
+        }
+        // the dim lines stay below the default text, so the figures lead
+        #expect(lum(Tokens.dim) < lum(Tokens.text))
+    }
+
     // MARK: several settings folders, the script check, the zap safe remove
 
     @Test func configFoldersFindsTheUsualPlacesAndTheEnvironment() throws {

@@ -46,7 +46,7 @@
 <tr><th></th><th>Hex</th><th>Name</th><th>Used for</th><th class="n">On glass</th></tr>
 <tr><td><span class="sw" style="color:#e0e0e0">████</span></td><td>#e0e0e0</td><td>text</td><td>default text, the percent, figures, the pace tick</td><td class="n">12.1 to 13.8</td></tr>
 <tr><td><span class="sw" style="color:#ededed">████</span></td><td>#ededed</td><td>bold</td><td>section titles and the status word, always weight 700</td><td class="n">13.7 to 15.6</td></tr>
-<tr><td><span class="sw" style="color:#999999">████</span></td><td>#999999</td><td>dim</td><td>reset line, pace lines, captions, the header line, chips</td><td class="n">5.6 to 6.4</td></tr>
+<tr><td><span class="sw" style="color:#b3b3b3">████</span></td><td>#b3b3b3</td><td>dim</td><td>reset line, pace lines, captions, the header line, chips. Lifted from #999999 in 0.1.11 so dim lines pass AA over any desktop</td><td class="n">7.6 to 8.7 (4.5 over white)</td></tr>
 <tr><td><span class="sw" style="color:#888888">████</span></td><td>#888888</td><td>dimmer</td><td>free cells in the memory grid</td><td class="n">4.5 to 5.2</td></tr>
 <tr><td><span class="sw" style="color:#b8b8b8">████</span></td><td>#b8b8b8</td><td>quiet</td><td>key hints in the foot; never a figure the user needs. Lifted from #505050 in 0.1.9 so the hints pass AA over any desktop</td><td class="n">8.7 (4.8 over white)</td></tr>
 <tr><td><span class="sw" style="color:#b1b9f9">████</span></td><td>#b1b9f9</td><td>accent</td><td>used fill, selected tab, the ▔ rule, the selected row's ❯</td><td class="n">8.5 to 9.7</td></tr>
@@ -82,8 +82,8 @@
 <tr><th>Size</th><th>Line</th><th>Weight</th><th>Where</th></tr>
 <tr><td>12 px</td><td>16 px</td><td>400</td><td>the popover body: every line, the terminal size</td></tr>
 <tr><td>12 px</td><td>16 px</td><td>700, #ededed</td><td>section titles, the status word, the selected tab, the selected row's name</td></tr>
-<tr><td>12 px</td><td>16 px</td><td>400, #999999</td><td>dim lines: reset, pace lines, captions, header line</td></tr>
-<tr><td>12 px</td><td>16 px</td><td>400 italic, #999999</td><td>allowed for a caption of an estimate (Claude Code's "Estimated usage by category"); unused in the popover so far</td></tr>
+<tr><td>12 px</td><td>16 px</td><td>400, #b3b3b3</td><td>dim lines: reset, pace lines, captions, header line</td></tr>
+<tr><td>12 px</td><td>16 px</td><td>400 italic, #b3b3b3</td><td>allowed for a caption of an estimate (Claude Code's "Estimated usage by category"); unused in the popover so far</td></tr>
 <tr><td>13 px</td><td>20 px</td><td>400</td><td>allowed for body text where there is prose to read; these docs use it; the popover does not</td></tr>
 <tr><td>9 px</td><td>10 px</td><td>400</td><td>not used since 0.1.2 (was the block bar inside the menu bar item)</td></tr>
 <tr><td>13 px SF</td><td>22 px</td><td>400, 600 when over pace</td><td>the digits of the menu bar item; the OS sets the bar's face, so this is SF Pro Text with tabular numerals, not SF Mono</td></tr>
@@ -336,14 +336,14 @@
 <table class="nw">
 <tr><th>Colour</th><th class="n">Lowest</th><th class="n">Highest</th><th>Reads as</th><th>Carries</th></tr>
 <tr><td>#e0e0e0 text</td><td class="n">12.1</td><td class="n">13.8</td><td>AAA</td><td>every figure the user needs</td></tr>
-<tr><td>#999999 dim</td><td class="n">5.6</td><td class="n">6.4</td><td>AA for normal text (4.5 needed)</td><td>reset, pace lines, captions</td></tr>
+<tr><td>#b3b3b3 dim</td><td class="n">4.5</td><td class="n">8.7</td><td>AA everywhere</td><td>reset, pace lines, captions. Measured in 0.1.11 on the app's own render: 8.2 on the tint over the dark stage, and 4.50 on the tint over pure white (<code>--snapshot-stage white</code>, ground #43464e); the model gives 4.53. The smallest grey that passes there. Until 0.1.10 it was #999999, 3.3 to 1 over white</td></tr>
 <tr><td>#888888 dimmer</td><td class="n">4.5</td><td class="n">5.2</td><td>AA at the low end, barely</td><td>free cells only, a glyph with a legend</td></tr>
 <tr><td>#b8b8b8 quiet</td><td class="n">4.8</td><td class="n">8.7</td><td>AA everywhere</td><td>key hints only. Measured in 0.1.9 on the app's own render (debug <code>--snapshot</code>): 8.65 on the tint over the dark stage, and 4.76 on the tint over pure white (<code>--snapshot-stage white</code>), the brightest ground the glass can have, since the material under the tint only darkens what is behind it. Until 0.1.8 it was #505050, 2.1 to 1</td></tr>
 <tr><td>#b1b9f9 accent</td><td class="n">8.5</td><td class="n">9.7</td><td>AAA</td><td>fills, rule, selected tab ground</td></tr>
 <tr><td>#d77757 coral</td><td class="n">5.1</td><td class="n">5.8</td><td>AA</td><td>fill past the tick; the status word repeats it in words</td></tr>
 <tr><td>#ffc107 warning</td><td class="n">9.8</td><td class="n">11.2</td><td>AAA</td><td>hit mark, swap, the dot</td></tr>
 </table>
-<p>Over a white desktop the same bound gives dim 3.3 and coral 3.0. That bound ignores the dark layer of the window material, so the real figures are higher; they could not be measured here, because macOS lets an app read the composited glass only with Screen Recording permission. Check them by eye on a white wallpaper.</p>
+<p>Every colour drawn as text (text, bold, dim, quiet, accent, warning, white) passes 4.5 to 1 over a white desktop by this bound, and a test checks it. The hues and the coral are bar fills, never text, and pass the 3 to 1 for graphics: blue 3.0, green 3.5, coral 3.0. The free cells in dimmer, 2.7, carry a legend. That bound ignores the dark layer of the window material, so the real figures are higher; they could not be measured here, because macOS lets an app read the composited glass only with Screen Recording permission. Check them by eye on a white wallpaper.</p>
 <p>Rule: colour never carries a meaning alone. Over pace is coral and the word "Over pace". A hit week is ⚠ and "Thu 16:10". A Mac warning is the dot and the pressure word on the Mac tab.</p>
 
 <h3>VoiceOver labels per component</h3>

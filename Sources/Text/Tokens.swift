@@ -14,7 +14,7 @@ public struct RGBA: Sendable, Hashable {
 public enum Tokens {
     public static let text = RGBA(hex: 0xe0e0e0)      // default text, the percent, figures
     public static let bold = RGBA(hex: 0xededed)      // section titles, the status word, the notch mark
-    public static let dim = RGBA(hex: 0x999999)       // reset line, pace lines, captions, header line, chips
+    public static let dim = RGBA(hex: 0xb3b3b3)       // reset line, pace lines, captions, header line, chips: 4.5 to 1 or more even over a white desktop
     public static let dimmer = RGBA(hex: 0x888888)    // free cells in the memory grid
     public static let quiet = RGBA(hex: 0xb8b8b8)     // key hints in the foot: 4.5 to 1 or more even over a white desktop
     public static let accent = RGBA(hex: 0xb1b9f9)    // used fill, selected tab, the rule
