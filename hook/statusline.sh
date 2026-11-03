@@ -12,5 +12,8 @@ if [ -n "$sid" ]; then
 else
   printf '%s' "$input" > "$DIR/latest.json.tmp" && mv -f "$DIR/latest.json.tmp" "$DIR/latest.json"
 fi
+# files of sessions that stopped writing over a minute ago, the same rule the app uses, so nothing piles up
+# in the folder even when the app is gone
+find "$DIR" -maxdepth 1 -type f \( -name '*.json' -o -name '*.json.tmp' \) -mmin +1 -delete 2>/dev/null
 if [ -n "$PREV" ]; then printf '%s' "$input" | sh -c "$PREV"; fi
 exit 0

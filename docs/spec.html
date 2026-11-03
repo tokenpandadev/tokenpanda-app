@@ -127,12 +127,15 @@ if [ -n "$sid" ]; then
 else
   printf '%s' "$input" &gt; "$DIR/latest.json.tmp" &amp;&amp; mv -f "$DIR/latest.json.tmp" "$DIR/latest.json"
 fi
+# files of sessions that stopped writing over a minute ago, the same rule the app uses, so nothing piles up
+# in the folder even when the app is gone
+find "$DIR" -maxdepth 1 -type f \( -name '*.json' -o -name '*.json.tmp' \) -mmin +1 -delete 2&gt;/dev/null
 if [ -n "$PREV" ]; then printf '%s' "$input" | sh -c "$PREV"; fi
 exit 0</pre>
 <ul>
 <li><code>refreshInterval</code> is set to 5 when the user's entry has none of its own or a longer one (a session is open only while it writes within 10 s), and a shorter one stays, so the open sessions list and the reset rollover stay current while a session idles; the capture ran at 2 s with no visible cost. The script prints nothing of its own, so a user without a status line sees nothing new, and a user with one sees it unchanged.</li>
 <li>DIR and PREV are both single quoted for sh, a single quote in them written as <code>'\''</code>, so no character in the data folder path or the chained command expands.</li>
-<li>The snapshot is the whole feed JSON as received. The app reads only the fields in the table above. The file is overwritten on every call and deleted by the app 60 s after its last write; the folder is removed on uninstall.</li>
+<li>The snapshot is the whole feed JSON as received. The app reads only the fields in the table above. The file is overwritten on every call and deleted 60 s after its last write, by the app and by the script itself (from 0.1.13, so the folder stays small when the app is gone); at each launch the app brings an installed script from an earlier version to the current text, DIR written anew, PREV kept; the folder is removed on uninstall.</li>
 <li>Settings folders: Claude Code reads <code>~/.claude</code>, or the folder in <code>CLAUDE_CONFIG_DIR</code>. A menu bar app does not see the shell's environment, so the app takes <code>CLAUDE_CONFIG_DIR</code> from its own environment when it has one and looks in the home folder for <code>~/.claude</code>, <code>~/.config/claude</code> and folders named <code>.claude-something</code> or <code>.claude_something</code> (the usual way to keep a second account). Install writes the entry into <code>~/.claude</code>, each <code>CLAUDE_CONFIG_DIR</code> folder, and the other folders only when they hold a <code>settings.json</code>; a folder with only a <code>projects</code> folder (a backup copy) is left out of Install and still counted for transcripts. Each folder has its own script and backup (<code>hook.sh</code> for <code>~/.claude</code>; for the others a readable name plus a 64 bit FNV-1a hash of the resolved path, so <code>~/.claude-work</code> and <code>~/.claude_work</code> never share one), so each chains its own previous command, and all of them write to the one sessions folder. With nothing found, <code>~/.claude</code>.</li>
 <li>Installing means editing the user's <code>~/.claude/settings.json</code> (and each other settings folder's). The app does this only on an explicit click, on "Install the status line entry" on the Claude tab or "Install the status line entry" in Settings. It keeps a previous command by chaining it, keeps the other keys of an existing <code>statusLine</code> object (<code>padding</code>, a user's <code>refreshInterval</code> of 5 or less), sets <code>refreshInterval</code> 5 when there is none or a longer one, and saves the object as it was to <code>statusline-before.json</code> in Application Support. The file is parsed, the <code>statusLine</code> key replaced, and the whole file written back by <code>JSONSerialization</code> pretty printed with slashes unescaped: indentation and key order may change, the content of every other key does not.</li>
 <li>Removing is the Settings row "Remove the status line entry", one explicit click. While the entry is still the app's, the saved object goes back exactly as it was, or the key is removed when there was none; an entry the user changed in the meantime is left alone. The script, the saved object and the sessions folder are deleted. <code>settings.json</code> is otherwise off limits; the app reads its modification time each feed tick and reads the file again only when that time moves.</li>
@@ -457,9 +460,9 @@ from Claude Code's own status feed on this Mac.</pre>
 
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
-<pre>scripts/build-app.sh 0.1.12  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
+<pre>scripts/build-app.sh 0.1.13  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
                              # Contents/Resources (AppIcon.icns, PrivacyInfo.xcprivacy), Info.plist (LSUIElement true,
-                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.12.zip and its SHA-256</pre>
+                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.13.zip and its SHA-256</pre>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>
 <p>Ad hoc signing does not satisfy Gatekeeper on a downloaded file, and since macOS Sequoia Control-click no longer overrides it. Apple's current page (published 2026-05-27) gives the flow, which the README repeats:</p>

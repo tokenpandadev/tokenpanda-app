@@ -162,6 +162,63 @@ struct FeedTests {
         #expect(roundTrip == original.prefix(while: { $0 != 0x0A }))
     }
 
+    @Test func hookScriptDeletesFilesOfSessionsThatStoppedWriting() throws {
+        // with the app gone nothing else deletes them: the script drops files over a minute old, keeps fresh ones
+        let dir = try tempDir()
+        let sessions = dir.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let old = sessions.appendingPathComponent("aaaaaaaa-0000-4000-8000-000000000009.json")
+        let oldTmp = sessions.appendingPathComponent("bbbbbbbb-0000-4000-8000-000000000009.json.tmp")
+        let fresh = sessions.appendingPathComponent("cccccccc-0000-4000-8000-000000000009.json")
+        let other = sessions.appendingPathComponent("notes.txt")
+        for u in [old, oldTmp, fresh, other] { try "{}".write(to: u, atomically: true, encoding: .utf8) }
+        for u in [old, oldTmp, other] {
+            try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-180)], ofItemAtPath: u.path)
+        }
+        let script = dir.appendingPathComponent("hook.sh")
+        try HookScript.render(sessionsDir: sessions.path, previousCommand: nil).write(to: script, atomically: true, encoding: .utf8)
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh"); p.arguments = [script.path]
+        let inPipe = Pipe(); p.standardInput = inPipe; p.standardOutput = Pipe()
+        try p.run()
+        inPipe.fileHandleForWriting.write(try fixture("feed-sample")); inPipe.fileHandleForWriting.closeFile()
+        p.waitUntilExit()
+        let fm = FileManager.default
+        #expect(!fm.fileExists(atPath: old.path))
+        #expect(!fm.fileExists(atPath: oldTmp.path))
+        #expect(fm.fileExists(atPath: fresh.path))
+        #expect(fm.fileExists(atPath: other.path))   // only the feed files, nothing else in the folder
+        #expect(fm.fileExists(atPath: sessions.appendingPathComponent("3f1a9c2e-0000-4000-8000-000000000001.json").path))
+    }
+
+    @Test func anInstalledOlderScriptIsBroughtToTheCurrentOneKeepingItsCommand() throws {
+        // the real scripts of 0.1.10 (DIR in double quotes) and 0.1.12 (single quotes, no clean up), as they were installed
+        let quoted = #"echo '\''mine'\''"#
+        for version in ["0.1.10", "0.1.12"] {
+            let dir = try tempDir()
+            let settings = dir.appendingPathComponent("settings.json")
+            try #"{"statusLine":{"type":"command","command":"echo 'mine'"}}"#.write(to: settings, atomically: true, encoding: .utf8)
+            let hook = Hook(settingsURL: settings, dataDir: dir)
+            _ = try hook.install()
+            let current = try String(contentsOf: hook.hookPath, encoding: .utf8)
+            #expect(current.contains("PREV='" + quoted + "'"))
+            #expect(!hook.refreshScript())   // already current: untouched
+            let url = try #require(Bundle.module.url(forResource: "hook-" + version, withExtension: "sh", subdirectory: "Fixtures"))
+            let older = try String(contentsOf: url, encoding: .utf8)
+                .replacingOccurrences(of: "__DIR__", with: hook.sessionsDir.path)
+                .replacingOccurrences(of: "__PREV__", with: quoted)
+            #expect(older != current)
+            try older.write(to: hook.hookPath, atomically: true, encoding: .utf8)
+            #expect(hook.refreshScript(), "\(version)")
+            #expect(try String(contentsOf: hook.hookPath, encoding: .utf8) == current, "\(version)")
+            #expect(FileManager.default.isExecutableFile(atPath: hook.hookPath.path))
+        }
+        // not installed: nothing is written
+        let dir = try tempDir()
+        let other = Hook(settingsURL: dir.appendingPathComponent("none.json"), dataDir: dir.appendingPathComponent("d2"))
+        #expect(!other.refreshScript())
+    }
+
     @Test func hookStatusReadsOnlyTheStatusLineKey() throws {
         let dir = try tempDir()
         let settings = dir.appendingPathComponent("settings.json")

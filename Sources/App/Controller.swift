@@ -129,6 +129,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         readHookStatus()
         // an entry installed by an earlier version gets its remove script now, so brew's zap needs no click first
         removeScriptError = hook.writeRemoveScript()
+        hook.refreshScripts()   // an entry installed by an earlier version gets the current script, its chained command kept
         notifier.onReopen = { [weak self] in self?.reopen() }
         notifier.onReopenEnded = { [weak self] id in self?.reopenEnded(id) }
         offerRestore(now: Date())   // before the first scan, which writes this boot's record over the last one

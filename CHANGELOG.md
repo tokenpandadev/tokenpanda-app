@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.13, 2026-11-03
+
+- The status line script cleans up after itself: it deletes the session files that stopped changing over a minute ago, the same rule the app uses. Before, if the app went to the Bin without Remove, the script kept adding one file per session that nothing deleted. An entry installed by an earlier version gets the new script at the next launch, with your chained status line kept.
+- VoiceOver reads the privacy sentence ("This app makes no network calls. Usage comes from Claude Code's own status feed on this Mac.") as one, not as two halves.
+
 ## 0.1.12, 2026-11-03
 
 - If the menu bar icon is hidden a few seconds after the first launch (switched off under System Settings, Menu Bar, or behind the notch on a full bar), one window says that tokenpanda is running, with a button that opens the Menu Bar settings. It shows once.

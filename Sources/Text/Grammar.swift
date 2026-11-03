@@ -152,8 +152,9 @@ public enum Grammar {
     }
 
     static func privacy() -> [Line] {
-        [L(sp(" "), sp("This app makes no network calls. Usage comes", .dim)),
-         L(sp(" "), sp("from Claude Code's own status feed on this Mac.", .dim))]
+        spoken([L(sp(" "), sp("This app makes no network calls. Usage comes", .dim)),
+                L(sp(" "), sp("from Claude Code's own status feed on this Mac.", .dim))],
+               label: "This app makes no network calls. Usage comes from Claude Code's own status feed on this Mac.")
     }
 
     static func windowEmpty(_ title: String, _ line: String) -> [Line] {

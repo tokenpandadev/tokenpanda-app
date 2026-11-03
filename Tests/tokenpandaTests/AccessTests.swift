@@ -112,7 +112,7 @@ struct AccessTests {
         #expect(quit.accessibilityRole() == .button)
         #expect(pressed == [.toggle("listPriceEquivalent"), .tab(0)])
         // text lines stay text, in reading order after the controls above them
-        #expect(kids.contains { $0.accessibilityRole() == .staticText && $0.accessibilityLabel() == "This app makes no network calls. Usage comes" })
+        #expect(kids.contains { $0.accessibilityRole() == .staticText && $0.accessibilityLabel() == "This app makes no network calls. Usage comes from Claude Code's own status feed on this Mac." })
     }
 
     @Test @MainActor func elementsSurviveARenderSoTheCursorStays() throws {
@@ -259,9 +259,21 @@ struct AccessTests {
         #expect(plain.contains("     a closed lid on battery still sleeps"))
     }
 
+    @Test func thePrivacySentenceIsOneElement() throws {
+        let lines = Grammar.popover(try screen("settings"))
+        let at = try #require(lines.firstIndex { $0.plain.contains("This app makes no network calls") })
+        #expect(lines[at].label == "This app makes no network calls. Usage comes from Claude Code's own status feed on this Mac.")
+        #expect(lines[at + 1].hidden)
+        // the Claude tab before Install says it too
+        let nohook = Grammar.popover(try screen("claude-nohook"))
+        let n = try #require(nohook.firstIndex { $0.plain.contains("This app makes no network calls") })
+        #expect(nohook[n].label == lines[at].label)
+        #expect(nohook[n + 1].hidden)
+    }
+
     @Test func versionLineInSettings() throws {
         let plain = Grammar.popover(try screen("settings")).map(\.plain)
-        #expect(plain.contains(" tokenpanda 0.1.12"))
+        #expect(plain.contains(" tokenpanda 0.1.13"))
         var i = Fixtures.input(tab: 2); i.version = nil
         #expect(!Grammar.popover(ScreenBuilder.screen(i)).map(\.plain).contains { $0.contains("tokenpanda 0") })
     }

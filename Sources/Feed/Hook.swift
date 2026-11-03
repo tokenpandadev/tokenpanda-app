@@ -22,6 +22,9 @@ public enum HookScript {
     else
       printf '%s' "$input" > "$DIR/latest.json.tmp" && mv -f "$DIR/latest.json.tmp" "$DIR/latest.json"
     fi
+    # files of sessions that stopped writing over a minute ago, the same rule the app uses, so nothing piles up
+    # in the folder even when the app is gone
+    find "$DIR" -maxdepth 1 -type f \\( -name '*.json' -o -name '*.json.tmp' \\) -mmin +1 -delete 2>/dev/null
     if [ -n "$PREV" ]; then printf '%s' "$input" | sh -c "$PREV"; fi
     exit 0
 
@@ -194,6 +197,27 @@ public struct Hook: Sendable {
         settings["statusLine"] = sl
         try writeSettings(settings)
         return HookStatus(installed: true, previousCommand: previous, slowerRefresh: Self.slower(before))
+    }
+
+    /// An installed script from an earlier version brought to the current template, so a change to the script reaches every
+    /// install at the next launch, not only at the next Install. DIR is written anew from this Hook's sessions folder (0.1.0
+    /// to 0.1.10 quoted it in double quotes); PREV, single quoted in every version, is kept as it is. The file is the app's own:
+    /// anything else edited in it is replaced. True when rewritten.
+    @discardableResult
+    public func refreshScript() -> Bool {
+        guard status().installed, let old = try? String(contentsOf: hookPath, encoding: .utf8) else { return false }
+        // PREV='...' with '\'' for a quote inside, possibly over several lines
+        guard let re = try? NSRegularExpression(pattern: "(?m)^PREV='(?:[^']|'\\\\'')*'$"),
+              let m = re.firstMatch(in: old, range: NSRange(old.startIndex..., in: old)),
+              let r = Range(m.range, in: old) else { return false }
+        let fresh = HookScript.render(sessionsDir: sessionsDir.path, previousCommand: nil)
+        let script = fresh.replacingOccurrences(of: "PREV=''", with: String(old[r]))
+        guard script != old else { return false }
+        do {
+            try script.write(to: hookPath, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hookPath.path)
+            return true
+        } catch { return false }
     }
 
     /// Puts the statusLine object back as it was before install, or removes the key when there was none.
@@ -446,6 +470,9 @@ public struct HookSet: Sendable {
         for h in hooks { out += "restore \(q(h.settingsURL.path)) \(q(h.hookCommand)) \(q(h.backupPath.path))\n" }
         return out + "exit 0\n"
     }
+
+    /// Every installed script brought to the current template (see Hook.refreshScript).
+    public func refreshScripts() { for h in hooks { h.refreshScript() } }
 
     /// Lists the folders whose entry is ours (installed, or pointing at a lost script); with none, the file goes.
     /// Returns why it could not be written, for the Settings tab, and logs it: without it brew's zap cannot put the entry back.

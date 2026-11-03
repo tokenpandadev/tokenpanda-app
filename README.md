@@ -96,7 +96,7 @@ You need a Mac on macOS 14 or later with the Command Line Tools or Xcode. Swift 
 ```sh
 swift build
 swift test -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
-scripts/build-app.sh 0.1.12
+scripts/build-app.sh 0.1.13
 open build/tokenpanda.app
 ```
 
