@@ -270,4 +270,28 @@ struct HardeningTests {
         #expect(RestoreRecord(lastScan: Date()).save(to: blocked) != nil)
         #expect(WeekRecords().save(to: dir.appendingPathComponent("ok.json")) == nil)
     }
+
+    // MARK: packaging
+
+    var repo: URL { URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent() }
+
+    @Test func thePrivacyManifestDeclaresNoTrackingAndTheReasons() throws {
+        let data = try Data(contentsOf: repo.appendingPathComponent("Resources/PrivacyInfo.xcprivacy"))
+        let plist = try #require(try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        #expect(plist["NSPrivacyTracking"] as? Bool == false)
+        #expect((plist["NSPrivacyTrackingDomains"] as? [Any])?.isEmpty == true)
+        #expect((plist["NSPrivacyCollectedDataTypes"] as? [Any])?.isEmpty == true)
+        let types = try #require(plist["NSPrivacyAccessedAPITypes"] as? [[String: Any]])
+        var reasons: [String: [String]] = [:]
+        for t in types { reasons[t["NSPrivacyAccessedAPIType"] as? String ?? ""] = t["NSPrivacyAccessedAPITypeReasons"] as? [String] }
+        #expect(reasons["NSPrivacyAccessedAPICategoryFileTimestamp"] == ["C617.1", "DDA9.1"])
+        #expect(reasons["NSPrivacyAccessedAPICategorySystemBootTime"] == ["35F9.1"])
+        #expect(reasons["NSPrivacyAccessedAPICategoryUserDefaults"] == ["CA92.1"])
+    }
+
+    @Test func theBuildShipsTheManifestAndNoHookResource() throws {
+        let script = try String(contentsOf: repo.appendingPathComponent("scripts/build-app.sh"), encoding: .utf8)
+        #expect(script.contains("cp Resources/PrivacyInfo.xcprivacy \"$APP/Contents/Resources/PrivacyInfo.xcprivacy\""))
+        #expect(!script.contains("Resources/hook.sh"))
+    }
 }
