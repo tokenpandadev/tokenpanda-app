@@ -249,7 +249,45 @@ public actor MacSampler {
     static func name(of pid: pid_t) -> String {
         var buf = [CChar](repeating: 0, count: Int(MAXPATHLEN))
         let n = proc_name(pid, &buf, UInt32(buf.count))
-        if n > 0 { return String(decoding: buf.prefix(Int(n)).map { UInt8(bitPattern: $0) }, as: UTF8.self) }
-        return "pid \(pid)"
+        let short = n > 0 ? String(decoding: buf.prefix(Int(n)).map { UInt8(bitPattern: $0) }, as: UTF8.self) : nil
+        var pathBuf = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)   // PROC_PIDPATHINFO_MAXSIZE
+        let pn = proc_pidpath(pid, &pathBuf, UInt32(pathBuf.count))
+        let path = pn > 0 ? String(decoding: pathBuf.prefix(Int(pn)).map { UInt8(bitPattern: $0) }, as: UTF8.self) : nil
+        return displayName(procName: short, executablePath: path, argv0: argv0(of: pid)) ?? "pid \(pid)"
+    }
+
+    /// The name the process list shows. proc_name gives the file name of the executable after links resolve, which for
+    /// Claude Code's native install is its version (~/.local/bin/claude links to ~/.local/share/claude/versions/2.1.317).
+    /// So Claude Code is told by where its executable sits, a versions folder inside a claude folder, or by the command it
+    /// was started as, claude; any other process keeps its proc_name.
+    static func displayName(procName: String?, executablePath: String?, argv0: String?) -> String? {
+        if let path = executablePath {
+            let parts = path.split(separator: "/")
+            if parts.count >= 3, parts[parts.count - 2] == "versions", parts[parts.count - 3] == "claude" { return "Claude Code" }
+        }
+        if let a = argv0, (a as NSString).lastPathComponent == "claude" { return "Claude Code" }
+        if let n = procName, !n.isEmpty { return n }
+        return executablePath.map { ($0 as NSString).lastPathComponent }
+    }
+
+    /// argv[0] from KERN_PROCARGS2: argc, the executable path, NUL padding, then the arguments. nil when it cannot be read
+    /// (another user's process).
+    static func argv0(of pid: pid_t) -> String? {
+        var mib: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        var size = 0
+        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > MemoryLayout<Int32>.size else { return nil }
+        var buf = [UInt8](repeating: 0, count: size)
+        guard sysctl(&mib, 3, &buf, &size, nil, 0) == 0 else { return nil }
+        return argv0(fromProcArgs: Array(buf.prefix(size)))
+    }
+
+    static func argv0(fromProcArgs buf: [UInt8]) -> String? {
+        guard buf.count > 4 else { return nil }
+        var i = 4
+        while i < buf.count, buf[i] != 0 { i += 1 }     // executable path
+        while i < buf.count, buf[i] == 0 { i += 1 }     // padding
+        var j = i
+        while j < buf.count, buf[j] != 0 { j += 1 }
+        return j > i ? String(decoding: buf[i..<j], as: UTF8.self) : nil
     }
 }
