@@ -662,6 +662,11 @@ final class Ground: NSVisualEffectView {
         super.viewDidChangeEffectiveAppearance()
         apply()
     }
+    // the popover's window may carry another appearance than the app: apply again once inside it, before the first frame
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        apply()
+    }
     func apply() {
         let light = effectiveAppearance.isLight
         material = light ? .popover : .hudWindow

@@ -343,6 +343,10 @@ struct AccessTests {
         }
         // the same order as dark: figures lead, the dim lines sit below them
         #expect(lum(Tokens.light(Tokens.dim)) > lum(Tokens.light(Tokens.text)))
+        // the bar track shows over both desktops, and the fill stands apart from it (graphics, 3 to 1)
+        let track = Tokens.light(Tokens.track)
+        #expect(ratio(track, bright) >= 1.5 && ratio(track, darkest) >= 1.5)
+        #expect(ratio(Tokens.light(Tokens.accent), track) >= 3)
         // the tooltip text reads on its box
         #expect(ratio(Tokens.light(Tokens.text), Tokens.light(Tokens.box)) >= 4.5)
     }

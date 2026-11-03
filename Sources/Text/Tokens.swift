@@ -65,7 +65,7 @@ extension Tokens {
         0x888888: 0x6e6e73, // dimmer
         0xb8b8b8: 0x525257, // quiet
         0xb1b9f9: 0x3b46b8, // accent
-        0x505370: 0xc5c9e0, // track, track when stale
+        0x505370: 0x9ea4c8, // track, track when stale: shows over a white and a black desktop, the fill stays 3 to 1 from it
         0xd77757: 0xb9502e, // coral
         0xffc107: 0x7a4e00, // warning
         0x373737: 0xe4e4e8, // box
