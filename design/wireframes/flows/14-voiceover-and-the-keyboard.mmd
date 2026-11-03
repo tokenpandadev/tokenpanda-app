@@ -2,14 +2,19 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
-  S1["1. VoiceOver on the item reads the state in words:<br/>'Weekly 28% used, ahead, resets sun 17:00'.<br/><i>works</i>"]:::works
-  S2["2. Inside the popover VoiceOver reads each line as<br/>text, so the figures are heard.<br/><i>works</i>"]:::works
-  S3["3. The Install button, the tabs, the section<br/>switch and every checkbox are static text to<br/>VoiceOver: no role, no state, no press. A<br/>VoiceOver user cannot set up the feed or change<br/>a setting.<br/><i>broken</i>"]:::broken
-  S4["4. From the keyboard only Tab, Esc, m, p, s and<br/>Command Q work; no row takes focus and Space<br/>does nothing, so settings need a pointer.<br/><i>broken</i>"]:::broken
-  S5["5. The key hints are #505050 on the glass, about<br/>2.1 to 1.<br/><i>friction</i>"]:::friction
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
+  S1["1. VoiceOver on the item says 'tokenpanda, Weekly<br/>28% used, ahead, resets Sunday 17:00'.<br/><i>by hand</i>"]:::byhand
+  S2["2. The privacy sentence is one element, and each<br/>window, week and Mac figure is one sentence.<br/><i>works</i>"]:::works
+  S3["3. Tabs are radio buttons, settings checkboxes<br/>with values, Install, Remove, Quit and the<br/>notifications link buttons with press.<br/><i>by hand</i>"]:::byhand
+  S4["4. The keyboard reaches every control: Down and<br/>Up, Left and Right, Space or Return; a thin<br/>accent ring shows where.<br/><i>works</i>"]:::works
+  S5["5. The key hints read clearly over white, at 4.5<br/>to 1 or more.<br/><i>works</i>"]:::works
   S6["6. Reduce motion: the popover opens without<br/>animation.<br/><i>works</i>"]:::works
+  S7["7. Down also stops on the key figures, and in a<br/>panel shorter than its lines the focused one is<br/>scrolled into view.<br/><i>works</i>"]:::works
+  S8["8. In a panel capped by a small screen VoiceOver<br/>reads every line, but before macOS 26 its<br/>outline is not shown on a line outside the<br/>visible part, since VoiceOver cannot ask the<br/>app to scroll there.<br/><i>friction</i>"]:::friction
   S1 --> S2
   S2 --> S3
   S3 --> S4
   S4 --> S5
   S5 --> S6
+  S6 --> S7
+  S7 --> S8

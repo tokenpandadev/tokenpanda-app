@@ -17,7 +17,7 @@ let package = Package(
         .target(name: "Transcripts", dependencies: ["Prices"], swiftSettings: swift6),
         .target(name: "MacStats", swiftSettings: swift6, linkerSettings: [.linkedFramework("IOKit")]),
         .target(name: "UI", dependencies: ["Text", "Pace", "Prices", "Feed", "Transcripts", "MacStats"], swiftSettings: swift6,
-                linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("ServiceManagement")]),
+                linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("ServiceManagement"), .linkedFramework("UserNotifications")]),
         .executableTarget(name: "tokenpanda", dependencies: ["UI", "Text", "Pace", "Prices", "Feed", "Transcripts", "MacStats"],
                           path: "Sources/App", swiftSettings: swift6,
                           linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("IOKit"), .linkedFramework("ServiceManagement"),

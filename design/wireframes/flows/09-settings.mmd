@@ -2,12 +2,17 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
-  S1["1. Settings: Open at login, Mac figures in the<br/>bar, nudges, list price, keep awake, reopen<br/>sessions, the status line row, the privacy<br/>sentence, Quit.<br/><i>works</i>"]:::works
-  S2["2. Open at login: the box shows what macOS says;<br/>while macOS waits for approval a dim line opens<br/>Login Items.<br/><i>works</i>"]:::works
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
+  S1["1. Settings: Open at login, Mac figures in the<br/>bar, nudges, list price, keep awake, reopen<br/>sessions, the status line row, the privacy<br/>sentence, the version line, Quit.<br/><i>works</i>"]:::works
+  S2["2. Open at login: the box shows what macOS says;<br/>while macOS waits for approval a dim line opens<br/>Login Items.<br/><i>by hand</i>"]:::byhand
   S3["3. List price equivalent off: the price chip goes.<br/><i>works</i>"]:::works
   S4["4. Quit and Command Q end the app; the item goes.<br/><i>works</i>"]:::works
-  S5["5. Nowhere in the app is the version: no About, no<br/>line in Settings.<br/><i>friction</i>"]:::friction
+  S5["5. The version line says what runs: 'tokenpanda<br/>0.1.14'.<br/><i>works</i>"]:::works
+  S6["6. Light mode: the same layout on a light glass,<br/>switching with the Mac's appearance.<br/><i>works</i>"]:::works
+  S7["7. A tall Settings tab on a short screen scrolls<br/>inside the panel, so Quit stays reachable.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3
   S3 --> S4
   S4 --> S5
+  S5 --> S6
+  S6 --> S7

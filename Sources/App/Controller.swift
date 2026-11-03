@@ -75,6 +75,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var item: NSStatusItem!
     let popover = NSPopover()
     let lineView = LineView()
+    let scroll = NSScrollView()
     var keyMonitor: Any?
     var feedTimer: DispatchSourceTimer?
     var macTimer: DispatchSourceTimer?
@@ -112,10 +113,27 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let root = Ground()
         let tint = root.tint
         root.addSubview(tint)
-        root.addSubview(lineView)
+        // the lines sit in a clear scroll view: the popover is never taller than the screen it opens on, and scrolls
+        // beyond that (0.1.14; before, a long Settings or many sessions ran off a small or zoomed screen)
+        scroll.drawsBackground = false
+        scroll.contentView.drawsBackground = false
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = false
+        scroll.autohidesScrollers = true
+        // an overlay scroller over the 380 pt lines: a legacy one ("Show scroll bars: Always", a mouse attached) took
+        // 17 pt of the width, cut every line and let them slide sideways. No rubber band: the panel stays still.
+        scroll.scrollerStyle = .overlay
+        scroll.horizontalScrollElasticity = .none
+        scroll.verticalScrollElasticity = .none
+        NotificationCenter.default.addObserver(forName: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil,
+                                               queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.scroll.scrollerStyle = .overlay }
+        }
+        scroll.documentView = lineView
+        root.addSubview(scroll)
         // pinned to the root on all four edges: the popover shrinks and grows while open as lines come and go,
         // and an autoresized view in the non flipped root kept its old height and slid up out of the frame
-        for v in [tint, lineView] {
+        for v in [tint, scroll] {
             v.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
                 v.leadingAnchor.constraint(equalTo: root.leadingAnchor), v.trailingAnchor.constraint(equalTo: root.trailingAnchor),
@@ -159,6 +177,15 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                     try? SnapshotWriter.writeScreen(ScreenBuilder.screen(i), to: dir.appendingPathComponent("live-tab\(t).png"))
                 }
                 try? SnapshotWriter.writeItem(ScreenBuilder.item(input), to: dir.appendingPathComponent("live-item.png"))
+                // the open panel itself (scroll view and lines; cacheDisplay draws no blur behind the glass), for the height check
+                let before = tab
+                tab = 2; render()
+                try? await Task.sleep(for: .seconds(1))
+                defer { tab = before; render() }
+                if let v = popover.contentViewController?.view, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
+                    v.cacheDisplay(in: v.bounds, to: rep)
+                    try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent("live-panel.png"))
+                }
             }
         }
         #endif
@@ -228,13 +255,16 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         guard !transcriptsBusy else { return }
         transcriptsBusy = true
         let now = Date()
-        let result = await store.refresh(now: now, onlyIfChanged: true)
+        // the aggregate moves only with new records or a new day (the "today" window). On a new day the records are
+        // needed even when no transcript changed: an unchanged pass returns none, and summing none emptied every row
+        // after midnight until the next transcript write (0.1.0 to 0.1.13).
+        let day = Calendar.current.startOfDay(for: now)
+        let plan = TokenRefresh.plan(lastDay: tokensDay, today: day, haveTokens: tokens != nil)
+        let result = await store.refresh(now: now, onlyIfChanged: plan.onlyIfChanged)
         transcriptsBusy = false
         transcriptsRootsExist = result.rootsExist
         transcriptsError = result.error
-        // the aggregate moves only with new records or a new day (the "today" window)
-        let day = Calendar.current.startOfDay(for: now)
-        if result.version != transcriptsVersion || tokensDay != day || tokens == nil {
+        if TokenRefresh.rebuild(plan: plan, versionMoved: result.version != transcriptsVersion) {
             transcriptsVersion = result.version
             tokensDay = day
             let records = result.records
@@ -542,9 +572,23 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             lastScreen = screen
             let lines = Grammar.popover(screen)
             lineView.lines = lines
-            let size = NSSize(width: LineView.width, height: lineView.contentHeight)
+            let size = fitPanel()
             if popover.contentSize != size { popover.contentSize = size }
         }
+    }
+
+    /// The lines at their full height inside the scroll view; the panel as tall as they are, at most the screen's
+    /// visible height less a margin for the arrow and the menu bar gap.
+    func fitPanel() -> NSSize {
+        let full = lineView.contentHeight
+        lineView.setFrameSize(NSSize(width: LineView.width, height: full))
+        var visible = (item.button?.window?.screen ?? NSScreen.main)?.visibleFrame.height
+        #if DEBUG
+        // --panel-screen-height N: a small screen, for the scroll check
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "--panel-screen-height"), i + 1 < args.count, let h = Double(args[i + 1]) { visible = h }
+        #endif
+        return NSSize(width: LineView.width, height: PanelSize.height(content: full, visible: visible))
     }
 
     static let hiddenHintKey = "hiddenItemHintShown"
@@ -552,7 +596,13 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// Is the status item on screen? Not when macOS keeps it switched off or the notch covers it. While the menu bar
     /// itself is away (a full screen app), ask again later.
     func checkItemShows(tries: Int) {
-        guard NSMenu.menuBarVisible() else {
+        // a locked screen, a session switched away (Fast User Switching) or a sleeping display hides the menu bar too:
+        // no verdict until the user is back at an awake, unlocked screen
+        let session = CGSessionCopyCurrentDictionary() as? [String: Any]
+        let locked = session?["CGSSessionScreenIsLocked"] as? Bool ?? false
+        let onConsole = session?[kCGSessionOnConsoleKey as String] as? Bool ?? false
+        let asleep = CGDisplayIsAsleep(CGMainDisplayID()) != 0
+        guard NSMenu.menuBarVisible(), !locked, onConsole, !asleep else {
             if tries > 0 { DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in self?.checkItemShows(tries: tries - 1) } }
             return
         }
@@ -564,13 +614,17 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         Settings.defaults.set(true, forKey: Self.hiddenHintKey)   // once: shown now, or seen and never needed
         guard !shows else { log.info("status item visible, no menu bar hint needed"); return }
         log.info("status item not visible, showing the menu bar hint")
+        var switchInSettings = false
+        if #available(macOS 26, *) { switchInSettings = true }
+        let hint = Grammar.hiddenIconHint(switchInSettings: switchInSettings)
         let alert = NSAlert()
-        alert.messageText = "tokenpanda is running"
-        alert.informativeText = "Its icon is hidden in the menu bar. You can switch it on in System Settings, Menu Bar."
-        alert.addButton(withTitle: "Open Menu Bar Settings")
+        alert.messageText = hint.title
+        alert.informativeText = hint.text
+        if let button = hint.button { alert.addButton(withTitle: button) }
         alert.addButton(withTitle: "OK")
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn,
+        NSApp.activate()
+        let answer = alert.runModal()
+        if hint.button != nil, answer == .alertFirstButtonReturn,
            let url = URL(string: "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension") {
             NSWorkspace.shared.open(url)
         }
@@ -578,7 +632,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func perform(_ a: Action) {
         switch a {
-        case .tab(let t): tab = t
+        case .tab(let t): tab = t; lineView.scroll(.zero)   // a new tab starts at the top
         case .section(let s): section = s
         case .toggle(let key) where key == Grammar.loginKey: clickLogin()
         case .toggle(let key):
@@ -647,10 +701,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if popover.isShown { popover.performClose(nil); return }
         guard let button = item.button else { return }
         login = Self.loginStatus()
+        notifier.refreshState { [weak self] in self?.render() }   // a change in System Settings shows at once
         let screen = ScreenBuilder.screen(input)
         lastScreen = screen
         lineView.lines = Grammar.popover(screen)
-        popover.contentSize = NSSize(width: LineView.width, height: lineView.contentHeight)
+        popover.contentSize = fitPanel()
+        lineView.scroll(.zero)   // every open starts at the top, with the header and the tabs in view
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeFirstResponder(lineView)
         startTimers(open: true)

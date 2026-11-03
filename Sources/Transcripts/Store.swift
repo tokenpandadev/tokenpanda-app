@@ -2,6 +2,25 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 
+/// When the token aggregate must be built from every record, not only when a transcript moved: the first time, and on a
+/// new day, because the "today" and "7 days" windows move with the date while no file changes.
+public enum TokenRefresh {
+    public static func needsAllRecords(lastDay: Date?, today: Date, haveTokens: Bool) -> Bool {
+        !haveTokens || lastDay != today
+    }
+
+    /// One pass of the controller: whether to ask the store for changes only, and whether to build the aggregate anew
+    /// from the records that pass returns (new records, or all of them on a new day).
+    public static func plan(lastDay: Date?, today: Date, haveTokens: Bool) -> (onlyIfChanged: Bool, rebuildOnNewDay: Bool) {
+        let all = needsAllRecords(lastDay: lastDay, today: today, haveTokens: haveTokens)
+        return (!all, all)
+    }
+
+    public static func rebuild(plan: (onlyIfChanged: Bool, rebuildOnNewDay: Bool), versionMoved: Bool) -> Bool {
+        versionMoved || plan.rebuildOnNewDay
+    }
+}
+
 /// Reads transcripts incrementally: every file remembers its byte offset and the message ids it has seen.
 /// A file that shrank is read again from the start. Nothing is ever loaded whole.
 public actor TranscriptStore {

@@ -244,8 +244,11 @@ public struct Hook: Sendable {
                     settings.removeValue(forKey: "statusLine")
                 }
                 if created, settings.isEmpty {
-                    // Install made this file and nothing else was added since: it goes, instead of an empty {} left behind
-                    do { try fm.removeItem(at: settingsURL) } catch { throw HookError.cannotWriteSettings(error.localizedDescription) }
+                    // Install made this file and nothing else was added since: it goes, instead of an empty {} left behind.
+                    // Through a link (a dotfiles folder whose file did not exist yet) the file Install wrote goes and the
+                    // link stays as the user had it; deleting the link left the entry in the file it pointed at (to 0.1.13).
+                    let target = (try? SettingsFile.resolve(settingsURL)) ?? settingsURL
+                    do { try fm.removeItem(at: target) } catch { throw HookError.cannotWriteSettings(error.localizedDescription) }
                 } else {
                     try writeSettings(settings)
                 }
@@ -461,7 +464,8 @@ public struct HookSet: Sendable {
           fi
           if [ -f "$B" ] && [ "$(/usr/bin/plutil -extract createdSettings raw -o - "$B" 2>/dev/null)" = "true" ] \\
              && [ "$(/usr/bin/plutil -convert json -o - "$S" 2>/dev/null)" = "{}" ]; then
-            rm -f "$S"
+            T=$(/usr/bin/readlink -f "$S" 2>/dev/null) || T="$S"
+            rm -f "$T"
           fi
           echo "tokenpanda: status line entry removed from $S"
         }

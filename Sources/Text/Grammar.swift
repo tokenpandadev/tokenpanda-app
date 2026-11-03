@@ -50,6 +50,19 @@ public enum Spoken {
 
 public enum Grammar {
     public static let notificationsOff = "Notifications are off in System Settings"
+
+    /// The window that says the app runs while its menu bar icon is not visible. From macOS 26 an app's icon can be
+    /// switched off in System Settings, Menu Bar, and a button opens that pane; before, only Apple's own items have a
+    /// switch (Control Center), so the text names the one cause there is, a full menu bar, and has no button.
+    public static func hiddenIconHint(switchInSettings: Bool) -> (title: String, text: String, button: String?) {
+        switchInSettings
+            ? ("tokenpanda is running",
+               "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, or hidden behind the notch when the menu bar is full.",
+               "Open Menu Bar Settings")
+            : ("tokenpanda is running",
+               "Its icon is not visible in the menu bar, most likely because the menu bar is full and the icon is hidden behind the notch. Quitting another menu bar app makes room for it.",
+               nil)
+    }
     public static let popCells = 47      // content cells in the 380 pt popover at SF Mono 12
     public static let popBar = 36        // the window bar
     public static let rowBar = 24
@@ -345,15 +358,17 @@ public enum Grammar {
     /// A checkbox row: the box and the label are one control, checked or not; the dim lines under it are its help.
     public static func cbRow(_ key: String, _ label: String, _ on: Bool, _ sub: String?, indent: String = " ", more: [String] = []) -> [Line] {
         let subs = [sub].compactMap { $0 } + more
+        // the notifications note is a link of its own (below), so it is not also the checkbox's help: said once
+        let help = subs.filter { $0 != notificationsOff }
         var out = [Line([sp(indent), Piece(on ? "[x]" : "[ ]", .text, action: .toggle(key), checked: on, label: label),
                          Piece(" " + label, .text, action: .toggle(key), checked: on, label: label)],
-                        hover: true, label: label, help: subs.isEmpty ? nil : subs.joined(separator: ", "))]
+                        hover: true, label: label, help: help.isEmpty ? nil : help.joined(separator: ", "))]
         // the dim lines are the checkbox's help: said once, as help, not again as text. The notifications note is the one
         // exception: a link that opens the setting, so it is a control of its own.
         for sub in subs {
             if sub == notificationsOff {
                 let pad = String(repeating: " ", count: indent.count + 4)
-                out.append(Line([sp(pad), Piece(sub, .dim, action: .openNotificationSettings, label: sub + ", open System Settings")],
+                out.append(Line([sp(pad), Piece(sub, .accent, action: .openNotificationSettings, label: sub + ", open System Settings")],
                                 hover: true, label: sub + ", open System Settings"))
             } else {
                 out += dimLines(sub, indent: indent.count + 4).map(\.silent)

@@ -3,12 +3,13 @@
 import Foundation
 import UserNotifications
 import Text
+import UI
 
 /// The nudges and the session restore offer through the macOS notification centre. UNUserNotificationCenter needs an
 /// app bundle; from a bare executable (swift run) the centre cannot be created, so the notifier stays silent and says so.
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
-    enum State { case unavailable, undecided, allowed, denied }
+    typealias State = NotificationPermission
     private(set) var state: State = .undecided
     private let available: Bool
     nonisolated static let reopenCategory = "reopen"
@@ -38,17 +39,25 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
-    /// Reads what the user decided before, without asking: the Settings note shows a denial from the first open on.
-    func refreshState() {
-        guard available, state == .undecided else { return }
+    /// Reads what the user decided, without asking: at launch, and each time the popover opens, so turning
+    /// notifications on or off in System Settings counts at once (0.1.12 to 0.1.13 kept a denial until a restart).
+    /// onChange runs when the state moved, for the Settings note.
+    func refreshState(onChange: (() -> Void)? = nil) {
+        guard available else { return }
+        reads += 1
+        let mine = reads
         Task { @MainActor in
-            switch await UNUserNotificationCenter.current().notificationSettings().authorizationStatus {
-            case .authorized, .provisional: state = .allowed
-            case .denied: state = .denied
-            default: break
-            }
+            let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+            // a reply that started before a newer read or a prompt's answer is stale: it must not write over them
+            guard mine == reads else { return }
+            let before = state
+            state = NotificationPermission.from(status)
+            if state != before { onChange?() }
         }
     }
+
+    /// Counts reads and answers, so only the newest one sets the state.
+    private var reads = 0
 
     /// Posts, asking for permission first when the user was never asked: the prompt comes with the first notification
     /// that is due, not at launch.
@@ -63,17 +72,17 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         Task { @MainActor in await authorize() }
     }
 
+    /// Asks only when the user was never asked; otherwise takes what System Settings says now, so a nudge after the
+    /// user turned notifications back on is posted.
     func authorize() async {
-        guard available, state == .undecided else { return }
+        guard available else { return }
         let center = UNUserNotificationCenter.current()
-        let status = await center.notificationSettings().authorizationStatus
-        switch status {
-        case .authorized, .provisional: state = .allowed
-        case .denied: state = .denied
-        default:
-            let ok = (try? await center.requestAuthorization(options: [.alert])) ?? false
-            state = ok ? .allowed : .denied
-        }
+        reads += 1
+        state = NotificationPermission.from(await center.notificationSettings().authorizationStatus)
+        guard state == .undecided else { return }
+        let ok = (try? await center.requestAuthorization(options: [.alert])) ?? false
+        reads += 1   // the answer is newer than any read that started while the prompt was up
+        state = ok ? .allowed : .denied
     }
 
     func post(title: String, body: String, id: String, category: String? = nil) {

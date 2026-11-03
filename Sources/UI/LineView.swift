@@ -1,8 +1,20 @@
 // SPDX-FileCopyrightText: 2026 tokenpanda
 // SPDX-License-Identifier: MIT
 import AppKit
+
 import CoreText
 import Text
+
+/// How tall the panel is: as tall as its lines, at most the visible height of the screen less 60 pt (the arrow, the gap
+/// under the menu bar and a margin at the bottom), never under 200 pt. Without a screen, the lines' height.
+public enum PanelSize {
+    public static let margin: CGFloat = 60
+    public static let minimum: CGFloat = 200
+    public static func height(content: CGFloat, visible: CGFloat?) -> CGFloat {
+        guard let visible else { return content }
+        return min(content, max(minimum, visible - margin))
+    }
+}
 
 extension RGBA {
     public var ns: NSColor { NSColor(srgbRed: r, green: g, blue: b, alpha: a) }
@@ -281,6 +293,8 @@ public final class LineView: NSView {
         focusVisible = visible && i != nil
         focusedElement = i.flatMap { accessibilityElement(forControl: $0) }
         if let i, controls[i].kind == .figure { hoverTip = tipPiece(of: controls[i]) } else if focusVisible { hoverTip = nil }
+        // in a panel shorter than its lines, the focused control is scrolled into view, with a line of room around it
+        if focusVisible, let i { scrollToVisible(controlRect(controls[i]).insetBy(dx: 0, dy: -LineView.lineHeight)) }
         needsDisplay = true
         if announce, let i, let e = accessibilityElement(forControl: i) {
             NSAccessibility.post(element: e, notification: .focusedUIElementChanged)
@@ -493,7 +507,9 @@ public final class LineView: NSView {
         let h = CGFloat(rows.count) * LineView.lineHeight
         var x = p.tipLeft ? padSide : px + CGFloat(p.cells) * cellWidth - w
         x = max(padSide, min(x, bounds.width - padSide - w))
-        let y = max(0, lineY(li) - h - 2)
+        // above the line, inside the part of the panel in view: below the line when there is no room above it
+        let above = lineY(li) - h - 2
+        let y = above >= visibleRect.minY ? above : lineY(li) + LineView.lineHeight + 2
         Tokens.box.ink(isLight).setFill()
         NSRect(x: x, y: y, width: w, height: h).fill()
         for (k, row) in rows.enumerated() {

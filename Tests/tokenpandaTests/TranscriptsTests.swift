@@ -82,6 +82,40 @@ struct TranscriptsTests {
         #expect(r.records.filter(\.isAgent).count == 1)
     }
 
+    @Test func theTokenRowsSurviveMidnightWithoutANewTranscriptLine() async throws {
+        // 0.1.0 to 0.1.13: on a new day with no transcript change the unchanged pass returned no records and every row
+        // went empty until the next write. The rule asks for all records on a new day.
+        let root = try makeTree()
+        let store = TranscriptStore(roots: [root])
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+        let evening = ISO8601DateFormatter().date(from: "2026-10-13T23:59:00Z")!
+        let after = ISO8601DateFormatter().date(from: "2026-10-14T00:01:00Z")!
+        let day1 = cal.startOfDay(for: evening), day2 = cal.startOfDay(for: after)
+        #expect(TokenRefresh.needsAllRecords(lastDay: nil, today: day1, haveTokens: false))
+        let first = await store.refresh(now: evening, onlyIfChanged: true)
+        let before = Aggregator.summarize(first.records, now: evening, calendar: cal)
+        #expect(before.tokens7d > 0)
+        // the same day, nothing changed: no records needed, the aggregate stays
+        #expect(!TokenRefresh.needsAllRecords(lastDay: day1, today: day1, haveTokens: true))
+        #expect(await store.refresh(now: evening, onlyIfChanged: true).records.isEmpty)
+        // past midnight, nothing changed: all records, and the 7 day rows keep their figures
+        #expect(TokenRefresh.needsAllRecords(lastDay: day1, today: day2, haveTokens: true))
+        // the controller's pass, as it runs it: the plan asks for all records and rebuilds although no version moved;
+        // the 0.1.13 call (changes only, rebuild on a new day) got no records and summed none
+        let plan = TokenRefresh.plan(lastDay: day1, today: day2, haveTokens: true)
+        #expect(plan.onlyIfChanged == false)
+        let next = await store.refresh(now: after, onlyIfChanged: plan.onlyIfChanged)
+        #expect(!next.records.isEmpty)
+        #expect(TokenRefresh.rebuild(plan: plan, versionMoved: false))
+        let same = TokenRefresh.plan(lastDay: day2, today: day2, haveTokens: true)
+        #expect(same.onlyIfChanged && !TokenRefresh.rebuild(plan: same, versionMoved: false))
+        #expect(TokenRefresh.rebuild(plan: same, versionMoved: true))
+        let s = Aggregator.summarize(next.records, now: after, calendar: cal)
+        #expect(s.tokens7d == before.tokens7d)
+        #expect(s.byModel7d == before.byModel7d)
+        #expect(s.tokensToday == 0)   // a new day: today starts empty, the week does not
+    }
+
     @Test func aggregateWindowsAndAgentShare() async throws {
         let root = try makeTree()
         let store = TranscriptStore(roots: [root])

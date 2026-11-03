@@ -32,7 +32,7 @@
 </div></nav>
 
 <main class="main">
-<div class="head"><h1>Style guide</h1><span class="d">  tokenpanda  Claude Code native  14 October 2026</span></div>
+<div class="head"><h1>Style guide</h1><span class="d">  tokenpanda  Claude Code native  4 November 2026, at 0.1.14</span></div>
 <div class="head d">living: every specimen below is rendered by docs.css and docs.js</div>
 <div class="head"><span class="d">Pace  </span><button type="button" class="tab" data-pace="ahead"> Ahead </button><span>  </span><button type="button" class="tab" data-pace="on"> On pace </button><span>  </span><button type="button" class="tab" data-pace="over" aria-pressed="true"> Over pace </button><span class="q">  flips every live specimen</span></div>
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
@@ -44,12 +44,12 @@
 <p>Named hexes. Each one has one job. The accent is Claude Code's bar fill; the coral is Claude Code's mark colour and is used here for one thing only, the fill past the tick when over pace.</p>
 <table>
 <tr><th></th><th>Hex</th><th>Name</th><th>Used for</th><th class="n">On glass</th></tr>
-<tr><td><span class="sw" style="color:#e0e0e0">████</span></td><td>#e0e0e0</td><td>text</td><td>default text, the percent, figures, the pace tick</td><td class="n">12.1 to 13.8</td></tr>
-<tr><td><span class="sw" style="color:#ededed">████</span></td><td>#ededed</td><td>bold</td><td>section titles and the status word, always weight 700</td><td class="n">13.7 to 15.6</td></tr>
+<tr><td><span class="sw" style="color:#e0e0e0">████</span></td><td>#e0e0e0</td><td>text</td><td>default text, the percent, figures</td><td class="n">12.1 to 13.8</td></tr>
+<tr><td><span class="sw" style="color:#ededed">████</span></td><td>#ededed</td><td>bold</td><td>section titles and the status word, always weight 700; the pace notch</td><td class="n">13.7 to 15.6</td></tr>
 <tr><td><span class="sw" style="color:#b3b3b3">████</span></td><td>#b3b3b3</td><td>dim</td><td>reset line, pace lines, captions, the header line, chips. Lifted from #999999 in 0.1.11 so dim lines pass AA over any desktop</td><td class="n">7.6 to 8.7 (4.5 over white)</td></tr>
-<tr><td><span class="sw" style="color:#888888">████</span></td><td>#888888</td><td>dimmer</td><td>free cells in the memory grid</td><td class="n">4.5 to 5.2</td></tr>
+<tr><td><span class="sw" style="color:#949494">████</span></td><td>#949494</td><td>dimmer</td><td>free cells in the memory grid. Lifted from #888888 in 0.1.14 so the free cells pass 3 to 1 for graphics over any desktop</td><td class="n">5.3 to 6.0 (3.1 over white)</td></tr>
 <tr><td><span class="sw" style="color:#b8b8b8">████</span></td><td>#b8b8b8</td><td>quiet</td><td>key hints in the foot; never a figure the user needs. Lifted from #505050 in 0.1.9 so the hints pass AA over any desktop</td><td class="n">8.7 (4.8 over white)</td></tr>
-<tr><td><span class="sw" style="color:#b1b9f9">████</span></td><td>#b1b9f9</td><td>accent</td><td>used fill, selected tab, the ▔ rule, the selected row's ❯</td><td class="n">8.5 to 9.7</td></tr>
+<tr><td><span class="sw" style="color:#b1b9f9">████</span></td><td>#b1b9f9</td><td>accent</td><td>used fill, selected tab, the ▔ rule, the selected row's ❯, the text of a link</td><td class="n">8.5 to 9.7</td></tr>
 <tr><td><span class="sw" style="color:#505370">████</span></td><td>#505370</td><td>track</td><td>the bar behind the fill; the fill itself when stale</td><td class="n"></td></tr>
 <tr><td><span class="sw" style="color:#d77757">████</span></td><td>#d77757</td><td>coral</td><td>the fill past the tick when over pace, nothing else</td><td class="n">5.1 to 5.8</td></tr>
 <tr><td><span class="sw" style="color:#ffc107">████</span></td><td>#ffc107</td><td>warning</td><td>the ⚠ hit mark on a week, swap cells, the Mac warning dot</td><td class="n">9.8 to 11.2</td></tr>
@@ -97,11 +97,10 @@
 <p>The whole drawing vocabulary. Anything not in this table is not drawn. The quarter block mark of Claude Code (▗▖ ▘▘▝▝) is Claude's and is never drawn; the app has no mark.</p>
 <table class="glyphs">
 <tr><th>Glyph</th><th>Name</th><th>Meaning</th></tr>
-<tr><td class="gl">█</td><td>full block</td><td>one filled cell of a bar; also one cell of the menu bar bar</td></tr>
+<tr><td class="gl">█</td><td>full block</td><td>one filled cell of a bar</td></tr>
 <tr><td class="gl">▉ ▊ ▋ ▌ ▍ ▎ ▏</td><td>eighth blocks</td><td>the last cell of a fill, seven eighths down to one eighth</td></tr>
-<tr><td class="gl">▏</td><td>left eighth</td><td>on its own, in text colour, the pace tick: where the clock stands</td></tr>
-<tr><td class="gl">▓</td><td>dark shade</td><td>in the menu bar item only: a full cell past the tick when over pace, because the item is monochrome and cannot go coral</td></tr>
-<tr><td class="gl">░ ▒</td><td>light and medium shade</td><td>allowed (Claude Code's heatmap uses them); unused in the popover</td></tr>
+<tr><td class="gl">▐▌</td><td>right half and left half</td><td>together, in bold colour, the pace notch: where the clock stands, over two cells</td></tr>
+<tr><td class="gl">░ ▒ ▓</td><td>light, medium and dark shade</td><td>allowed (Claude Code's heatmap uses them); unused. ▓ was the over pace cell of the menu bar bar until 0.1.2, when the bar left the item</td></tr>
 <tr><td class="gl">▔</td><td>upper eighth</td><td>the rule under the header line, in accent, full width</td></tr>
 <tr><td class="gl">▁</td><td>lower eighth</td><td>allowed as a base line; unused</td></tr>
 <tr><td class="gl">⛁</td><td>used cell</td><td>a used cell of the memory grid, in accent</td></tr>
@@ -125,7 +124,7 @@
 <ul>
 <li>tint rgba(25,29,39,.82), blur 24 px behind it</li>
 <li>light mode (from 0.1.11): the panel follows the Mac's appearance. Under a light appearance the glass is the popover material with the tint rgba(250,250,252,.82), and every token is drawn as its light partner from one table in Tokens.swift (Tokens.light). The layout, the glyphs and the type do not change. Light partners: text #1d1d1f, bold #000000, dim #505055, quiet #525257, dimmer #6e6e73, accent #3b46b8, track #9ea4c8, coral #b9502e, warning #7a4e00, box #e4e4e8, row hover #d6e4f0, ink on the accent and on bold #ffffff; Fable #8e3fa3, Opus #8a6d00, Sonnet #00757a, Haiku #2e7d32, projects #2f5f86, sessions #1a6fb0, processes #3a3f45. Every text colour passes 4.5 to 1 over the light tint on white and on black; the hues, the coral fill and the free memory cells pass 3 to 1 (test everyLightTokenPassesAAOverBlackAndWhiteDesktops)</li>
-<li>popover 380 px wide at 1x, rendered at 2x; padding 12 px 10 px 10 px; radius 10 px</li>
+<li>popover 380 px wide at 1x, rendered at 2x; padding 12 px 10 px 10 px; radius 10 px; as tall as its lines, at most the screen's visible height less 60 pt and never under 200 pt (from 0.1.14). Past that the lines scroll inside the glass, always with the overlay scroller, which takes no width, shows while scrolling and hides when idle; no rubber band, no fade or arrow at the edge; every open and every tab click starts at the top</li>
 <li>shadow: a 1 px hairline at rgba(255,255,255,.1) as a ring, then 0 12px 32px rgba(0,0,0,.45)</li>
 <li>the arrow under the menu bar item: a 14 px square rotated 45 degrees, ground rgb(30,34,46), the same hairline on its two visible edges</li>
 <li>no border, no inner shadow, no gradient, no second surface inside the popover; rows and sections sit directly on the glass</li>
@@ -143,18 +142,17 @@
 <tr><td class="n">36</td><td>the window section in the popover</td><td>so " 61% used" sits on the same line inside 47 content cells</td></tr>
 <tr><td class="n">24</td><td>a table row (model, project, session, process)</td><td>name column 14, one space, bar 24, two spaces, figure 5</td></tr>
 <tr><td class="n">20</td><td>a week in week over week</td><td>date 6, two spaces, bar 20, the hit mark, the percent 4</td></tr>
-<tr><td class="n">5</td><td>the menu bar item</td><td>one glance; at 9 px it is 27 px wide</td></tr>
 </table>
 <h3>Fill</h3>
 <p>For N cells and a used percentage U: <code>f = U / 100 × N</code>, full cells <code>floor(f)</code>, then one eighth block for the remainder, <code>round((f - floor(f)) × 8)</code> eighths; eight eighths is a full block. So 61% of 36 cells is 21 full cells and ▊ (0.96 of a cell rounds to eight eighths, a full block: 22 cells). Nothing is drawn fractionally in pixels; the eighth block is the resolution.</p>
 <h3>The tick</h3>
-<p>The tick ▏ stands at the elapsed share E of the window: cell <code>min(N - 1, round(E / 100 × N))</code>. It is drawn in text colour #e0e0e0 over the bar, in its own layer, so it shows on fill and on track alike. It is the clock. Rows and Mac bars have no tick: they are shares of a total, not windows of time.</p>
+<p>The tick stands at the elapsed share E of the window: cell <code>t = max(1, min(N - 1, round(E / 100 × N)))</code>. It is a notch of two cells, ▐ on cell t - 1 and ▌ on cell t, so the two halves meet on the line between them; it is drawn in bold colour #ededed in place of those two cells, fill or track, and in dim when stale. It is the clock. Rows and Mac bars have no tick: they are shares of a total, not windows of time.</p>
 <h3>Colour by pace state</h3>
 <table class="nw">
 <tr><th>State</th><th>Fill</th><th>Past the tick</th><th>Percent</th><th>Tick</th></tr>
-<tr><td>Ahead</td><td>accent</td><td>nothing past it</td><td>text</td><td>text</td></tr>
-<tr><td>On pace</td><td>accent</td><td>accent (within 5 points)</td><td>text</td><td>text</td></tr>
-<tr><td>Over pace</td><td>accent up to the tick</td><td>coral #d77757 from the tick on</td><td>text</td><td>text</td></tr>
+<tr><td>Ahead</td><td>accent</td><td>nothing past it</td><td>text</td><td>bold</td></tr>
+<tr><td>On pace</td><td>accent</td><td>accent (within 5 points)</td><td>text</td><td>bold</td></tr>
+<tr><td>Over pace</td><td>accent up to the tick</td><td>coral #d77757 from the tick on</td><td>text</td><td>bold</td></tr>
 <tr><td>Stale</td><td>track #505370 on a track at 35% alpha</td><td>no coral, even if it was over</td><td>dim</td><td>dim</td></tr>
 </table>
 <p>Never red. Never a gradient. Never a second accent. The track is the only ground a bar has; row bars are "plain": no track, the hue on the glass.</p>
@@ -180,7 +178,7 @@
 <p class="use"><b>Do not</b> add a fourth tab, a title, a name or an icon; the popover has no title. Do not draw a second rule.</p>
 
 <h3>6.2  Block bar</h3>
-<p class="use">See section 5 for the grammar. <b>Use</b> the 36 cell bar for a window of time (it carries the tick), the 24 cell plain bar for a share of a total in a row, the 20 cell bar for a week, the 5 cell bar in the menu bar item. <b>Do not</b> draw a per model limit bar: the documented feed has no such figure. Do not draw a sparkline, a ring or a line chart.</p>
+<p class="use">See section 5 for the grammar. <b>Use</b> the 36 cell bar for a window of time (it carries the tick), the 24 cell plain bar for a share of a total in a row, the 20 cell bar for a week. The menu bar item has no bar since 0.1.2. <b>Do not</b> draw a per model limit bar: the documented feed has no such figure. Do not draw a sparkline, a ring or a line chart.</p>
 
 <h3>6.3  Window section</h3>
 <div class="spec"><div class="wrap">
@@ -249,8 +247,9 @@
 <div class="t"><div id="c-cb"></div><div class="cap">off  on  click to toggle</div></div>
 <div class="t pop"><div id="c-settings"></div><div class="cap">settings rows  the nudge row under the pointer</div></div>
 </div></div>
-<p class="use"><b>Use</b> the bracket checkbox, the TUI form, for every setting: "[ ]" off, "[x]" on, the label after it, an explanation on a second dim line indented under the label when needed. Rows highlight on hover like table rows. The privacy sentence stands as two dim lines. Quit is the last row with ⌘Q right aligned. "Open at login" is the first row; its box shows what macOS reports, never a stored copy, and while macOS waits for the user's OK the dim line under it says "click to allow it in Login Items".</p>
+<p class="use"><b>Use</b> the bracket checkbox, the TUI form, for every setting: "[ ]" off, "[x]" on, the label after it, an explanation on a second dim line indented under the label when needed. Rows highlight on hover like table rows. The privacy sentence stands as two dim lines, the version line "tokenpanda 0.1.14" dim under it. Quit is the last row with ⌘Q right aligned. "Open at login" is the first row; its box shows what macOS reports, never a stored copy, and while macOS waits for the user's OK the dim line under it says "click to allow it in Login Items".</p>
 <p class="use"><b>Do not</b> use the macOS switch (it is not text) or ● and ○ (● is taken by the Mac warning dot). Do not add settings beyond those in the spec without a decision. The status line entry row is an action, not a setting: "Install the status line entry" or "Remove the status line entry", one click each, with what it does on a dim second line.</p>
+<p class="use"><b>Link.</b> A note under a row that opens a setting elsewhere is a link: its text in the accent instead of dim, at the indent of the dim lines, a control of its own that the pointer, the arrows and Space reach, highlighted on hover like a row. It is said once, as a button, and is not also the checkbox's help. The one link so far is "Notifications are off in System Settings", under Nudge and, while it is on, under Reopen sessions; it opens System Settings, Notifications, at tokenpanda (from 0.1.14 in the accent; 0.1.12 and 0.1.13 drew it dim). <b>Do not</b> underline it, add an arrow or a glyph to it, or draw any other dim line in the accent.</p>
 
 <h3>6.11  Tooltip</h3>
 <div class="spec"><div class="wrap">
@@ -258,8 +257,8 @@
 <div class="t"><div id="c-tip2"></div><div class="cap">week</div></div>
 <div class="t"><div id="c-tip3"></div><div class="cap">time</div></div>
 </div></div>
-<p class="use"><b>Use</b> for one line of detail on hover or focus of a figure: the ground is the prompt box #373737, text colour default, one cell of padding each side, no radius, no arrow. It appears above the figure, right aligned to it, 150 ms fade.</p>
-<p class="use"><b>Do not</b> put more than one line in it, and never a figure that only lives in the tooltip and nowhere else when the user needs it.</p>
+<p class="use"><b>Use</b> for a line of detail on hover or focus of a figure: the ground is the prompt box #373737, text colour default, one cell of padding each side, no radius, no arrow. It appears above the figure, right aligned to it, at once in the app (this page fades it in); in a scrolled panel with no room above the line inside the visible part, it opens below the line. A tooltip longer than the panel breaks over lines at spaces, so nothing is cut (from 0.1.9).</p>
+<p class="use"><b>Do not</b> put a figure that only lives in the tooltip and nowhere else when the user needs it.</p>
 
 <h3>6.12  Menu bar item</h3>
 <div class="spec"><div class="wrap">
@@ -282,22 +281,22 @@
 <div class="t"><div id="c-nb1"></div><div class="cap">at 80%</div></div>
 <div class="t"><div id="c-nb2"></div><div class="cap">before the 5h end</div></div>
 </div></div>
-<p class="use"><b>Use</b> the macOS notification banner as the OS draws it, no icon (the app has no mark). Title and body in the terminal's words: "Weekly at 80%" with "2 days 4 h to the reset. At this pace the limit lands Saturday 09:00." and "5h window ends in 15 min" with "34% used." Once per window each, only when the setting is on.</p>
+<p class="use"><b>Use</b> the macOS notification banner as the OS draws it, no icon (the app has no mark). Title and body in the terminal's words: "Weekly at 80%", the percentage when it fires, with "2 days 4 h to the reset. At this pace the limit lands Sat 09:00." and "5h window ends in 15 min" with "34% used." Once per window each, only when the setting is on; on a plan without a 5h window the second never comes and the row reads "Nudge at 80%".</p>
 <p class="use"><b>Do not</b> nudge more than twice per window, do not add sound, do not put a percent without the clock time.</p>
 
 <h3>6.14  Open session</h3>
 <div class="spec"><div class="wrap">
 <div class="t pop"><div id="c-open"></div><div class="cap">two open sessions  the sample  hover a figure</div></div>
 </div></div>
-<p class="use"><b>Use</b> under the two windows, one entry per Claude Code session that has fed in the last 10 s. Line one: the project folder's name in bold, the model dim, the context figure "405.6k of 1M" dim at the right. Line two: the 36 cell bar of the context window with " 41% used". No tick: a context window is a share, not a time window. The figure's tooltip carries the list price equivalent and the lines added and removed. Largest context first, at most five.</p>
-<p class="use"><b>Do not</b> draw a breakdown of the context by category or per MCP tool; those figures are not in the feed. Do not keep a session on the list more than 60 s after its last feed. Omit the section when no session is open.</p>
+<p class="use"><b>Use</b> under the windows, one entry per Claude Code session that has fed in the last 10 s. Line one: the session's name in default text (set with -n or /rename; without one, the project folder's name), cut with … so the model fits, then the model dim. Line two: the 24 cell plain bar of the context window in the model family's hue, two spaces, the context figure "405.6k of 1M" and "41%". No tick: a context window is a share, not a time window. The figure's tooltip carries the list price equivalent, the lines added and removed and the effort. Before the first reply the bar line reads "waiting for the first reply", after a compact or a resume "compacted or resumed  next reply updates it". Largest context first, at most five, then "and N more".</p>
+<p class="use"><b>Do not</b> draw a breakdown of the context by category or per MCP tool; those figures are not in the feed. Do not keep a session on the list more than 60 s after its last feed. With no session open, keep the title and say "no open session".</p>
 
 <h3>6.15  The popover, assembled</h3>
 <p>The three tabs as the build draws them, with sample data.</p>
 <div class="stage" style="max-width:none"><div class="cols">
 <div id="c-pop0"></div><div id="c-pop1"></div><div id="c-pop2"></div>
 </div></div>
-<p class="use">Order on the Claude tab: header, blank, weekly section, blank, 5h section, blank, open sessions, blank, the token section title with its switch and rows and chips, blank, week over week, blank, the key hints in quiet. The Mac tab: CPU bar, GPU bar, memory grid, battery bar with its two dim lines, processes by CPU. Settings: Open at login, Mac figures in the bar, the nudges, the list price equivalent, Keep the Mac awake with its indented second row while it is on, Reopen sessions after a restart, then the status line entry row, the privacy sentence, Quit. The foot line names m p s on the Claude tab only, where those keys work.</p>
+<p class="use">Order on the Claude tab: header, blank, weekly section, blank, 5h section, blank, open sessions, blank, the token section title with its switch and rows and chips, blank, week over week, blank, the key hints in quiet. The Mac tab: CPU bar, GPU bar, memory grid, battery bar with its two dim lines, processes by CPU. Settings: Open at login, Mac figures in the bar, the nudges, the list price equivalent, Keep the Mac awake with its indented second row while it is on, Reopen sessions after a restart, then the status line entry row, the privacy sentence, the version line, Quit. A tab taller than the screen allows scrolls inside the glass (section 4). The foot line names m p s on the Claude tab only, where those keys work.</p>
 
 <h2 id="copy">7  Copy rules</h2>
 <ul>
@@ -307,7 +306,7 @@
 <li><b>Projection</b>: "limit Sun 01:20 at this rate" or "76% by reset at this rate". Times are rounded to five minutes.</li>
 <li><b>Allowance</b>: "0.5% an hour left". One decimal under 1%, whole numbers from 1% up.</li>
 <li><b>The percent</b>: " 61% used" after the bar, one space before. "used" is lower case.</li>
-<li><b>Updated line</b>: "Live from Claude Code" while a session feeds; "As of 13:05, last Claude Code session" between sessions; "Waiting for a Claude Code session" before the first feed. Stale sections say "as of 13:05" under the reset line, and the stale Claude tab adds "Limits are shared across Claude and Claude Code, so use elsewhere moves these figures."</li>
+<li><b>Updated line</b>: "Live from Claude Code" while a session feeds; "As of 13:05, last Claude Code session" between sessions; "Waiting for a Claude Code session" before the first feed. Stale sections say "as of 13:05" under the reset line, and the stale Claude tab adds "limits are shared with the Claude app and other Macs, so the real figure may be higher".</li>
 <li><b>Context figure</b>: "405.6k of 1M", k and M with one decimal, the window size without one.</li>
 <li><b>"list price equivalent"</b>, never "spent", never "cost you". The chip reads "[list price equivalent  USD 1,140]". The setting's second line: "tokens at list prices, not the plan price".</li>
 <li><b>Agent share</b>: "[44% by subagents]".</li>
@@ -319,17 +318,16 @@
 <li><b>The privacy sentence</b> in Settings, verbatim: "This app makes no network calls. Usage comes from Claude Code's own status feed on this Mac."</li>
 <li><b>Key hints</b> in the foot, quiet: "Esc closes  Tab switches  m p s sections" on the Claude tab, "Esc closes  Tab switches" on the others.</li>
 <li><b>Unknown window</b>: a feed key the app does not know prints "unknown window" in place of the pace lines; nothing is guessed.</li>
-<li><b>Names</b>: "Claude Code", "5h window", "weekly" are facts and may be used. The app's name, tokenpanda, is never drawn in the popover.</li>
+<li><b>Names</b>: "Claude Code", "5h window", "weekly" are facts and may be used. The app's name, tokenpanda, is drawn in the popover once, in the version line on Settings.</li>
 </ul>
 
 <h2 id="motion">8  Motion</h2>
-<p>Two moments, nothing else moves.</p>
+<p>One moment in the app, nothing else moves.</p>
 <ul>
-<li><b>The popover opens</b>: opacity 0 to 1 and scale .96 to 1 from the arrow, 150 ms, ease-out. Closing is the same in reverse.</li>
-<li><b>The bars fill</b> once to their value when a tab renders: a clip from the left, 240 ms, ease-out; the tick is already in place and the fill arrives under it.</li>
+<li><b>The popover opens</b> and closes with NSPopover's own animation from the arrow. The app draws no animation of its own.</li>
 </ul>
-<p>The tooltip fades in over 150 ms. The menu bar item never animates. Nothing bounces, nothing loops, nothing pulses.</p>
-<p><b>Reduced motion.</b> With "Reduce motion" on, every transition and animation is off and the finished state is shown at once. In CSS the animations live inside <code>@media (prefers-reduced-motion: no-preference)</code>; in Swift, read <code>NSWorkspace.shared.accessibilityDisplayShouldReduceMotion</code> and skip both moments.</p>
+<p>The bars appear at their value, the tooltip appears at once, the menu bar item never animates. Nothing bounces, nothing loops, nothing pulses. These pages add two moments the app does not have: the bars fill once from the left over 240 ms, and the tooltip fades in over 150 ms.</p>
+<p><b>Reduced motion.</b> The app reads <code>NSWorkspace.shared.accessibilityDisplayShouldReduceMotion</code> once at launch and, when it is on, turns the popover's animation off; a change takes effect at the next launch. In CSS the page's animations live inside <code>@media (prefers-reduced-motion: no-preference)</code>.</p>
 
 <h2 id="a11y">9  Accessibility</h2>
 <h3>Contrast, measured</h3>
@@ -338,20 +336,20 @@
 <tr><th>Colour</th><th class="n">Lowest</th><th class="n">Highest</th><th>Reads as</th><th>Carries</th></tr>
 <tr><td>#e0e0e0 text</td><td class="n">12.1</td><td class="n">13.8</td><td>AAA</td><td>every figure the user needs</td></tr>
 <tr><td>#b3b3b3 dim</td><td class="n">4.5</td><td class="n">8.7</td><td>AA everywhere</td><td>reset, pace lines, captions. Measured in 0.1.11 on the app's own render: 8.2 on the tint over the dark stage, and 4.50 on the tint over pure white (<code>--snapshot-stage white</code>, ground #43464e); the model gives 4.53. The smallest grey that passes there. Until 0.1.10 it was #999999, 3.3 to 1 over white</td></tr>
-<tr><td>#888888 dimmer</td><td class="n">4.5</td><td class="n">5.2</td><td>AA at the low end, barely</td><td>free cells only, a glyph with a legend</td></tr>
+<tr><td>#949494 dimmer</td><td class="n">3.1</td><td class="n">6.0</td><td>AA on the glass; 3 to 1 over white</td><td>free cells only, a glyph with a legend. Lifted in 0.1.14 from #888888, 4.5 to 5.2 on the glass and 2.7 over white, so the free cells pass the 3 to 1 for graphics over any desktop; still below dim, so they stay quieter than the dim lines</td></tr>
 <tr><td>#b8b8b8 quiet</td><td class="n">4.8</td><td class="n">8.7</td><td>AA everywhere</td><td>key hints only. Measured in 0.1.9 on the app's own render (debug <code>--snapshot</code>): 8.65 on the tint over the dark stage, and 4.76 on the tint over pure white (<code>--snapshot-stage white</code>), the brightest ground the glass can have, since the material under the tint only darkens what is behind it. Until 0.1.8 it was #505050, 2.1 to 1</td></tr>
-<tr><td>#b1b9f9 accent</td><td class="n">8.5</td><td class="n">9.7</td><td>AAA</td><td>fills, rule, selected tab ground</td></tr>
+<tr><td>#b1b9f9 accent</td><td class="n">8.5</td><td class="n">9.7</td><td>AAA</td><td>fills, rule, selected tab ground, the text of a link</td></tr>
 <tr><td>#d77757 coral</td><td class="n">5.1</td><td class="n">5.8</td><td>AA</td><td>fill past the tick; the status word repeats it in words</td></tr>
 <tr><td>#ffc107 warning</td><td class="n">9.8</td><td class="n">11.2</td><td>AAA</td><td>hit mark, swap, the dot</td></tr>
 </table>
-<p>Every colour drawn as text (text, bold, dim, quiet, accent, warning, white) passes 4.5 to 1 over a white desktop by this bound, and a test checks it. The hues and the coral are bar fills, never text, and pass the 3 to 1 for graphics: blue 3.0, green 3.5, coral 3.0. The free cells in dimmer, 2.7, carry a legend. That bound ignores the dark layer of the window material, so the real figures are higher; they could not be measured here, because macOS lets an app read the composited glass only with Screen Recording permission. Check them by eye on a white wallpaper.</p>
+<p>Every colour drawn as text (text, bold, dim, quiet, accent, warning, white) passes 4.5 to 1 over a white desktop by this bound, and a test checks it. The hues, the coral and the free cells in dimmer are graphics, never text, and pass the 3 to 1 for graphics, tested the same way: blue 3.0, green 3.5, coral 3.0, dimmer 3.1 (from 0.1.14; 2.7 before). That bound ignores the dark layer of the window material, so the real figures are higher; they could not be measured here, because macOS lets an app read the composited glass only with Screen Recording permission. Check them by eye on a white wallpaper.</p>
 <p>Rule: colour never carries a meaning alone. Over pace is coral and the word "Over pace". A hit week is ⚠ and "Thu 16:10". A Mac warning is the dot and the pressure word on the Mac tab.</p>
 
 <h3>VoiceOver labels per component</h3>
 <p>Bars are glyph runs, so each component sets one accessibility label that says the whole thing in words. The Swift build sets these on the row or section element, not on each glyph.</p>
 <table class="nw">
 <tr><th>Component</th><th>Role</th><th>Label</th></tr>
-<tr><td>Menu bar item</td><td>button, "Claude usage"</td><td>"Weekly 61% used, over pace, resets Sunday 18:00"; stale adds "as of 13:05"; Mac warning adds "Mac warning"; a window at its limit adds "weekly limit reached" or "5h limit reached"</td></tr>
+<tr><td>Menu bar item</td><td>button</td><td>"tokenpanda, " then the state: "tokenpanda, Weekly 61% used, over pace, resets Sunday 18:00"; stale adds "as of 13:05"; Mac warning adds "Mac warning"; a window at its limit adds "weekly limit reached" or "5h limit reached"; without figures "tokenpanda, Claude usage, no figures yet"</td></tr>
 <tr><td>Popover</td><td>dialog, "Usage"</td><td></td></tr>
 <tr><td>Tab strip</td><td>tab list; each tab a tab with selected state</td><td>"Claude", "Mac", "Mac, warning", "Settings"</td></tr>
 <tr><td>Window section</td><td>group</td><td>"Weekly, all models. 61% used. Resets Sunday 18:00, in 3 days 3 hours. Over pace, limit Sunday 01:20 at this rate. 0.5% an hour left."</td></tr>
@@ -361,8 +359,9 @@
 <tr><td>Week</td><td>row</td><td>"Week of 28 September, 100%, hit the limit Thursday 16:10"</td></tr>
 <tr><td>Open session</td><td>group; the figure focusable</td><td>"workspace, Fable 5.1, context 405.6 thousand of 1 million, 41% used"; the tooltip text is its help</td></tr>
 <tr><td>Memory grid</td><td>image with a description</td><td>"Memory 25.5 of 36 gigabytes, 71%, swap 0.9 gigabytes, pressure normal"; the cells are hidden from VoiceOver</td></tr>
-<tr><td>Checkbox</td><td>checkbox with checked state, press toggles</td><td>the row label; the dim lines under it are its help</td></tr>
+<tr><td>Checkbox</td><td>checkbox with checked state, press toggles</td><td>the row label; the dim lines under it are its help, a link under it excepted</td></tr>
 <tr><td>Button</td><td>button, press runs it</td><td>"Install the status line entry" (Claude tab and Settings), "Remove the status line entry", "Quit, command Q", the Login Items note</td></tr>
+<tr><td>Link</td><td>button, press opens the setting</td><td>"Notifications are off in System Settings, open System Settings", said once</td></tr>
 <tr><td>Tooltip</td><td>help text of the figure</td><td>the tooltip line</td></tr>
 <tr><td>Nudge</td><td>the OS notification</td><td>the title and body</td></tr>
 </table>
@@ -379,7 +378,7 @@
 </ul>
 <p>The manual test for VoiceOver and the keyboard, what to press and what should be heard, is on the <a href="testing.html">testing page</a>.</p>
 <h3>Text size</h3>
-<p>The popover stays SF Mono 12 in a 380 point panel. macOS has no Dynamic Type for AppKit: the SDK has no content size category to read (checked in the AppKit headers of the macOS SDK), and the Text size setting in System Settings, Accessibility, Display applies to the apps it lists. What enlarges the popover is the system's own scaling, which works because everything is laid out in points: Displays, a "Larger Text" resolution, and Zoom in Accessibility. A size setting of the app's own would change the cell grid the layout rests on (47 cells at 12 points), so it is left for when there is a need for it.</p>
+<p>The popover stays SF Mono 12 in a 380 point panel. macOS has no Dynamic Type for AppKit: the SDK has no content size category to read (checked in the AppKit headers of the macOS SDK), and the Text size setting in System Settings, Accessibility, Display applies to the apps it lists. What enlarges the popover is the system's own scaling, which works because everything is laid out in points: Displays, a "Larger Text" resolution, and Zoom in Accessibility. A size setting of the app's own would change the cell grid the layout rests on (47 cells at 12 points), so it is left for when there is a need for it. A Larger Text resolution makes the screen shorter in points; from 0.1.14 the panel then stops short of the screen's bottom and scrolls, so Quit and the key hints stay reachable.</p>
 
 <div class="foot">Overview  Style guide  Spec  Privacy</div>
 </main>
@@ -425,7 +424,7 @@ $('c-cb').innerHTML = L(' <button type="button" class="cb" role="checkbox" aria-
 $('c-settings').innerHTML = cbRow('Open at login', false) + cbRow('Mac figures in the bar', false) + cbRow('Nudge at 80% and before the 5h end', true, null, {hover:true}) + cbRow('List price equivalent', true, 'tokens at list prices, not the plan price') + cbRow('Keep the Mac awake while Claude works', false, 'a closed lid on battery still sleeps') + BL + R6.hookRow(true) + BL + L(' ' + sp('This app makes no network calls. Usage comes', 'd')) + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd')) + BL + L(' Quit' + rcol('⌘Q', R6.POP - 5));
 $('c-tip1').innerHTML = L(' <span class="tip show">1.02B tokens  49% of 7 days</span>'); $('c-tip2').innerHTML = L(' <span class="tip show">Week of 28 Sep  hit Thu 16:10</span>'); $('c-tip3').innerHTML = L(' <span class="tip show">14:19  last snapshot</span>');
 $('c-ion').innerHTML = L(strip(item(57, 55))); $('c-iahead').innerHTML = L(strip(item(24, 32))); $('c-iover').innerHTML = L(strip(item(61, 55, {over:true}))); $('c-iweekly').innerHTML = L(strip(item(100, 55, {over:true, eyes:'weekly'}))); $('c-ifive').innerHTML = L(strip(item(61, 55, {over:true, eyes:'five'}))); $('c-istale').innerHTML = L(strip(item(61, 55, {stale:true}))); $('c-iwarn').innerHTML = L(strip(item(61, 55, {warn:true}))); $('c-imac').innerHTML = L(strip(item(61, 55, {mac:true}))); $('c-ilight').innerHTML = L(strip(item(61, 55, {over:true, mac:true}), true));
-$('c-nb1').innerHTML = '<div class="nb" role="status"><span class="tx"><b>Weekly at 80%</b><p>2 days 4 h to the reset. At this pace the limit lands Saturday 09:00.</p></span><time>now</time></div>';
+$('c-nb1').innerHTML = '<div class="nb" role="status"><span class="tx"><b>Weekly at 80%</b><p>2 days 4 h to the reset. At this pace the limit lands Sat 09:00.</p></span><time>now</time></div>';
 $('c-nb2').innerHTML = '<div class="nb" role="status"><span class="tx"><b>5h window ends in 15 min</b><p>34% used.</p></span><time>now</time></div>';
 $('c-pop1').innerHTML = popover(1, {weekly:61, five:24});
 $('c-pop2').innerHTML = popover(2, {weekly:61, five:24});

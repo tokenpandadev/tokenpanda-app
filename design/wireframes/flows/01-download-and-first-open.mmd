@@ -2,15 +2,17 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
-  S1["1. The releases page offers tokenpanda-0.1.7.zip<br/>and tokenpanda-0.1.7.zip.sha256.<br/><i>works</i>"]:::works
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
+  S1["1. The releases page offers the zip of each<br/>version and its .sha256; the README says it<br/>runs on a Mac with Apple silicon (M1 or later)<br/>on macOS 14 or later.<br/><i>works</i>"]:::works
   S2["2. In Terminal, shasum -a 256 -c checks the zip<br/>and prints OK; unzip and move tokenpanda.app to<br/>Applications.<br/><i>works</i>"]:::works
-  S3["3. With Homebrew instead: brew install<br/>tokenpandadev/tap/tokenpanda, and the caveats<br/>say Open Anyway and Remove before uninstalling.<br/><i>works</i>"]:::works
-  S4["4. Double click in Applications: macOS refuses,<br/>'Apple could not verify tokenpanda is free of<br/>malware'.<br/><i>friction</i>"]:::friction
-  S5["5. System Settings, Privacy and Security, scroll<br/>to the bottom, Open Anyway.<br/><i>friction</i>"]:::friction
-  S6["6. The warning comes back once; Open Anyway starts<br/>the app.<br/><i>works</i>"]:::works
-  S7["7. The first thing the app shows is the<br/>notification permission prompt: nudges are on<br/>by default and the app asks at launch, before<br/>the user has seen it or knows what a nudge is.<br/><i>friction</i>"]:::friction
+  S3["3. With Homebrew instead: brew trust --cask, then<br/>brew install tokenpandadev/tap/tokenpanda; the<br/>cask declares Apple silicon only, so an Intel<br/>Mac is refused, and the caveats say Open Anyway<br/>and explain the zap.<br/><i>works</i>"]:::works
+  S4["4. Double click in Applications: macOS refuses the<br/>ad hoc build, 'Apple could not verify<br/>tokenpanda is free of malware'.<br/><i>friction</i>"]:::friction
+  S5["5. System Settings, Privacy and Security, scroll<br/>to the bottom, Open Anyway.<br/><i>by hand</i>"]:::byhand
+  S6["6. The warning comes back once; Open Anyway starts<br/>the app.<br/><i>by hand</i>"]:::byhand
+  S7["7. No notification prompt at launch: the app asks<br/>when the first nudge is due, or when Nudge or<br/>Reopen sessions is ticked.<br/><i>works</i>"]:::works
   S8["8. The menu bar shows the panda alone at half<br/>strength: no figures yet. No window, no Dock<br/>icon.<br/><i>works</i>"]:::works
-  S9["9. On macOS 26 and later the item stays hidden<br/>until it is allowed in System Settings, Menu<br/>Bar; a crowded menu bar behind the notch hides<br/>it too, and nothing else says the app runs.<br/><i>friction</i>"]:::friction
+  S9["9. If the icon is not on screen five seconds after<br/>the first launch, one window: 'tokenpanda is<br/>running'. From macOS 26 the icon 'may be<br/>switched off in System Settings, Menu Bar, or<br/>hidden behind the notch', with 'Open Menu Bar<br/>Settings' and 'OK'; before macOS 26 the menu<br/>bar is full and the icon is behind the notch,<br/>quitting another menu bar app makes room, with<br/>'OK' only. While the screen is locked, the<br/>session is switched away or the display sleeps,<br/>it waits and asks again. It shows once.<br/><i>works</i>"]:::works
+  S10["10. Switching the item on in System Settings, Menu<br/>Bar, is the user's click.<br/><i>by hand</i>"]:::byhand
   S1 --> S2
   S2 --> S3
   S3 --> S4
@@ -19,3 +21,4 @@ flowchart TD
   S6 --> S7
   S7 --> S8
   S8 --> S9
+  S9 --> S10

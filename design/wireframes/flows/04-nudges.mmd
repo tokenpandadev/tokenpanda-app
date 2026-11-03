@@ -2,14 +2,19 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
-  S1["1. Nudges are on by default; permission is asked<br/>at launch.<br/><i>friction</i>"]:::friction
-  S2["2. The weekly passes 80% while a session feeds:<br/>'Weekly at 80%' with the countdown and the<br/>landing time, once per weekly window.<br/><i>works</i>"]:::works
-  S3["3. 15 minutes before the 5h reset: '5h window ends<br/>in 15 min' with the percentage, once per<br/>window.<br/><i>works</i>"]:::works
-  S4["4. Ultra: the frozen 5h record can still pass that<br/>test once, and announce the end of a window the<br/>plan no longer has.<br/><i>broken</i>"]:::broken
-  S5["5. Notifications denied: the Nudge row says<br/>'Notifications are off for this app in System'<br/>and stops at the edge; it does not open System<br/>Settings.<br/><i>friction</i>"]:::friction
-  S6["6. No nudge comes from stale figures: an hour<br/>without a session and the nudges wait.<br/><i>works</i>"]:::works
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
+  S1["1. Permission is asked when the first nudge is due<br/>or Nudge is ticked, not at launch.<br/><i>works</i>"]:::works
+  S2["2. The weekly passes 80% while a session feeds:<br/>'Weekly at 80%' (the percentage when it fires)<br/>with the countdown and the landing time, once<br/>per weekly window.<br/><i>by hand</i>"]:::byhand
+  S3["3. 15 minutes before the 5h reset: '5h window ends<br/>in 15 min' with the percentage, once per<br/>window.<br/><i>by hand</i>"]:::byhand
+  S4["4. No 5h nudge from a window the plan no longer<br/>has.<br/><i>works</i>"]:::works
+  S5["5. Notifications denied: 'Notifications are off in<br/>System Settings' under Nudge, and under Reopen<br/>while it is on, in the accent, a link the<br/>keyboard and VoiceOver reach, said once.<br/><i>works</i>"]:::works
+  S6["6. The click opens System Settings, Notifications,<br/>at tokenpanda.<br/><i>by hand</i>"]:::byhand
+  S7["7. Notifications turned on in System Settings<br/>count at once: the note goes at the next open<br/>of the popover, and the next nudge is posted,<br/>no restart.<br/><i>works</i>"]:::works
+  S8["8. No nudge comes from stale figures: an hour<br/>without a session and the nudges wait.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3
   S3 --> S4
   S4 --> S5
   S5 --> S6
+  S6 --> S7
+  S7 --> S8

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.14, 2026-11-04
+
+- The token rows keep their figures after midnight. Since 0.1.0 they read "nothing in the last 7 days" from midnight until the next transcript change.
+- Turning notifications on in System Settings counts at once: the note goes away the next time you open the panel, and nudges are posted. Before, the app kept the old answer until it was restarted. The note "Notifications are off in System Settings" now looks like the link it is, and VoiceOver says it once.
+- The window that says tokenpanda is running when its icon is not visible fits your macOS: from macOS 26 it names both causes, switched off in System Settings, Menu Bar, or behind the notch on a full menu bar, with a button to the Menu Bar settings; on macOS 14 and 15, where an app's icon cannot be switched off there, it names the full menu bar and has no button. It waits while the screen is locked, another user is on the Mac or the display sleeps.
+- The panel is never taller than your screen: on a small or zoomed screen it stops at the screen's height and scrolls, starting at the top each time, and the keyboard focus scrolls into view. VoiceOver reads every line; the outline of a line outside the visible part shows only once it is scrolled into view.
+- Remove keeps a settings.json that is a link into a dotfiles folder as a link, also when Install had created the file it points at. Before, Remove deleted the link and left the status line entry in that file.
+- The free cells of the memory grid are a little lighter, so they stay visible over a white desktop.
+- tokenpanda runs on Macs with Apple silicon. Homebrew now says so and no longer installs it on an Intel Mac, where it could not start.
+- The privacy page says that the app reads Claude Code's own small session files to show each session's name, and lists every preference it keeps.
+
 ## 0.1.13, 2026-11-03
 
 - The status line script cleans up after itself: it deletes the session files that stopped changing over a minute ago, the same rule the app uses. Before, if the app went to the Bin without Remove, the script kept adding one file per session that nothing deleted. An entry installed by an earlier version gets the new script at the next launch, with your chained status line kept.

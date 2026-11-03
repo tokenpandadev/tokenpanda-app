@@ -2,11 +2,12 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
-  S1["1. Before the reset the countdown reads in hours<br/>and minutes.<br/><i>works</i>"]:::works
-  S2["2. The reset passes with no session open: the<br/>weekly reads 'Reset Sun 17:00 no session<br/>since', the item dims, the week row says 'last<br/>seen 91%'.<br/><i>works</i>"]:::works
-  S3["3. The reset passes while idle sessions feed:<br/>Claude Code drops the passed window, the app<br/>keeps it, and the weekly reads 'no session<br/>since' under 'Usage live' with sessions listed,<br/>until the next reply.<br/><i>friction</i>"]:::friction
-  S4["4. The next reply brings the new week: '1% used',<br/>'On pace', a new row in week over week.<br/><i>works</i>"]:::works
-  S5["5. Week over week keeps the last value seen per<br/>week; with several sessions that is whichever<br/>session wrote last, often an idle one with a<br/>lower figure.<br/><i>broken</i>"]:::broken
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
+  S1["1. Before the reset the countdown reads in days<br/>and hours, then hours and minutes.<br/><i>works</i>"]:::works
+  S2["2. The reset passes with no session: 'Reset Sun<br/>17:00 no session since', the item dims; the old<br/>week keeps its figure and the new week says 'no<br/>reply yet'.<br/><i>works</i>"]:::works
+  S3["3. The reset passes while idle sessions feed: 'new<br/>window on the next reply'.<br/><i>works</i>"]:::works
+  S4["4. The next reply brings the new week: a low<br/>figure, 'On pace' or 'Ahead', a new row in week<br/>over week.<br/><i>works</i>"]:::works
+  S5["5. Week over week keeps the highest value seen per<br/>week.<br/><i>works</i>"]:::works
   S6["6. At 100% the panda shows x x until the reset.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3

@@ -27,13 +27,13 @@
 </div></nav>
 
 <main class="main">
-<div class="head"><h1>Overview</h1><span class="d">  tokenpanda  documentation  14 October 2026</span></div>
+<div class="head"><h1>Overview</h1><span class="d">  tokenpanda  documentation  4 November 2026, at 0.1.14</span></div>
 <div class="head d">a macOS menu bar app for the Claude plan windows and the Mac, drawn in Claude Code's own grammar</div>
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
 
 <h2 id="what">1  What it is</h2>
-<p>A macOS menu bar app, open source, with no data collection. It answers one question: how much of your Claude plan is left, and are you ahead of or behind the clock. Mac stats are a second tab.</p>
-<p>The app is called tokenpanda. The name does not contain "Claude" or "Anthropic", and the popover carries no name at all. Inside the app, "Claude Code", "5h window" and "weekly" are facts and are used as such.</p>
+<p>A macOS menu bar app for Macs with Apple silicon on macOS 14 or later, open source, with no data collection. It answers one question: how much of your Claude plan is left, and are you ahead of or behind the clock. Mac stats are a second tab.</p>
+<p>The app is called tokenpanda. The name does not contain "Claude" or "Anthropic", and the popover carries it only once, in the version line on Settings. Inside the app, "Claude Code", "5h window" and "weekly" are facts and are used as such.</p>
 <p>The popover reads like the usage screen of Claude Code opened from the menu bar, drawn on a terminal's dark glass: SF Mono 12, one accent, bars made of block glyphs, aligned mono columns, no cards, no icons in squares.</p>
 
 <div class="stage"><div id="lv-pop"></div></div>
@@ -49,7 +49,7 @@
 
 <h2 id="rules">3  The rules it keeps</h2>
 <ul>
-<li><b>Documented status line feed only.</b> Plan percentages come from the JSON that Claude Code hands its status line script: <code>rate_limits.five_hour</code> and <code>rate_limits.seven_day</code>, each with <code>used_percentage</code> and <code>resets_at</code>. A small hook writes a snapshot file; the app reads it. Nothing else.</li>
+<li><b>Documented status line feed only.</b> Plan percentages come from the JSON that Claude Code hands its status line script: <code>rate_limits.five_hour</code> and <code>rate_limits.seven_day</code>, each with <code>used_percentage</code> and <code>resets_at</code>. A small hook writes one snapshot file per session; the app merges them, the highest figure at the latest reset. Nothing else. Session names come from Claude Code's own small session files, tokens from the local transcripts; the privacy page names every file.</li>
 <li><b>Zero network.</b> The app makes no network call of its own. No usage endpoint, no price fetch, no update check, no analytics, no crash reports.</li>
 <li><b>Nothing stored outside the Mac.</b> The snapshot, the settings and the computed figures stay on the machine. Nothing is uploaded, nothing is synced.</li>
 <li><b>No Keychain.</b> The app never reads the Claude Code credential item, never holds a token, never asks the user to sign in.</li>
@@ -63,6 +63,7 @@
 <li><a href="styleguide.html">Style guide</a>: tokens, type, glyphs, material, the bar grammar, every component live with its states and a usage rule, copy rules, motion, accessibility.</li>
 <li><a href="spec.html">Spec</a>: the product spec for the Swift build. Architecture, modules, the status line hook and snapshot schema, the transcript reader, prices, the pace model, the Mac sampler, notifications, settings, every screen in order, error states, packaging, licence, test plan.</li>
 <li><a href="privacy.html">Privacy</a>: the statement a user reads, every data path named.</li>
+<li><a href="testing.html">Testing</a>: the checks by hand before a release: VoiceOver, the keyboard, text size and contrast, the panel on a short screen, the hidden icon window.</li>
 </ul>
 <p class="d">Building, testing and releasing are in the README at the root of the repository. The changes per version are in CHANGELOG.md.</p>
 

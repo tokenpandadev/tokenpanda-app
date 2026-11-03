@@ -118,7 +118,7 @@ public enum Fixtures {
         settings.keepAwake = true; settings.awake = .working(2)   // the sample's two open sessions, both working
         settings.login = .on
         settings.restoreSessions = true
-        settings.version = "0.1.13"
+        settings.version = "0.1.14"
         // the first call: two sessions open, neither has replied, no rate_limits yet
         let waitingSnap = openSessions.map { var o = $0; o.snapshot.rateLimits = nil; o.snapshot.currentUsageTokens = nil; o.snapshot.totalCostUSD = 0; return o }
         let firstReply = input(feedState: FeedState(limits: nil, sessions: waitingSnap, lastWriteAt: now.addingTimeInterval(-2)))

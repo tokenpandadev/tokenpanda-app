@@ -2,14 +2,18 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
   S1["1. The item shows the panda and the weekly<br/>percentage; semibold when over pace.<br/><i>works</i>"]:::works
-  S2["2. Weekly: bar with the tick at the elapsed share,<br/>'Resets Sun 18:00 in 3d 3h', 'Over pace limit<br/>Sun 01:20 at this rate', '0.5% an hour left'.<br/>Coral past the tick only when over pace.<br/><i>works</i>"]:::works
+  S2["2. Weekly: bar with the notch at the elapsed<br/>share, the reset and countdown, the status and<br/>projection, the allowance. Coral past the notch<br/>only when over pace.<br/><i>works</i>"]:::works
   S3["3. 5h window, the same five lines, for plans that<br/>have it.<br/><i>works</i>"]:::works
-  S4["4. Open sessions: project, model, context bar and<br/>'405.6k of 1M 41%'; hovering the figure shows<br/>list price, lines added and removed, effort.<br/><i>friction</i>"]:::friction
+  S4["4. Open sessions by name (set with -n or /rename),<br/>by folder when unnamed, each with its model,<br/>its 24 cell context bar and '405.6k of 1M 41%';<br/>the figure's tooltip breaks over two lines<br/>inside the panel.<br/><i>works</i>"]:::works
   S5["5. Tokens by model, project or session with the<br/>price chip and the subagent share; click the<br/>switch or press m, p, s.<br/><i>works</i>"]:::works
-  S6["6. Week over week: four rows, the hit week marked<br/>with the time it hit.<br/><i>works</i>"]:::works
-  S7["7. With several sessions open the weekly figure<br/>jumps every few seconds between the values each<br/>session last saw: 28%, 12%, 28%, 18%, 11%<br/>within 30 s, in the bar, the item, the<br/>projection and the allowance.<br/><i>broken</i>"]:::broken
+  S6["6. Week over week: up to four rows, the current<br/>week 'so far', a hit week marked with the time<br/>it hit.<br/><i>works</i>"]:::works
+  S7["7. With several sessions open the weekly figure<br/>holds still: the highest figure at the latest<br/>reset, across every session file.<br/><i>works</i>"]:::works
   S8["8. Esc closes, Tab and Shift Tab switch tabs,<br/>Command Q quits.<br/><i>works</i>"]:::works
+  S9["9. The header says where the figures come from:<br/>'Live from Claude Code', 'As of 22:02, last<br/>Claude Code session', or 'Waiting for a Claude<br/>Code session'.<br/><i>works</i>"]:::works
+  S10["10. After midnight the token rows stay: the first<br/>pass of a new day sums every record, not only<br/>new ones.<br/><i>works</i>"]:::works
+  S11["11. On a short or scaled screen the panel stops 60<br/>points short of the screen's visible height and<br/>scrolls with an overlay scroller and no rubber<br/>band, from the top on every open and tab click;<br/>the keyboard focus scrolls into view, and a<br/>tooltip with no room above opens below its<br/>line.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3
   S3 --> S4
@@ -17,3 +21,6 @@ flowchart TD
   S5 --> S6
   S6 --> S7
   S7 --> S8
+  S8 --> S9
+  S9 --> S10
+  S10 --> S11

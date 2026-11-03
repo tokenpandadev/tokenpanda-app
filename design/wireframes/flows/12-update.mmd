@@ -2,10 +2,11 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
   S1["1. The app never checks for updates (no network);<br/>a new version is found on the releases page or<br/>with brew outdated.<br/><i>friction</i>"]:::friction
-  S2["2. brew upgrade --cask tokenpanda quits and<br/>replaces the app.<br/><i>works</i>"]:::works
-  S3["3. A new ad hoc build can bring back the Open<br/>Anyway steps, and the app has no version line<br/>to confirm what runs.<br/><i>friction</i>"]:::friction
-  S4["4. Settings, the hook, limits.json and weeks.json<br/>survive the update; Open at login keeps<br/>working.<br/><i>works</i>"]:::works
+  S2["2. brew upgrade --cask tokenpanda quits and<br/>replaces the app.<br/><i>by hand</i>"]:::byhand
+  S3["3. A new ad hoc build can bring back the Open<br/>Anyway steps; the version line in Settings<br/>confirms what runs.<br/><i>by hand</i>"]:::byhand
+  S4["4. Settings, the entry and the records survive the<br/>update, and the installed script is brought up<br/>to date at launch.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3
   S3 --> S4

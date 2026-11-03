@@ -24,12 +24,13 @@
 <div class="l d"><a href="#keyboard">2  Keyboard only</a></div>
 <div class="l d"><a href="#voiceover">3  VoiceOver</a></div>
 <div class="l d"><a href="#size">4  Text size and contrast</a></div>
-<div class="l d"><a href="#auto">5  What the tests cover</a></div>
+<div class="l d"><a href="#panel">5  Panel height and the hidden icon</a></div>
+<div class="l d"><a href="#auto">6  What the tests cover</a></div>
 </div></nav>
 
 <main class="main">
-<div class="head"><h1>Testing</h1><span class="d">  tokenpanda  VoiceOver and the keyboard, by hand  31 October 2026</span></div>
-<div class="head d">what to press and what should be heard; about ten minutes</div>
+<div class="head"><h1>Testing</h1><span class="d">  tokenpanda  VoiceOver, the keyboard and the panel, by hand  4 November 2026, at 0.1.14</span></div>
+<div class="head d">what to press and what should be heard or seen; about twenty minutes</div>
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
 
 <h2 id="before">1  Before you start</h2>
@@ -81,8 +82,32 @@
 <li>Put a white wallpaper behind the menu bar and open the popover. The key hints at the foot must read clearly; the reset and pace lines (dim) should too. Their ratios on the app's own render are in the style guide, section 9.</li>
 </ul>
 
-<h2 id="auto">5  What the tests cover</h2>
-<p><code>swift test</code> checks, without VoiceOver: the role, state, label and help of every control; that a press runs the same action as a click; the order the arrows move the focus in; that the focus and the VoiceOver elements survive a render; that no line of any sample screen runs past the panel; that a long tooltip breaks over lines; and that the key hints keep 4.5 to 1 over a white desktop. What it cannot check is what VoiceOver says out loud. That is this page.</p>
+<h2 id="panel">5  Panel height and the hidden icon</h2>
+<h3>The panel on a short screen</h3>
+<ol>
+<li>In System Settings, Displays, pick the "Larger Text" end of the resolutions, or use a screen under 800 points tall. Open the popover on the Mac tab, then on Settings with Keep the Mac awake ticked; those are the tallest tabs.</li>
+<li>The panel ends a little above the bottom of the screen, with room for the arrow under the menu bar; it never runs off the screen. It is never shorter than 200 points.</li>
+<li>Scroll with two fingers or the mouse wheel: the lines move inside the glass, header and tab strip included, and a thin scroller shows at the right while you scroll and hides again. Quit and the key hints at the foot can be scrolled to.</li>
+<li>Press Down until the ring passes the bottom edge: the panel scrolls so the focused control stays in view with a line of room around it. Up scrolls back the same way.</li>
+<li>Scroll to an end and push on: the lines stop, no rubber band. The scroller lies over the lines and takes no width, also with "Show scroll bars: Always" in System Settings, Appearance.</li>
+<li>Click another tab, or close and open the popover: it starts at the top. Each tab is only as tall as its lines, up to the same limit. On a full size screen nothing scrolls and no scroller shows.</li>
+<li>Scroll so a figure sits on the first visible line and focus or hover it: its tooltip opens below the line, inside the panel.</li>
+<li>Known limit: with VoiceOver on, VO Right reads every line, also those scrolled out of view, but before macOS 26 VoiceOver cannot ask the app to scroll, so its outline is not drawn for a line outside the visible part. The keyboard ring does scroll into view. Note it only if a line is silent.</li>
+</ol>
+<h3>The hidden icon window</h3>
+<p>It runs once, a few seconds after the first launch of the app bundle, and marks itself done in the preferences. To see it again, quit the app and run <code>defaults delete dev.tokenpanda.app hiddenItemHintShown</code>.</p>
+<ol>
+<li>On macOS 26 and later: quit the app, delete the key as above, and in System Settings, Menu Bar, switch tokenpanda off. Open the app.</li>
+<li>About five seconds later one window: "tokenpanda is running", "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, or hidden behind the notch when the menu bar is full.", with "Open Menu Bar Settings" and "OK".</li>
+<li>"Open Menu Bar Settings" opens System Settings at Menu Bar. Switch tokenpanda on: the panda appears.</li>
+<li>Before macOS 26, on a Mac with a notch: fill the menu bar with other apps until the panda is behind the notch, delete the key, open the app. The window says "Its icon is not visible in the menu bar, most likely because the menu bar is full and the icon is hidden behind the notch. Quitting another menu bar app makes room for it.", with "OK" only and no pane named.</li>
+<li>Quit and open the app again: no window. It shows once.</li>
+<li>Lock the screen: delete the key, open the app and press Control Command Q within five seconds. Unlock after a minute. The window comes only after the unlock, within about 30 seconds, never on the lock screen. The same holds for a sleeping display and for another user switched in with Fast User Switching.</li>
+<li>With the item visible, delete the key and open the app: no window. <code>log show --info --last 5m --predicate 'subsystem == "dev.tokenpanda.app"'</code> has "status item visible, no menu bar hint needed".</li>
+</ol>
+
+<h2 id="auto">6  What the tests cover</h2>
+<p><code>swift test</code> checks, without VoiceOver: the role, state, label and help of every control; that a press runs the same action as a click; the order the arrows move the focus in; that the focus and the VoiceOver elements survive a render; that no line of any sample screen runs past the panel; that a long tooltip breaks over lines; that the key hints keep 4.5 to 1 and the free memory cells 3 to 1 over a white desktop; that the panel height is capped at the screen's visible height less 60 points and never under 200; that the hidden icon window offers the Menu Bar switch only from macOS 26; and that the notification permission follows what System Settings says now. What it cannot check is what VoiceOver says out loud, how the panel scrolls on a real screen, and whether the hidden icon window comes. That is this page.</p>
 
 <div class="foot">Overview  Style guide  Spec  Privacy</div>
 </main>

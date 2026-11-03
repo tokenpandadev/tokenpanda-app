@@ -35,6 +35,8 @@ The three tabs: Claude, Mac and Settings.
 
 ## Install
 
+It runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later.
+
 Download `tokenpanda-<version>.zip` and `tokenpanda-<version>.zip.sha256` from the [releases page](https://github.com/tokenpandadev/tokenpanda-app/releases), then check the zip in the folder you saved both to:
 
 ```sh
@@ -85,7 +87,7 @@ Nothing leaves your Mac. In five rules:
 4. It touches `~/.claude/settings.json` (and each other settings folder's) only when you click, and only its `statusLine` key. "Remove the status line entry" in Settings puts your previous entry back exactly.
 5. Check it. The source is public; search it for URLSession. Run nettop on the app for an hour: zero connections.
 
-With keep awake on, the app holds a power assertion only while a session is working, or with the second switch while a session is open, and `pmset -g assertions` shows it. With Open at login on, macOS lists the app in System Settings, General, Login Items; the app keeps no setting of its own for it. With Reopen sessions on, the app keeps a small list of the open sessions (id, folder, transcript path) in Application Support, and starts Terminal only when you click Reopen.
+With keep awake on, the app holds a power assertion only while a session is working, or with the second switch while a session is open, and `pmset -g assertions` shows it. With Open at login on, macOS lists the app in System Settings, General, Login Items; the app keeps no setting of its own for it. To show each open session by its name, the app reads Claude Code's own small session files (`~/.claude/sessions/<process id>.json`, and the same in each other settings folder: session id, folder, name). With Reopen sessions on, the app keeps a small list of the open sessions (id, folder, transcript path) in Application Support, and starts Terminal only when you click Reopen.
 
 The [privacy page](docs/privacy.html) names every file it reads and writes. Anthropic documents the status line feed as input for any script you configure. It has written nothing either way about a local tool reading the transcripts on your own Mac. That is silence, not permission, and I would rather say so than claim more.
 
@@ -96,7 +98,7 @@ You need a Mac on macOS 14 or later with the Command Line Tools or Xcode. Swift 
 ```sh
 swift build
 swift test -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
-scripts/build-app.sh 0.1.13
+scripts/build-app.sh 0.1.14
 open build/tokenpanda.app
 ```
 

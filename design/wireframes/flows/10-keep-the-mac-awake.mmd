@@ -2,8 +2,9 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
   S1["1. Keep the Mac awake while Claude works: while a<br/>session's figures move, 'awake 1 session<br/>working' and one power assertion.<br/><i>works</i>"]:::works
   S2["2. Also while a session waits for you: idle<br/>sessions count too, 'awake 1 session open'.<br/><i>works</i>"]:::works
-  S3["3. A closed lid on battery still sleeps the Mac;<br/>the README says so, the row does not.<br/><i>friction</i>"]:::friction
+  S3["3. The row says 'a closed lid on battery still<br/>sleeps'.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3

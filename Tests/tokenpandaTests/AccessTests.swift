@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 tokenpanda
 // SPDX-License-Identifier: MIT
 import Testing
+import UserNotifications
 import Foundation
 import AppKit
 import Text
@@ -252,11 +253,43 @@ struct AccessTests {
         let links = Controls.extract(lines).filter { $0.action == .openNotificationSettings }
         #expect(links.count == 2)
         #expect(links.allSatisfy { $0.kind == .button && $0.label == "Notifications are off in System Settings, open System Settings" })
+        // said once: as the link, not again as the help of Nudge or Reopen; drawn in the accent like a link
+        let boxes = Controls.extract(lines).filter { $0.kind == .checkbox }
+        #expect(!boxes.contains { ($0.help ?? "").contains("Notifications are off") })
+        #expect(lines.flatMap(\.pieces).filter { $0.action == .openNotificationSettings }.allSatisfy { $0.style == .accent })
         // any other note stays help text, not a control
         let quiet = Grammar.settingsTab(SettingsTab(macInBar: false, nudges: true, listPrice: true, nudgeNote: "Notifications need the app bundle"))
         #expect(!Controls.extract(quiet).contains { $0.action == .openNotificationSettings })
         #expect(plain.contains("     one entry in ~/.claude/settings.json"))
         #expect(plain.contains("     a closed lid on battery still sleeps"))
+    }
+
+    @Test func thePanelIsNeverTallerThanTheScreen() {
+        #expect(PanelSize.height(content: 600, visible: 1000) == 600)       // fits: as tall as the lines
+        #expect(PanelSize.height(content: 700, visible: 600) == 540)        // a small screen: capped, it scrolls
+        #expect(PanelSize.height(content: 700, visible: 150) == 200)        // never under the minimum
+        #expect(PanelSize.height(content: 150, visible: 150) == 150)        // short lines stay short
+        #expect(PanelSize.height(content: 700, visible: nil) == 700)        // no screen known: the lines
+    }
+
+    @Test func theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne() {
+        // macOS 26: the Menu Bar pane switches an app's icon off and on; the button opens it
+        let now = Grammar.hiddenIconHint(switchInSettings: true)
+        #expect(now.text.contains("System Settings, Menu Bar"))
+        #expect(now.text.contains("notch"))
+        #expect(now.button == "Open Menu Bar Settings")
+        // macOS 14 and 15: Control Center switches only Apple's items, so no pane is named and no button offered
+        let old = Grammar.hiddenIconHint(switchInSettings: false)
+        #expect(!old.text.contains("System Settings"))
+        #expect(old.text.contains("notch"))
+        #expect(old.button == nil)
+    }
+
+    @Test func notificationPermissionFollowsWhatSystemSettingsSaysNow() {
+        #expect(NotificationPermission.from(.authorized) == .allowed)
+        #expect(NotificationPermission.from(.provisional) == .allowed)
+        #expect(NotificationPermission.from(.denied) == .denied)
+        #expect(NotificationPermission.from(.notDetermined) == .undecided)   // never asked, or reset: asked again
     }
 
     @Test func thePrivacySentenceIsOneElement() throws {
@@ -273,7 +306,7 @@ struct AccessTests {
 
     @Test func versionLineInSettings() throws {
         let plain = Grammar.popover(try screen("settings")).map(\.plain)
-        #expect(plain.contains(" tokenpanda 0.1.13"))
+        #expect(plain.contains(" tokenpanda 0.1.14"))
         var i = Fixtures.input(tab: 2); i.version = nil
         #expect(!Grammar.popover(ScreenBuilder.screen(i)).map(\.plain).contains { $0.contains("tokenpanda 0") })
     }
@@ -334,9 +367,12 @@ struct AccessTests {
             #expect(ratio(c, bright) >= 4.5, "\(name) over white")
         }
         // the hues and the coral fill bars only, never text: 3 to 1 for graphics (WCAG 1.4.11)
-        for c in [Tokens.magenta, Tokens.yellow, Tokens.cyan, Tokens.green, Tokens.blue, Tokens.blue2, Tokens.procWhite, Tokens.coral] {
+        // and the free memory cells (audit R-2, 0.1.14)
+        for c in [Tokens.magenta, Tokens.yellow, Tokens.cyan, Tokens.green, Tokens.blue, Tokens.blue2, Tokens.procWhite, Tokens.coral, Tokens.dimmer] {
             #expect(ratio(c, bright) >= 3)
         }
+        // the free cells stay quieter than the dim lines
+        #expect(lum(Tokens.dimmer) < lum(Tokens.dim))
         // the dim lines stay below the default text, so the figures lead
         #expect(lum(Tokens.dim) < lum(Tokens.text))
     }
@@ -577,6 +613,28 @@ struct AccessTests {
         _ = try set.install()
         try set.uninstall(previousCommand: { _ in nil }, previousRefresh: { _ in nil })
         #expect(!fm.fileExists(atPath: script.path))
+    }
+
+    @Test func aDanglingLinkStaysALinkAfterRemoveInTheAppAndInTheScript() throws {
+        // settings.json is a link into a dotfiles folder whose file does not exist yet: Install writes that file;
+        // Remove (the app's and remove.sh) deletes it again and keeps the link, as the user had it (audit F-5, 04.11)
+        let fm = FileManager.default
+        for viaScript in [false, true] {
+            let home = try tempDir(), data = try tempDir().appendingPathComponent("Application Support/dev.tokenpanda.app")
+            let claude = home.appendingPathComponent(".claude"), dots = home.appendingPathComponent("dotfiles")
+            for d in [claude, dots] { try fm.createDirectory(at: d, withIntermediateDirectories: true) }
+            let link = claude.appendingPathComponent("settings.json"), target = dots.appendingPathComponent("claude.json")
+            try fm.createSymbolicLink(atPath: link.path, withDestinationPath: target.path)
+            let set = HookSet(folders: [claude], dataDir: data, home: home)
+            _ = try set.install()
+            #expect(fm.fileExists(atPath: target.path))
+            if viaScript { #expect(try runSh(try #require(set.removeScriptPath)) == 0) }
+            else { try set.uninstall(previousCommand: { _ in nil }, previousRefresh: { _ in nil }) }
+            #expect(!fm.fileExists(atPath: target.path), viaScript ? "script" : "app")
+            let type = try fm.attributesOfItem(atPath: link.path)[.type] as? FileAttributeType
+            #expect(type == .typeSymbolicLink, viaScript ? "script" : "app")
+            #expect(try fm.destinationOfSymbolicLink(atPath: link.path) == target.path)
+        }
     }
 
     // MARK: 0.1.9 check: what VoiceOver reads instead of glyph names

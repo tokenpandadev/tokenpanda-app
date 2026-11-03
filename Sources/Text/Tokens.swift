@@ -15,7 +15,7 @@ public enum Tokens {
     public static let text = RGBA(hex: 0xe0e0e0)      // default text, the percent, figures
     public static let bold = RGBA(hex: 0xededed)      // section titles, the status word, the notch mark
     public static let dim = RGBA(hex: 0xb3b3b3)       // reset line, pace lines, captions, header line, chips: 4.5 to 1 or more even over a white desktop
-    public static let dimmer = RGBA(hex: 0x888888)    // free cells in the memory grid
+    public static let dimmer = RGBA(hex: 0x949494)    // free cells in the memory grid: 3 to 1 even over white (0.1.14, was 888888)
     public static let quiet = RGBA(hex: 0xb8b8b8)     // key hints in the foot: 4.5 to 1 or more even over a white desktop
     public static let accent = RGBA(hex: 0xb1b9f9)    // used fill, selected tab, the rule
     public static let track = RGBA(hex: 0x505370)     // the bar behind the fill; the fill when stale
@@ -62,7 +62,7 @@ extension Tokens {
         0xe0e0e0: 0x1d1d1f, // text
         0xededed: 0x000000, // bold
         0xb3b3b3: 0x505055, // dim
-        0x888888: 0x6e6e73, // dimmer
+        0x949494: 0x6e6e73, // dimmer
         0xb8b8b8: 0x525257, // quiet
         0xb1b9f9: 0x3b46b8, // accent
         0x505370: 0x9ea4c8, // track, track when stale: shows over a white and a black desktop, the fill stays 3 to 1 from it

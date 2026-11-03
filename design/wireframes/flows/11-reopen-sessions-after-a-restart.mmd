@@ -2,12 +2,17 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
-  S1["1. Turn on Reopen sessions after a restart: the<br/>app keeps the open sessions in restore.json,<br/>readable only by you.<br/><i>works</i>"]:::works
-  S2["2. After a restart, one notification: '3 Claude<br/>Code sessions were open before the restart',<br/>with Reopen.<br/><i>works</i>"]:::works
-  S3["3. Reopen opens each session in Terminal with<br/>claude --resume, and --remote-control where it<br/>had it.<br/><i>works</i>"]:::works
-  S4["4. With notifications off the offer never comes<br/>and the Reopen row does not say why.<br/><i>friction</i>"]:::friction
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
+  S1["1. Turn on Reopen sessions after a restart: the<br/>app keeps the open sessions with their names<br/>and start options in restore.json, readable<br/>only by you.<br/><i>works</i>"]:::works
+  S2["2. After a restart, one notification names the<br/>sessions that were open, with Reopen.<br/><i>by hand</i>"]:::byhand
+  S3["3. Reopen opens each session in Terminal as it was<br/>started, with --remote-control where it had it,<br/>and the fallbacks.<br/><i>by hand</i>"]:::byhand
+  S4["4. With notifications off the Reopen row says so,<br/>as the same link as under Nudge; turned on<br/>again, the offer and the end notices come<br/>without a restart.<br/><i>works</i>"]:::works
   S5["5. Turning it off deletes restore.json.<br/><i>works</i>"]:::works
+  S6["6. A print run is never reopened; a start prompt<br/>is not sent again.<br/><i>works</i>"]:::works
+  S7["7. The end notice also comes after a deliberate<br/>/exit in a window you keep.<br/><i>friction</i>"]:::friction
   S1 --> S2
   S2 --> S3
   S3 --> S4
   S4 --> S5
+  S5 --> S6
+  S6 --> S7

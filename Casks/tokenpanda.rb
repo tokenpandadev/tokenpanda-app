@@ -12,6 +12,7 @@ cask "tokenpanda" do
   desc "Menu bar pace for Claude Code plan windows, and the Mac's own figures"
   homepage "https://tokenpanda.dev"
 
+  depends_on arch: :arm64
   depends_on macos: :sonoma
 
   app "tokenpanda.app"

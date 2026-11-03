@@ -2,10 +2,15 @@ flowchart TD
   classDef works fill:#1d2029,stroke:#555b68,color:#eceef1;
   classDef friction fill:#262a34,stroke:#eceef1,stroke-width:2px,color:#eceef1;
   classDef broken fill:#1d2029,stroke:#d77757,stroke-width:2px,color:#d77757;
+  classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
   S1["1. Click Mac or press Tab: CPU, GPU, the memory<br/>grid with pressure and swap, battery, the<br/>busiest processes.<br/><i>works</i>"]:::works
-  S2["2. Under memory pressure or a process over 80% CPU<br/>for a minute, the Mac tab gets a dot and the<br/>item a warning sign.<br/><i>works</i>"]:::works
-  S3["3. Battery health unknown: 'health n/a', never a<br/>dash.<br/><i>works</i>"]:::works
-  S4["4. Mac figures in the bar appends ' CPU 9%' to the<br/>item.<br/><i>works</i>"]:::works
+  S2["2. The free cells of the memory grid are #949494,<br/>3 to 1 even over a white desktop.<br/><i>works</i>"]:::works
+  S3["3. Under memory pressure or a process over 80% CPU<br/>for a minute, the Mac tab gets a dot and the<br/>item a warning sign.<br/><i>works</i>"]:::works
+  S4["4. Battery health unknown: 'health n/a', never a<br/>dash.<br/><i>works</i>"]:::works
+  S5["5. Mac figures in the bar appends ' CPU 9%' to the<br/>item.<br/><i>works</i>"]:::works
+  S6["6. Claude Code's processes show as 'Claude Code'.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3
   S3 --> S4
+  S4 --> S5
+  S5 --> S6
