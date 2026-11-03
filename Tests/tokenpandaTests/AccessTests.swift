@@ -322,6 +322,40 @@ struct AccessTests {
         #expect(lum(Tokens.dim) < lum(Tokens.text))
     }
 
+    // MARK: light mode (0.1.11)
+
+    @Test func everyLightTokenPassesAAOverBlackAndWhiteDesktops() {
+        // the light tint over white, and over black: the darkest ground the light glass can have
+        let bright = over(Tokens.tintLight, Tokens.white), darkest = over(Tokens.tintLight, RGBA(hex: 0x000000))
+        let text: [(String, RGBA)] = [("text", Tokens.text), ("bold", Tokens.bold), ("dim", Tokens.dim), ("quiet", Tokens.quiet),
+                                      ("accent", Tokens.accent), ("warning", Tokens.warning)]
+        for (name, c) in text {
+            #expect(ratio(Tokens.light(c), bright) >= 4.5, "\(name) light over white")
+            #expect(ratio(Tokens.light(c), darkest) >= 4.5, "\(name) light over black")
+        }
+        // ink on the selected tab and on the selected sub tab
+        #expect(ratio(Tokens.light(Tokens.inkOnAccent), Tokens.light(Tokens.accent)) >= 4.5)
+        #expect(ratio(Tokens.light(Tokens.inkOnBold), Tokens.light(Tokens.bold)) >= 4.5)
+        // the hues, the coral fill and the free memory cells are graphics: 3 to 1 (WCAG 1.4.11)
+        for c in [Tokens.magenta, Tokens.yellow, Tokens.cyan, Tokens.green, Tokens.blue, Tokens.blue2, Tokens.procWhite, Tokens.coral, Tokens.dimmer] {
+            #expect(ratio(Tokens.light(c), bright) >= 3)
+            #expect(ratio(Tokens.light(c), darkest) >= 3)
+        }
+        // the same order as dark: figures lead, the dim lines sit below them
+        #expect(lum(Tokens.light(Tokens.dim)) > lum(Tokens.light(Tokens.text)))
+        // the tooltip text reads on its box
+        #expect(ratio(Tokens.light(Tokens.text), Tokens.light(Tokens.box)) >= 4.5)
+    }
+
+    @Test func everyTokenHasALightPartner() {
+        let all = [Tokens.text, Tokens.bold, Tokens.dim, Tokens.dimmer, Tokens.quiet, Tokens.accent, Tokens.track, Tokens.trackStale,
+                   Tokens.coral, Tokens.warning, Tokens.box, Tokens.selection, Tokens.inkOnAccent, Tokens.inkOnBold, Tokens.white,
+                   Tokens.tint, Tokens.stage, Tokens.magenta, Tokens.yellow, Tokens.cyan, Tokens.green, Tokens.blue, Tokens.blue2, Tokens.procWhite]
+        for c in all { #expect(Tokens.light(c) != c) }
+        // alpha survives the swap: the stale track stays faint
+        #expect(Tokens.light(Tokens.trackStale).a == Tokens.trackStale.a)
+    }
+
     // MARK: several settings folders, the script check, the zap safe remove
 
     @Test func configFoldersFindsTheUsualPlacesAndTheEnvironment() throws {

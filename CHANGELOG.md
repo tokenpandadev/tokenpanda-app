@@ -2,6 +2,7 @@
 
 ## 0.1.11, unreleased
 
+- Light mode: the panel follows your Mac. With a light appearance it turns light, with the same layout and the same frosted glass, and it switches as soon as you change the setting. Every text colour stays readable over a white or a black desktop.
 - The Mac tab names Claude Code "Claude Code" in the process list. Claude Code's native install runs a file named after its version, so the list showed "2.1.317".
 - Install and Remove keep a settings.json that is a link (into a dotfiles folder, for one) as a link and write the file it points at, with its permissions. Before, the link was replaced by a plain copy that others on the Mac could read, and Remove wrote into that copy. A settings.json the app creates is readable by you only.
 - Dim text (reset lines, pace lines, captions, the header line) is a little lighter, so it stays readable over a bright desktop: at least 4.5 to 1 even over white.

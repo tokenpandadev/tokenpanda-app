@@ -124,6 +124,7 @@
 <p>The popover is the terminal's glass: a dark tint over the blurred desktop. On macOS that is an NSVisualEffectView; in these pages it is a painted wallpaper behind a tint. Recipe:</p>
 <ul>
 <li>tint rgba(25,29,39,.82), blur 24 px behind it</li>
+<li>light mode (from 0.1.11): the panel follows the Mac's appearance. Under a light appearance the glass is the popover material with the tint rgba(250,250,252,.82), and every token is drawn as its light partner from one table in Tokens.swift (Tokens.light). The layout, the glyphs and the type do not change. Light partners: text #1d1d1f, bold #000000, dim #505055, quiet #525257, dimmer #6e6e73, accent #3b46b8, track #c5c9e0, coral #b9502e, warning #7a4e00, box #e4e4e8, row hover #d6e4f0, ink on the accent and on bold #ffffff; Fable #8e3fa3, Opus #8a6d00, Sonnet #00757a, Haiku #2e7d32, projects #2f5f86, sessions #1a6fb0, processes #3a3f45. Every text colour passes 4.5 to 1 over the light tint on white and on black; the hues, the coral fill and the free memory cells pass 3 to 1 (test everyLightTokenPassesAAOverBlackAndWhiteDesktops)</li>
 <li>popover 380 px wide at 1x, rendered at 2x; padding 12 px 10 px 10 px; radius 10 px</li>
 <li>shadow: a 1 px hairline at rgba(255,255,255,.1) as a ring, then 0 12px 32px rgba(0,0,0,.45)</li>
 <li>the arrow under the menu bar item: a 14 px square rotated 45 degrees, ground rgb(30,34,46), the same hairline on its two visible edges</li>

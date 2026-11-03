@@ -6,6 +6,13 @@ import Text
 
 extension RGBA {
     public var ns: NSColor { NSColor(srgbRed: r, green: g, blue: b, alpha: a) }
+    /// The colour for the panel's appearance: the token itself in dark, its light partner in light.
+    public func ink(_ light: Bool) -> NSColor { light ? Tokens.light(self).ns : ns }
+}
+
+extension NSAppearance {
+    /// True for the light appearances (aqua and its high contrast twin).
+    public var isLight: Bool { bestMatch(from: [.aqua, .darkAqua]) == .aqua }
 }
 
 /// One VoiceOver element of the panel: a line of text, a control, or the group of a tab strip. Its frame is computed
@@ -76,6 +83,15 @@ public final class LineView: NSView {
     public var drawsStage = false
     /// Debug snapshots only: another ground behind the tint, to measure contrast over a bright desktop (--snapshot-stage white).
     public static var stageOverride: RGBA? = nil
+    /// Debug snapshots only: draw the light palette whatever the Mac is set to (--snapshot-light).
+    public static var lightOverride: Bool? = nil
+    /// The panel follows the Mac: light palette under a light appearance.
+    var isLight: Bool { LineView.lightOverride ?? effectiveAppearance.isLight }
+
+    public override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+    }
 
     let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
     let boldFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .bold)
@@ -348,10 +364,10 @@ public final class LineView: NSView {
     // MARK: drawing
 
     func ctLine(_ text: String, bold: Bool, color: RGBA) -> CTLine {
-        let key = "\(bold ? 1 : 0)|\(color.r),\(color.g),\(color.b),\(color.a)|\(text)"
+        let key = "\(isLight ? 1 : 0)\(bold ? 1 : 0)|\(color.r),\(color.g),\(color.b),\(color.a)|\(text)"
         if let l = lineCache[key] { return l }
         if lineCache.count > 4000 { lineCache.removeAll() }
-        let attr = NSAttributedString(string: text, attributes: [.font: bold ? boldFont : font, .foregroundColor: color.ns])
+        let attr = NSAttributedString(string: text, attributes: [.font: bold ? boldFont : font, .foregroundColor: color.ink(isLight)])
         let l = CTLineCreateWithAttributedString(attr)
         lineCache[key] = l
         return l
@@ -384,20 +400,20 @@ public final class LineView: NSView {
     public override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         if drawsStage {
-            (LineView.stageOverride ?? Tokens.stage).ns.setFill(); bounds.fill()
-            Tokens.tint.ns.setFill(); bounds.fill()
+            (LineView.stageOverride?.ns ?? Tokens.stage.ink(isLight)).setFill(); bounds.fill()
+            Tokens.tint.ink(isLight).setFill(); bounds.fill()
         }
         for (li, line) in lines.enumerated() {
             let y = lineY(li)
             if hoverLine == li, line.hover {
-                Tokens.selection.ns.setFill()
+                Tokens.selection.ink(isLight).setFill()
                 NSRect(x: padSide, y: y, width: bounds.width - 2 * padSide, height: LineView.lineHeight).fill()
             }
             var x = padSide
             for p in line.pieces {
                 let w = CGFloat(p.cells) * cellWidth
                 if let bg = p.style.bg {
-                    bg.ns.setFill(); NSRect(x: x, y: y, width: w, height: LineView.lineHeight).fill()
+                    bg.ink(isLight).setFill(); NSRect(x: x, y: y, width: w, height: LineView.lineHeight).fill()
                 }
                 if let bar = p.bar {
                     drawBar(bar, x: x, y: y, ctx: ctx)
@@ -410,7 +426,7 @@ public final class LineView: NSView {
         if focusVisible, let f = focus, f < controls.count {
             // the style guide's ring: 1 pt accent outline, 1 pt outside the control
             let r = controlRect(controls[f]).insetBy(dx: -1.5, dy: -1.5)
-            Tokens.accent.ns.setStroke()
+            Tokens.accent.ink(isLight).setStroke()
             let path = NSBezierPath(rect: r); path.lineWidth = 1; path.stroke()
         }
         if let (li, pi) = hoverTip, li < lines.count, pi < lines[li].pieces.count, let tip = lines[li].pieces[pi].tip {
@@ -420,7 +436,7 @@ public final class LineView: NSView {
 
     func drawBar(_ bar: BarRender, x: CGFloat, y: CGFloat, ctx: CGContext) {
         let top = y + barTop
-        bar.trackColor.ns.setFill()
+        bar.trackColor.ink(isLight).setFill()
         for r in bar.track {
             NSRect(x: x + CGFloat(r.lowerBound) * cellWidth, y: top, width: CGFloat(r.count) * cellWidth, height: barHeight).fill()
         }
@@ -431,7 +447,7 @@ public final class LineView: NSView {
             if c.solid {
                 var j = i
                 while j < bar.cells.count, bar.cells[j].solid, bar.cells[j].color == c.color { j += 1 }
-                c.color.ns.setFill()
+                c.color.ink(isLight).setFill()
                 NSRect(x: x + CGFloat(i) * cellWidth, y: top, width: CGFloat(j - i) * cellWidth, height: barHeight).fill()
                 i = j
             } else { i += 1 }
@@ -478,7 +494,7 @@ public final class LineView: NSView {
         var x = p.tipLeft ? padSide : px + CGFloat(p.cells) * cellWidth - w
         x = max(padSide, min(x, bounds.width - padSide - w))
         let y = max(0, lineY(li) - h - 2)
-        Tokens.box.ns.setFill()
+        Tokens.box.ink(isLight).setFill()
         NSRect(x: x, y: y, width: w, height: h).fill()
         for (k, row) in rows.enumerated() {
             drawRun(row, bold: false, color: Tokens.text, x: x + cellWidth, y: y + CGFloat(k) * LineView.lineHeight, cells: row.count, wide: false, ctx: ctx)

@@ -52,6 +52,46 @@ public enum Tokens {
     }
 }
 
+/// Light mode (0.1.11): the panel follows the Mac's appearance. The lines keep the dark tokens above; at draw time
+/// each one is swapped for its light partner here, so one table holds the whole light palette. Alpha is kept.
+extension Tokens {
+    public static let tintLight = RGBA(r: 250 / 255, g: 250 / 255, b: 252 / 255, a: 0.82)
+    public static let stageLight = RGBA(hex: 0xe6e8ef) // the light draft's ground behind the glass, for snapshots only
+
+    static let lightTable: [UInt32: UInt32] = [
+        0xe0e0e0: 0x1d1d1f, // text
+        0xededed: 0x000000, // bold
+        0xb3b3b3: 0x505055, // dim
+        0x888888: 0x6e6e73, // dimmer
+        0xb8b8b8: 0x525257, // quiet
+        0xb1b9f9: 0x3b46b8, // accent
+        0x505370: 0xc5c9e0, // track, track when stale
+        0xd77757: 0xb9502e, // coral
+        0xffc107: 0x7a4e00, // warning
+        0x373737: 0xe4e4e8, // box
+        0x273d4c: 0xd6e4f0, // selection
+        0x000000: 0xffffff, // ink on the accent
+        0x191d27: 0xffffff, // ink on bold
+        0xffffff: 0x000000, // white
+        0x0e1120: 0xe6e8ef, // stage
+        0xbd7bcd: 0x8e3fa3, // magenta, Fable
+        0xc4ac62: 0x8a6d00, // yellow, Opus
+        0x7ccbcd: 0x00757a, // cyan, Sonnet
+        0x6caa71: 0x2e7d32, // green, Haiku
+        0x6d96b4: 0x2f5f86, // blue, projects
+        0x67b5ed: 0x1a6fb0, // blue2, sessions
+        0xdee5eb: 0x3a3f45, // process white
+    ]
+
+    /// The light partner of a dark token. A colour not in the table is returned as it is.
+    public static func light(_ c: RGBA) -> RGBA {
+        if c == tint { return tintLight }
+        let hex = (UInt32((c.r * 255).rounded()) << 16) | (UInt32((c.g * 255).rounded()) << 8) | UInt32((c.b * 255).rounded())
+        guard let l = lightTable[hex] else { return c }
+        return RGBA(hex: l, alpha: c.a)
+    }
+}
+
 public struct Style: Sendable, Hashable {
     public var fg: RGBA
     public var bg: RGBA?

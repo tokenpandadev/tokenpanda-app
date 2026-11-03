@@ -42,6 +42,8 @@ if let i = args.firstIndex(of: "--snapshot"), i + 1 < args.count {
     MainActor.assumeIsolated {
         // --snapshot-stage white: the tint over white, the brightest desktop the glass can sit on, for the contrast check
         if let j = args.firstIndex(of: "--snapshot-stage"), j + 1 < args.count, args[j + 1] == "white" { LineView.stageOverride = Tokens.white }
+        // --snapshot-light: the light palette over the light stage
+        if args.contains("--snapshot-light") { LineView.lightOverride = true }
         var written: [String] = []
         for (name, input) in Fixtures.all() {
             let url = dir.appendingPathComponent(name + ".png")

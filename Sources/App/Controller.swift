@@ -107,13 +107,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         popover.behavior = .transient
         popover.animates = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        popover.appearance = NSAppearance(named: .darkAqua)
         popover.delegate = self
-        let root = NSVisualEffectView()
-        root.material = .hudWindow
-        root.blendingMode = .behindWindow
-        root.state = .active
-        let tint = NSView(); tint.wantsLayer = true; tint.layer?.backgroundColor = Tokens.tint.ns.cgColor
+        // the panel follows the Mac's appearance: the glass and its tint change with it, the lines redraw themselves
+        let root = Ground()
+        let tint = root.tint
         root.addSubview(tint)
         root.addSubview(lineView)
         // pinned to the root on all four edges: the popover shrinks and grows while open as lines come and go,
@@ -145,6 +142,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let args = CommandLine.arguments
         if let i = args.firstIndex(of: "--live-snapshot"), i + 1 < args.count {
             let dir = URL(fileURLWithPath: args[i + 1], isDirectory: true)
+            if args.contains("--snapshot-light") { LineView.lightOverride = true }
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(45))
                 try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -645,5 +643,28 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if let k = LineView.focusKey(forKeyCode: e.keyCode), lineView.moveFocus(k) { return true }
         if tab == 0, let c = e.charactersIgnoringModifiers, let i = ["m", "p", "s"].firstIndex(of: c) { section = i; render(); return true }
         return false
+    }
+}
+
+/// The popover's glass: the HUD material and the dark tint in dark mode, the popover material and the light tint in
+/// light mode. Switches live when the Mac's appearance changes.
+final class Ground: NSVisualEffectView {
+    let tint = NSView()
+    init() {
+        super.init(frame: .zero)
+        blendingMode = .behindWindow
+        state = .active
+        tint.wantsLayer = true
+        apply()
+    }
+    required init?(coder: NSCoder) { fatalError() }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        apply()
+    }
+    func apply() {
+        let light = effectiveAppearance.isLight
+        material = light ? .popover : .hudWindow
+        tint.layer?.backgroundColor = Tokens.tint.ink(light).cgColor
     }
 }
