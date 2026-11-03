@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.11, unreleased
+
+- The Mac tab names Claude Code "Claude Code" in the process list. Claude Code's native install runs a file named after its version, so the list showed "2.1.317".
+- Install and Remove keep a settings.json that is a link (into a dotfiles folder, for one) as a link and write the file it points at, with its permissions. Before, the link was replaced by a plain copy that others on the Mac could read, and Remove wrote into that copy. A settings.json the app creates is readable by you only.
+- Dim text (reset lines, pace lines, captions, the header line) is a little lighter, so it stays readable over a bright desktop: at least 4.5 to 1 even over white.
+- A broken or oversized file can no longer crash the app: numbers out of range in the feed or a transcript are ignored, status line files and settings.json over 1 MB are skipped, a transcript line over 10 MB is skipped, and the transcript check for Remote Control opens only a regular file.
+- The hook script quotes the app's data folder so that no character in the path can change what it does. It takes effect at the next Install.
+- If the app cannot write remove.sh, which brew uninstall --zap uses to put your status line back, Settings says so under the status line row. This and failed writes of the app's own records go to the macOS log.
+- The app carries a privacy manifest: no tracking, no data collected.
+- The app no longer ships a copy of the hook script it never used.
+
 ## 0.1.10, 2026-11-03
 
 - Reopen after a restart starts each session as it was started: with its name and the options it was started with (extra folders, appended system prompt, model, permission mode and the rest), not as a plain `claude --resume`. A start prompt typed after the options is not sent again. If that start fails within 20 seconds, the same without Remote Control follows, then a plain resume. The app reads the options from the session's process and its name from Claude Code's own session file; without that file, sessions still reopen, with a plain resume.

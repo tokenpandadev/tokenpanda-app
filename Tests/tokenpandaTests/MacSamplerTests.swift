@@ -7,11 +7,11 @@ import Foundation
 /// The process list's names.
 struct MacSamplerTests {
     @Test func claudeCodeIsNamedByItsVersionsFolderNotItsVersion() {
-        let path = "/Users/me/.local/share/claude/versions/2.1.317"
+        let path = "/Users/someone/.local/share/claude/versions/2.1.317"
         #expect(MacSampler.displayName(procName: "2.1.317", executablePath: path, argv0: nil) == "Claude Code")
         // started as claude through the ~/.local/bin link
         #expect(MacSampler.displayName(procName: "2.1.317", executablePath: nil, argv0: "claude") == "Claude Code")
-        #expect(MacSampler.displayName(procName: "2.1.317", executablePath: nil, argv0: "/Users/me/.local/bin/claude") == "Claude Code")
+        #expect(MacSampler.displayName(procName: "2.1.317", executablePath: nil, argv0: "/Users/someone/.local/bin/claude") == "Claude Code")
     }
 
     @Test func otherProcessesKeepTheirNameEvenWithAVersionLikeName() {
@@ -24,7 +24,7 @@ struct MacSamplerTests {
 
     @Test func argv0IsReadFromProcArgs() {
         var buf: [UInt8] = [2, 0, 0, 0]
-        buf += Array("/Users/me/.local/share/claude/versions/2.1.317".utf8) + [0, 0, 0]
+        buf += Array("/Users/someone/.local/share/claude/versions/2.1.317".utf8) + [0, 0, 0]
         buf += Array("claude".utf8) + [0] + Array("--resume".utf8) + [0]
         #expect(MacSampler.argv0(fromProcArgs: buf) == "claude")
         #expect(MacSampler.argv0(fromProcArgs: [1, 0, 0]) == nil)
