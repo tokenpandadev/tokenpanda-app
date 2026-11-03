@@ -104,13 +104,13 @@ function paceLines(m, stale) {
 }
 
 /* header and tab strip */
-/* line one: "Usage live" while a session feeds the snapshot, with "Mac live" at the right; between sessions the snapshot time and its source take the line (the tier is not in the feed, so there is no plan badge) */
+/* line one: "Live from Claude Code" while a session feeds the snapshot; between sessions the snapshot time and its source take the line (the tier is not in the feed, so there is no plan badge) */
 function header(sel, warn, asOf) {
   const tabs = ['Claude', 'Mac', 'Settings'].map((t, i) => {
     const label = ' ' + t + (t === 'Mac' && warn ? ' ' + sp('●', 'w') : '') + ' ';
     return '<span class="tab" role="tab" aria-selected="' + (i === sel) + '">' + label + '</span>';
   }).join('  ');
-  const line = asOf ? 'Usage as of ' + asOf + ', last Claude Code session' : 'Usage live' + rcol('', POP - 11 - 8) + 'Mac live';
+  const line = asOf ? 'As of ' + asOf + ', last Claude Code session' : 'Live from Claude Code';
   return L(' ' + sp(line, 'd'))
     + L(sp('▔'.repeat(POP + 1), 'rule'))
     + L(' ' + tabs);

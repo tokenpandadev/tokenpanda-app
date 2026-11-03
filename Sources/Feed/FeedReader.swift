@@ -129,7 +129,7 @@ public struct OpenSession: Sendable, Equatable {
 public struct FeedState: Sendable, Equatable {
     public var limits: Limits?
     public var sessions: [OpenSession]       // open, sorted by context used, largest first
-    public var lastWriteAt: Date?            // the newest file's write time, for "Usage live"
+    public var lastWriteAt: Date?            // the newest file's write time, for "Live from Claude Code"
     public var scanError: String?
     public var formatChanged: Bool           // a file's rate_limits had entries and none of them read as a window
     public init(limits: Limits? = nil, sessions: [OpenSession] = [], lastWriteAt: Date? = nil, scanError: String? = nil, formatChanged: Bool = false) {

@@ -46,7 +46,7 @@ struct AccessTests {
     }
 
     @Test func theWarningTabIsOneControlWithItsSpokenName() {
-        let c = Controls.extract(Grammar.header(line: "Usage live  Mac live", tab: 0, warn: true))
+        let c = Controls.extract(Grammar.header(line: "Live from Claude Code", tab: 0, warn: true))
         #expect(c.map(\.label) == ["Claude", "Mac, warning", "Settings"])
         #expect(c[1].cells == 7)   // " Mac ", the dot, " "
     }

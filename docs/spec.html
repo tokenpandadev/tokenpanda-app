@@ -143,7 +143,7 @@ exit 0</pre>
 </ul>
 <h3>Staleness</h3>
 <ul>
-<li>The newest snapshot file sets the windows. Its modification time is the snapshot time, shown as "Usage as of HH:MM, last Claude Code session" in the header when no session has fed in the last 60 s; while one has, the header says "Usage live".</li>
+<li>The newest snapshot file sets the windows. Its modification time is the snapshot time, shown as "As of HH:MM, last Claude Code session" in the header when no session has fed in the last 60 s; while one has, the header says "Live from Claude Code".</li>
 <li>A snapshot younger than one hour: live. Pace lines are computed.</li>
 <li>Older than one hour: stale. The bar drops to the track colour, the percent and tick go dim, "as of HH:MM" replaces the pace lines, the menu bar item dims to 50%, and the Claude tab adds "Limits are shared across Claude and Claude Code, so use elsewhere moves these figures." Nothing is projected from old data. Claude Code itself keeps a 60 minute last known usage when its own request fails; the hour matches it.</li>
 <li>A window whose <code>resets_at</code> has passed while stale is shown as the stale form with "reset passed HH:MM" in place of the reset line, because the window has rolled and the feed will carry the new one at the next session.</li>
@@ -376,7 +376,7 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <h2 id="screens">12  Every screen, in order</h2>
 <h3>Claude tab (default)</h3>
 <ol>
-<li>Header line, dim: "Usage live  Mac live" while a session fed in the last 60 s; otherwise "Usage as of HH:MM, last Claude Code session"; before any feed arrived, "No usage feed yet  Mac live".</li>
+<li>Header line, dim: "Live from Claude Code" while a session fed in the last 60 s; otherwise "As of HH:MM, last Claude Code session"; before any feed arrived, "Waiting for a Claude Code session".</li>
 <li>The ▔ rule, full width, accent.</li>
 <li>Tab strip: Claude (selected), Mac (with ● when warning), Settings.</li>
 <li>Blank.</li>
@@ -492,7 +492,7 @@ from Claude Code's own status feed on this Mac.</pre>
 <h3>By hand, before a release</h3>
 <ul>
 <li>Install the hook on a Mac with no status line and on one with an existing status line; confirm the existing one still renders and settings.json keeps its other keys.</li>
-<li>Start a Claude Code session; confirm "Usage live" after the first reply and the open session row; quit the session; confirm the row leaves after 60 s and "Usage as of HH:MM, last Claude Code session" appears; set the clock forward an hour and confirm the stale form.</li>
+<li>Start a Claude Code session; confirm "Live from Claude Code" after the first reply and the open session row; quit the session; confirm the row leaves after 60 s and "As of HH:MM, last Claude Code session" appears; set the clock forward an hour and confirm the stale form.</li>
 <li>Open Anyway flow on a clean user account (path one), or a clean Gatekeeper pass (path two).</li>
 <li>Reduce motion on: no animation. VoiceOver: every label of the style guide's table reads as written.</li>
 <li>Light and dark menu bar; a Mac on battery; a desktop Mac without a battery; a Mac without the capacity keys ("health n/a").</li>

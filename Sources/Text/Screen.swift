@@ -178,7 +178,7 @@ public struct SettingsTab: Sendable, Equatable {
 
 public struct Screen: Sendable, Equatable {
     public var tab: Int
-    public var headerLine: String   // "Usage live  Mac live", "Usage as of 13:05, last Claude Code session" or "No usage feed yet  Mac live"
+    public var headerLine: String   // "Live from Claude Code", "As of 13:05, last Claude Code session" or "Waiting for a Claude Code session"
     public var warn: Bool
     public var claude: ClaudeTab
     public var mac: MacTab

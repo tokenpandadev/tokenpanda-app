@@ -13,6 +13,7 @@
 - After a Sunday evening reset, week over week labels the new week by its own Monday instead of showing the same date twice.
 - During a session's first call both windows say "waiting for the first reply" instead of "open Claude Code once".
 - The app no longer asks for notification permission at launch. It asks when the first nudge is due, or when you turn on Nudge or Reopen sessions.
+- The line at the top of the panel says what it means: "Live from Claude Code" while a session feeds, "As of 13:05, last Claude Code session" between sessions, "Waiting for a Claude Code session" before the first one. "Usage live  Mac live" is gone; the Mac figures are always live.
 - Settings shows the version, "tokenpanda 0.1.9", under the privacy lines.
 - Files a cancelled hook run left behind in the sessions folder are cleaned up.
 - Smaller: keep awake says a closed lid on battery still sleeps; the Reopen row says when notifications are off; VoiceOver says the weekday in full ("resets Sunday 18:00"); Remove deletes a settings.json that Install created instead of leaving an empty {}.

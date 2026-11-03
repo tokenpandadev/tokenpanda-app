@@ -289,12 +289,12 @@ public enum ScreenBuilder {
         }
     }
 
-    /// "Usage live" only while a session fed in the last minute; between sessions the time of the last figures;
-    /// before any feed arrived, says so.
+    /// "Live from Claude Code" only while a session fed in the last minute; between sessions the time of the last
+    /// figures; before any feed arrived, says it waits. The Mac figures are always live, so the line does not say so.
     public static func headerLine(_ i: LiveInput) -> String {
-        if i.feed.isLive(now: i.now) { return "Usage live  Mac live" }
-        if let l = i.feed.limits { return "Usage as of \(clock(l.asOf, i.timeZone)), last Claude Code session" }
-        return "No usage feed yet  Mac live"
+        if i.feed.isLive(now: i.now) { return "Live from Claude Code" }
+        if let l = i.feed.limits { return "As of \(clock(l.asOf, i.timeZone)), last Claude Code session" }
+        return "Waiting for a Claude Code session"
     }
 
     public static func screen(_ i: LiveInput) -> Screen {

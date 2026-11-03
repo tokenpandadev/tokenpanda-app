@@ -96,8 +96,8 @@ struct BarTests {
     }
 
     @Test func headerGolden() {
-        let h = Grammar.header(line: "Usage live  Mac live", tab: 0, warn: true)
-        #expect(h[0].plain == " Usage live  Mac live")
+        let h = Grammar.header(line: "Live from Claude Code", tab: 0, warn: true)
+        #expect(h[0].plain == " Live from Claude Code")
         #expect(h[1].plain == String(repeating: "\u{2594}", count: 48))
         #expect(h[2].plain == "  Claude    Mac \u{25CF}    Settings ")
         #expect(h[2].pieces[1].style == .tabSelected)
@@ -239,7 +239,7 @@ struct BarTests {
     }
 
     @Test func noSeparatorsInTheGrammar() {
-        let screen = Screen(tab: 0, headerLine: "Usage live  Mac live", warn: false,
+        let screen = Screen(tab: 0, headerLine: "Live from Claude Code", warn: false,
                             claude: ClaudeTab(limits: .noHook(previous: nil), sessions: [], tokens: TokensView(section: 0, rows: [[], [], []], priceChip: nil, agentChip: nil), weeks: []),
                             mac: MacTab(cpu: 0, cpuLine: "", gpu: nil, memory: nil, battery: nil, processes: []),
                             settings: SettingsTab(macInBar: false, nudges: true, listPrice: true))
