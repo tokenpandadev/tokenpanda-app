@@ -48,7 +48,7 @@ public enum PaceModel {
     public static let band = 5.0           // points either side of E that count as on pace
     /// The share of the window, in percent, before which only Over pace projects: 8 h 24 min of a week, 15 min of a
     /// 5h window. From the first reply a week read "On pace  limit Wed 10:35 at this rate", 22 minutes away (0.1.15,
-    /// flow test 06.8; the texts are proposed).
+    /// flow test 06.8; texts approved 2026-11-04).
     public static let earliestProjection = 5.0
     public static let tooEarly = "too early to project"
 

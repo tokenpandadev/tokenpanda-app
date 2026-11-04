@@ -55,15 +55,19 @@ function pace(winKey, used) {
   const elapsedH = (NOW - w.start) / 36e5, lenH = (w.reset - w.start) / 36e5, remainH = (w.reset - NOW) / 36e5;
   const E = elapsedH / lenH * 100;
   const status = used > E + 5 ? 'Over pace' : used < E - 5 ? 'Ahead' : 'On pace';
-  const rate = used / elapsedH;
-  const toLimitH = (100 - used) / rate;
-  let proj;
-  if (toLimitH < remainH) {
-    const t = new Date(NOW.getTime() + toLimitH * 36e5);
-    t.setMinutes(Math.round(t.getMinutes() / 5) * 5, 0, 0);
-    proj = 'limit ' + (w.days ? DAYS[t.getDay()] + ' ' : '') + hhmm(t) + ' at this rate';
-  } else {
-    proj = Math.round(used + rate * remainH) + '% by reset at this rate';
+  const rate = used > 0 && used < 100 && elapsedH > 0 ? used / elapsedH : 0;
+  const toLimitH = rate > 0 ? (100 - used) / rate : Infinity;
+  let proj = null;
+  if (E < 5 && status !== 'Over pace') {
+    proj = 'too early to project';   // 0.1.15: only Over pace projects before 5% of the window has passed
+  } else if (rate > 0) {
+    if (toLimitH < remainH && status === 'Over pace') {   // a clock time only when Over pace
+      const t = new Date(NOW.getTime() + toLimitH * 36e5);
+      t.setMinutes(Math.round(t.getMinutes() / 5) * 5, 0, 0);
+      proj = 'limit ' + (w.days ? DAYS[t.getDay()] + ' ' : '') + hhmm(t) + ' at this rate';
+    } else {
+      proj = Math.min(100, Math.round(used + rate * remainH)) + '% by reset at this rate';
+    }
   }
   const perHour = (100 - used) / remainH;
   const allow = (perHour < 1 ? perHour.toFixed(1) : String(Math.round(perHour))) + '% an hour left';
@@ -104,14 +108,14 @@ function windowSection(m, o = {}) {
     s += L(' ' + sp('as of ' + (o.asOf || '13:05'), 'd'));
   } else {
     s += L(' ' + sp(m.reset + '  ' + m.countdown, 'd'));
-    s += L(' ' + sp(m.status, 'b') + sp('  ' + m.proj, 'd'));
+    s += L(' ' + sp(m.status, 'b') + (m.proj ? sp('  ' + m.proj, 'd') : ''));
     s += L(' ' + sp(m.allow, 'd'));
   }
   return s;
 }
 function paceLines(m, stale) {
   if (stale) return L(sp(m.reset, 'd')) + L(sp('as of 13:05', 'd')) + L('');
-  return L(sp(m.reset + '  ' + m.countdown, 'd')) + L(sp(m.status, 'b') + sp('  ' + m.proj, 'd')) + L(sp(m.allow, 'd'));
+  return L(sp(m.reset + '  ' + m.countdown, 'd')) + L(sp(m.status, 'b') + (m.proj ? sp('  ' + m.proj, 'd') : '')) + L(sp(m.allow, 'd'));
 }
 
 /* header and tab strip */
@@ -265,7 +269,7 @@ function settingsTab(st) {
     + BL
     + L(' ' + sp('This app makes no network calls. Usage comes', 'd'))
     + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd'))
-    + L(' ' + sp('tokenpanda 0.1.14', 'd'))
+    + L(' ' + sp('tokenpanda 0.1.15', 'd'))
     + BL
     + L(' Quit' + rcol('⌘Q', POP - 5));
 }

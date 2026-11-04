@@ -1,9 +1,9 @@
 """The user flows of tokenpanda as built, each step with its screens, what the user does, and what the
 app does now (works, friction, broken, by hand) with the evidence.
 
-FLOWS: brought to the code of 0.1.14 on 4.11.2026 (working tree after v0.1.13), from flow-test-0.1.13.md
-and the 0.1.14 changes; "by hand" is a step that needs a person (Gatekeeper, System Settings clicks, a
-banner on screen, VoiceOver by ear) and never counts as works. The screens draw 0.1.14 (main at 2bc3011).
+FLOWS: brought to the code of 0.1.15 on 4.11.2026 (working tree after v0.1.13), from flow-test-0.1.13.md
+and the 0.1.14 and 0.1.15 changes; "by hand" is a step that needs a person (Gatekeeper, System Settings clicks, a
+banner on screen, VoiceOver by ear) and never counts as works. The screens draw 0.1.15 (main at 274b15c).
 GAPS, PAPPLE and LEFT_OUT below are still the record of the first flow test:
 Walked on 31.10.2026 against main at 4ca4160 (0.1.7), debug build with the Command Line Tools.
 Four kinds of evidence, named in each step:
@@ -26,7 +26,7 @@ def S(text, screens, do, now, ev):
 
 FLOWS = [
  dict(id='01', name='Download and first open', steps=[
-  S('The releases page offers the zip of each version and its .sha256; the README says it runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later.', 'browser-release', 'Download both.', 'works', 'README.md, Install (0.1.14); flow-test-0.1.13 01.1.'),
+  S('The releases page offers the zip of each version and its .sha256; the README says it runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later.', 'browser-release', 'Download both.', 'works', 'README.md, Install (0.1.15); flow-test-0.1.13 01.1.'),
   S('In Terminal, shasum -a 256 -c checks the zip and prints OK; unzip and move tokenpanda.app to Applications.', 'term-shasum', 'Run the two lines.', 'works', 'README.md, Install; flow-test-0.1.13 01.2.'),
   S('With Homebrew instead: brew trust --cask, then brew install tokenpandadev/tap/tokenpanda; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap.', 'term-brew', 'Read the caveats.', 'works', 'Casks/tokenpanda.rb: depends_on arch: :arm64 (0.1.14), caveats; README.md, Install.'),
   S('Double click in Applications: macOS refuses the ad hoc build, "Apple could not verify tokenpanda is free of malware".', ['finder-apps', 'gk-blocked'], 'Click Done.', 'friction', 'codesign Signature=adhoc; spctl rejected (flow-test-0.1.13 01.4). By design until Developer ID signing (spec 17, path two).'),
@@ -34,7 +34,7 @@ FLOWS = [
   S('The warning comes back once; Open Anyway starts the app.', 'gk-confirm', 'Click Open Anyway.', 'by hand', 'README.md, Install.'),
   S('No notification prompt at launch: the app asks when the first nudge is due, or when Nudge or Reopen sessions is ticked.', 'desk-nofeed', 'Nothing.', 'works', 'Notifier.swift, refreshState and authorize; Controller.swift, applicationDidFinishLaunching.'),
   S('The menu bar shows the panda alone at half strength: no figures yet. No window, no Dock icon.', 'desk-nofeed', 'Click the panda.', 'works', 'ScreenBuilder.itemFigures; LSUIElement in scripts/build-app.sh.'),
-  S('If the icon is not on screen five seconds after the first launch, one window: "tokenpanda is running". From macOS 26 the icon "may be switched off in System Settings, Menu Bar, or hidden behind the notch", with "Open Menu Bar Settings" and "OK"; before macOS 26 the menu bar is full and the icon is behind the notch, quitting another menu bar app makes room, with "OK" only. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once.', ['desk-hidden', 'dlg-hidden-26', 'dlg-hidden-15'], 'Click Open Menu Bar Settings.', 'works', 'Grammar.hiddenIconHint and Controller.checkItemShows (0.1.14: the switch offered only from macOS 26, no verdict while locked, away or asleep); test theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne. The real macOS 26 switch and the notch were not reproduced.'),
+  S('If the icon is not on screen five seconds after the first launch, one window: "tokenpanda is running". From macOS 26 the icon "may be switched off in System Settings, Menu Bar, hidden behind the notch when the menu bar is full, or kept out of view by an app that hides menu bar icons, such as Bartender or Ice", with "Open Menu Bar Settings" and "OK"; before macOS 26 the menu bar is "most likely" full, quitting another menu bar app makes room, and a menu bar manager can also keep the icon out of view, with "OK" only. The notch is named only on a Mac with one: with no notch the text says "left out when the menu bar is full", and when it is not known (a connected screen has a notch, the item\'s screen is not known) both causes are named. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once.', ['desk-hidden', 'dlg-hidden-26', 'dlg-hidden-26-nonotch', 'dlg-hidden-26-unknown', 'dlg-hidden-15', 'dlg-hidden-15-nonotch', 'dlg-hidden-15-unknown'], 'Click Open Menu Bar Settings.', 'works', 'Grammar.hiddenIconHint and Grammar.notch (0.1.15: the notch named only on a Mac with one, a menu bar manager named in every text; texts approved 2026-11-04) and Controller.checkItemShows (0.1.14: the switch offered only from macOS 26, no verdict while locked, away or asleep); tests theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne, theNotchFollowsTheScreenThatHoldsTheItem. The real macOS 26 switch and the notch were not reproduced.'),
   S('Switching the item on in System Settings, Menu Bar, is the user\'s click.', 'sys-menubar', 'Switch tokenpanda on.', 'by hand', 'testing.html, section 5.'),
  ]),
  dict(id='02', name='Set up the feed', steps=[
@@ -45,6 +45,7 @@ FLOWS = [
   S('During the first call both windows and the session say "waiting for the first reply".', ['term-claude', 'pop-firstcall'], 'Send a first prompt.', 'works', 'ScreenBuilder.limitsView .firstReply; flow-test-0.1.13 02.5.'),
   S('After the first reply: "Live from Claude Code", the windows with pace, each session with its bar.', 'pop-live', 'Read the figures.', 'works', 'flow-test-0.1.13 02.6.'),
   S('A settings.json that is not valid JSON, or valid JSON that is not an object: Install says why under the button, wrapped, on the Claude tab and in Settings.', ['editor-broken', 'pop-install-failed', 'pop-settings-error'], 'Fix the file, click Install again.', 'works', 'Hook.unreadable; flow-test-0.1.13 02.7 and 02.12.'),
+  S('A settings.json that is a link into a folder that does not exist: Install refuses, says why under the button ("it is a link into ~/dotfiles/sub, a folder that does not exist"), and writes nothing: no folder, no script, no backup.', ['pop-install-dangling', 'pop-settings-dangling'], 'Make the folder, or fix the link, and click Install again.', 'works', 'Hook.writableTarget, SettingsFile.reason (0.1.15, audit F-6; text approved 2026-11-04); test in HardeningTests (a dangling ~/.claude link, the reason string).'),
   S('Both places name the button "Install the status line entry", and no line runs past the panel edge.', 'pop-settings-nohook', 'Click it.', 'works', 'Grammar.hookRow and dimLines; flow-test-0.1.13 02.8.'),
   S('Several settings folders each get their own script and backup; a folder with only transcripts is left alone; a lost script offers Install again.', 'pop-settings-folders', 'Click Install.', 'works', 'HookSet; flow-test-0.1.13 02.9.'),
   S('A settings.json that is a link stays a link, and the file it names keeps its mode; a created settings.json is 0600.', 'editor-after', 'Nothing.', 'works', 'SettingsFile; flow-test-0.1.13 02.10.'),
@@ -89,6 +90,8 @@ FLOWS = [
   S('The reset passes with no session: "Reset Sun 17:00  no session since", the item dims; the old week keeps its figure and the new week says "no reply yet".', 'pop-week-rolled', 'Open Claude Code.', 'works', 'ScreenBuilder.windowView .resetPassed, weekViews; flow-test-0.1.13 06.2 and 06.7.'),
   S('The reset passes while idle sessions feed: "new window on the next reply".', 'pop-week-rolled-live', 'Send a prompt.', 'works', 'ScreenBuilder.windowView .nextReply; flow-test-0.1.13 06.3.'),
   S('The next reply brings the new week: a low figure, "On pace" or "Ahead", a new row in week over week.', 'pop-week-new', 'Read the new week.', 'works', 'FeedTests; Weeks.swift.'),
+  S('Early in a window the pace row does not guess: "On pace  too early to project" until 5% of the window has passed (8 h 24 min of a week, 15 min of a 5h window). The new week above shows it.', ['pop-pace-early', 'pop-week-new'], 'Read the pace row in the first hours.', 'works', 'PaceModel.reading, earliestProjection (0.1.15, flow test 06.8; texts approved 2026-11-04); test theFirstMinutesOfAWindowProjectOnlyOverPace.'),
+  S('On pace or Ahead the projection reads "N% by reset at this rate", N at most 100; Over pace keeps "limit ... at this rate" in every phase, also ten minutes in.', ['pop-pace-reset', 'pop-pace-over-early'], 'Read the pace row.', 'works', 'PaceModel.reading (0.1.15; texts approved 2026-11-04); test aLimitIsNamedOnlyOverPace.'),
   S('Week over week keeps the highest value seen per week.', 'pop-live', 'Trust the history.', 'works', 'WindowsTests weekOverWeekKeepsTheHighestValuePerWeek; flow-test-0.1.13 06.5.'),
   S('At 100% the panda shows x x until the reset.', 'desk-weekly-limit', 'Wait for the reset.', 'works', 'ItemImage; flow-test-0.1.13 06.6.'),
  ]),
@@ -113,7 +116,7 @@ FLOWS = [
   S('Open at login: the box shows what macOS says; while macOS waits for approval a dim line opens Login Items.', ['pop-settings-login', 'pop-settings-approval', 'sys-loginitems'], 'Tick it.', 'by hand', 'Controller.clickLogin; not clicked in the flow tests.'),
   S('List price equivalent off: the price chip goes.', 'pop-nochip', 'Untick it.', 'works', 'ScreenBuilder.tokensView.'),
   S('Quit and Command Q end the app; the item goes.', 'desk-quit', 'Click Quit.', 'works', 'Controller.handleKey; flow-test-0.1.13 09.4.'),
-  S('The version line says what runs: "tokenpanda 0.1.14".', 'pop-settings', 'Read it.', 'works', 'ScreenBuilder.screen, CFBundleShortVersionString.'),
+  S('The version line says what runs: "tokenpanda 0.1.15".', 'pop-settings', 'Read it.', 'works', 'ScreenBuilder.screen, CFBundleShortVersionString.'),
   S('Light mode: the same layout on a light glass, switching with the Mac\'s appearance.', 'pop-settings', 'Change the appearance.', 'works', 'Ground in Controller.swift; Tokens.light; flow-test-0.1.13 09.6. The live switch is by hand.'),
   S('A tall Settings tab on a short screen scrolls inside the panel, so Quit stays reachable.', 'pop-small-settings', 'Scroll to Quit.', 'works', 'PanelSize (0.1.14); see 03.11.'),
  ]),
@@ -259,7 +262,7 @@ section li a{{color:var(--ink)}} section li span{{color:var(--marker);font-size:
 .cols{{columns:2 360px;column-gap:28px}} section{{break-inside:avoid}}
 </style></head><body><main>
 <h1>tokenpanda wireframes</h1>
-<p>tokenpanda as it is built (main at 2bc3011, tag v0.1.14), every screen and state the user flows touch, on a 1280 by 800 desktop with the menu bar and the popover. {len(SC)} screens, {len(flows)} flows, {nsteps} steps tested against the real app: {cnt["works"]} work, {cnt["friction"]} with friction, {cnt["broken"]} broken.
+<p>tokenpanda as it is built (main at 274b15c, 0.1.15), every screen and state the user flows touch, on a 1280 by 800 desktop with the menu bar and the popover. {len(SC)} screens, {len(flows)} flows, {nsteps} steps tested against the real app: {cnt["works"]} work, {cnt["friction"]} with friction, {cnt["broken"]} broken.
 Controls that lead somewhere are links; the popover keys work too (Esc, Tab, Shift Tab, m, p, s). Other outcomes and other starts are dashed targets: press h on any screen to show them and outline every link. Coral notes name friction on a screen, grey notes say how it works and where in the code. flow-test.md keeps the first flow test (0.1.7) with its gap list, under the steps as of 0.1.14; the flows as text and diagrams in flows/.</p>
 <h2>Flows</h2><ul class="flows">{cards}</ul>
 <h2>Every screen</h2><div class="cols">{secs}</div>
@@ -325,7 +328,7 @@ body{padding:16px}.wrap{display:flex;gap:16px;align-items:flex-start}
     for old in fd.glob('*.mmd'):
         old.unlink()
     md = ['# tokenpanda user flows, as built', '',
-          'Brought to 0.1.14 (4.11.2026, main at 2bc3011, tag v0.1.14; the screens draw 0.1.14 too). Each flow as numbered steps; the screens are in ../screens, the walk in ../walk.html, the results in ../flow-test.md. One Mermaid diagram per flow sits next to this file.', '']
+          'Brought to 0.1.15 (4.11.2026, main at 274b15c; the screens draw 0.1.15 too). Each flow as numbered steps; the screens are in ../screens, the walk in ../walk.html, the results in ../flow-test.md. One Mermaid diagram per flow sits next to this file.', '']
     for f in flows:
         slug = re.sub(r'[^a-z0-9]+', '-', f['name'].lower()).strip('-')
         name = f'{f["id"]}-{slug}.mmd'

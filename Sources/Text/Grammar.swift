@@ -55,7 +55,7 @@ public enum Grammar {
     /// switched off in System Settings, Menu Bar, and a button opens that pane; before, only Apple's own items have a
     /// switch (Control Center), so the text names a full menu bar first and has no button. The notch is named only on a
     /// Mac with one (0.1.14 named it on every Mac), both causes when it is not known (notch nil), and every text names a
-    /// menu bar manager, which the check also catches (0.1.15, audit F-1; the wording is proposed).
+    /// menu bar manager, which the check also catches (0.1.15, audit F-1; wording approved 2026-11-04).
     public static func hiddenIconHint(switchInSettings: Bool, notch: Bool?) -> (title: String, text: String, button: String?) {
         let title = "tokenpanda is running"
         let manager = "an app that hides menu bar icons, such as Bartender or Ice"

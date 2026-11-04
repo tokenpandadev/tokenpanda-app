@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Builds the clickable wireframes of tokenpanda as it is built (0.1.14, main at 2bc3011, tag v0.1.14).
-Every popover screen draws what 0.1.14 draws: the wording of Sources/Text/Grammar.swift and
+"""Builds the clickable wireframes of tokenpanda as it is built (0.1.15, main at 274b15c).
+Every popover screen draws what 0.1.15 draws: the wording of Sources/Text/Grammar.swift and
 Sources/UI/ScreenBuilder.swift, the colours of Sources/Text/Tokens.swift (dark appearance), the bar of
 Sources/Text/Bar.swift. Names of models, projects, sessions and processes stay filler bars; every figure is sample
 data (Sources/UI/Fixtures.swift), never a real reading.
@@ -412,6 +412,7 @@ def claude_nohook(prev=False, err=None, focus=False, href='pop-nosession'):
 
 
 INSTALL_ERR = 'Could not install the entry: cannot read settings.json: settings.json is not valid JSON'
+DANGLING_ERR = 'Could not install the entry: cannot write settings.json: it is a link into ~/dotfiles/sub, a folder that does not exist'
 
 reg('desk-nofeed', 'Menu bar, first launch: the panda alone, dimmed', 'Menu bar', desk(item('', dim=True, href='pop-nohook')))
 reg('pop-nohook', 'Claude tab, first open: Install the status line entry', 'Setup',
@@ -423,6 +424,10 @@ reg('pop-install-failed', 'Claude tab after Install with a settings.json that is
     desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude_nohook(err=INSTALL_ERR, href='pop-install-failed')) + pmark(9, 2)
          + tip('The error stands where the click was, under the button, wrapped with its reason (Grammar.dimLines). "is not valid JSON" for a file the reader refuses, "is not a JSON object" for valid JSON that is not an object (Hook.unreadable).', 500, 180, 330, n=True)
          + '<div class="alts"><a class="altg" href="pop-settings-error.html">Open Settings</a></div>'), NK)
+reg('pop-install-dangling', 'Claude tab after Install with a settings.json that is a link into a folder that does not exist: refused, nothing written', 'Setup',
+    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude_nohook(err=DANGLING_ERR, href='pop-install-dangling')) + pmark(9, 2)
+         + tip('Install refuses before it writes anything: no folder made, no script, no backup, no remove.sh (Hook.writableTarget, SettingsFile.reason). Claude Code\'s own write there would fail too. The same line stands under the button in Settings.', 500, 180, 330, n=True)
+         + '<div class="alts"><a class="altg" href="pop-settings-dangling.html">Open Settings</a></div>'), NK)
 reg('pop-hooks-disabled', 'Claude tab with disableAllHooks on: Claude Code runs no status line', 'Setup',
     desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude(two_lines('Weekly and 5h window', 'disableAllHooks is on in settings.json', 'so Claude Code runs no status line'), sess=[], hdr=WAITING, wk=W_FIRST))), POP_KEYS)
 reg('pop-nosession', 'Claude tab, entry installed, no session yet', 'Setup',
@@ -459,7 +464,19 @@ reg('pop-week-rolled-live', 'Claude tab, weekly reset passed while idle sessions
     desk(item('', dim=True, on=True, href='desk-ultra'), 'Sun 1 Nov 17:20', over=pop(claude(win('Weekly (all models)', 'nextreply', reset='Reset Sun 17:00'), wk=U_ROLLED, tab_prefix='ultra'))
          + '<div class="alts"><a class="altg" href="pop-week-new.html">The next reply</a></div>'), UK)
 reg('pop-week-new', 'Claude tab, the new week arrived: 1% used, last week kept', 'Weekly reset',
-    desk(item('1%', on=True, href='desk-ultra'), 'Sun 1 Nov 17:24', over=pop(claude(win('Weekly (all models)', used=1, elapsed=0.4, reset='Resets Sun 17:00', countdown='in 6d 23h', status='On pace', proj='limit Tue 09:00 at this rate', allow='0.6% an hour left'), wk=[U_WK[0], U_WK[1], ('26 Oct', 91, False, '', None, False), ('2 Nov', 1, False, 'so far', 0.4, False)], tab_prefix='ultra'))), UK)
+    desk(item('1%', on=True, href='desk-ultra'), 'Sun 1 Nov 17:24', over=pop(claude(win('Weekly (all models)', used=1, elapsed=0.4, reset='Resets Sun 17:00', countdown='in 6d 23h', status='On pace', proj='too early to project', allow='0.6% an hour left'), wk=[U_WK[0], U_WK[1], ('26 Oct', 91, False, '', None, False), ('2 Nov', 1, False, 'so far', 0.4, False)], tab_prefix='ultra'))), UK)
+# pace row (PaceModel.reading, 0.1.15): too early to project, N% by reset, Over pace keeps its limit
+reg('pop-pace-early', 'Claude tab, 100 minutes into a new week and 11 minutes into a 5h window: On pace, too early to project', 'Pace',
+    desk(item('2%', on=True, href='desk-ultra'), 'Sun 1 Nov 18:41', over=pop(claude(win('Weekly (all models)', used=2, elapsed=1, reset='Resets Sun 17:00', countdown='in 6d 22h', status='On pace', proj='too early to project', allow='0.6% an hour left') + BL
+                                                                   + win('5h window', used=3, elapsed=3.7, reset='Resets 23:20', countdown='in 4h 49m', status='On pace', proj='too early to project', allow='20% an hour left'), sess=S_ONE, wk=[U_WK[0], U_WK[1], ('26 Oct', 91, False, '', None, False), ('2 Nov', 2, False, 'so far', 1, False)]))
+         + tip('Until 5% of a window has passed (8 h 24 min of a week, 15 min of a 5h window) only Over pace projects. On pace reads "too early to project"; VoiceOver says "On pace, too early to project" (PaceModel.earliestProjection, tooEarly). The weekly nudge names no projection then. Ahead cannot occur this early: it needs 5 points under the elapsed share.', 500, 250, 330, n=True)), POP_KEYS)
+reg('pop-pace-reset', 'Claude tab, On pace and Ahead read the share at the reset: 100% by reset at this rate', 'Pace',
+    desk(item('57%', on=True, href='desk'), over=pop(claude(win('Weekly (all models)', used=57, elapsed=55, reset='Resets Sun 18:00', countdown='in 3d 3h', status='On pace', proj='100% by reset at this rate', allow='0.6% an hour left') + BL + win('5h window', **FIVE_AHEAD)))
+         + tip('On pace or Ahead the projection is the share at the reset, at most 100: 57% at 55% of the week reads "100% by reset at this rate", not a clock time (PaceModel.reading). A "limit ... at this rate" clock time is for Over pace alone.', 500, 250, 330, n=True)), POP_KEYS)
+reg('pop-pace-over-early', 'Claude tab, ten minutes into a 5h window: Over pace keeps its limit time even this early', 'Pace',
+    desk(item('62%', on=True, href='desk'), 'Sat 31 Oct 14:20', over=pop(claude(win('Weekly (all models)', used=62, elapsed=83.5, reset='Resets Sun 18:00', countdown='in 1d 3h', status='Ahead', proj='74% by reset at this rate', allow='1% an hour left') + BL
+                                                                   + win('5h window', used=10, elapsed=3.3, over=True, reset='Resets 19:10', countdown='in 4h 50m', status='Over pace', proj='limit 15:50 at this rate', allow='19% an hour left')))
+         + tip('Over pace keeps the limit time in every phase: 10% ten minutes into a 5h window reads "Over pace  limit 15:50 at this rate". The weekly row below is Ahead and reads the share at the reset.', 500, 250, 330, n=True)), POP_KEYS)
 reg('desk-weekly-limit', 'Menu bar, weekly limit reached: x x eyes until the reset', 'Menu bar', desk(item('100%', eyes='weekly', over=True, href='pop-live')))
 
 # stale and missing
@@ -530,7 +547,7 @@ def cb(on, label, href, subs=(), indent=1, focus=False, link=None):
 
 def settings_tab(login='off', nudge_note=None, awake=False, awake_open=False, awake_note=None, restore=False, hook=True,
                  hook_err=None, prefix='pop', hdr=LIVE, macbar=False, listprice=True, focus=None, five=True, folders=False):
-    """Grammar.settingsTab, row for row, with the version line of 0.1.14."""
+    """Grammar.settingsTab, row for row, with the version line of 0.1.15."""
     body = header(hdr, 2, False, prefix) + BL
     body += cb(login == 'on', 'Open at login', 'pop-settings-login' if login == 'off' else 'pop-settings')
     if login == 'approval':
@@ -556,7 +573,7 @@ def settings_tab(login='off', nudge_note=None, awake=False, awake_open=False, aw
         body += L(T(' '), A('editor-after', 'Install the status line entry')) + dim_lines('one entry in ~/.claude/settings.json', 5)
     if hook_err:
         body += dim_lines(hook_err, 5)
-    body += BL + PRIVACY + L(T(' '), T('tokenpanda 0.1.14', 'dim')) + BL
+    body += BL + PRIVACY + L(T(' '), T('tokenpanda 0.1.15', 'dim')) + BL
     body += L(T(' '), A('desk-quit', 'Quit'), T(' ' * 40), A('desk-quit', G('&#8984;Q', 2)))
     return body + foot(2)
 
@@ -580,6 +597,8 @@ reg('pop-settings-folders', 'Settings, two settings folders: Install for the one
 reg('pop-settings-denied', 'Settings, notifications denied: the note in the accent, a link, under Reopen too', 'Settings',
     desk(IT(), over=pop(settings_tab(nudge_note=NOTIF_OFF, restore=True)) + pmark(7, 1, 4, 40) + pmark(15, 1, 4, 40)
          + tip('"Notifications are off in System Settings" is a link: in the accent, a control the keyboard and VoiceOver reach, said once. A click opens System Settings, Notifications, at tokenpanda. Turned on there, the note goes the next time the panel opens, with no restart (Notifier.refreshState, 0.1.14).', 500, 170, 330, n=True)), SK)
+reg('pop-settings-dangling', 'Settings, the install error for a link into a folder that does not exist, under the row, whole', 'Settings',
+    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(settings_tab(hook=False, hook_err=DANGLING_ERR, hdr=WAITING, prefix='nohook'))), keys(Escape='desk-nofeed', Tab='pop-nohook'))
 reg('pop-settings-error', 'Settings, the install error under the row, whole', 'Settings',
     desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(settings_tab(hook=False, hook_err=INSTALL_ERR, hdr=WAITING, prefix='nohook'))), keys(Escape='desk-nofeed', Tab='pop-nohook'))
 
@@ -638,14 +657,14 @@ def plain(over, clock='Thu 15 Oct 14:20', it=None, app='Finder'):
     return desk(it or '<span class="ext"></span>', clock, over, app)
 
 
-reg('browser-release', 'Releases page: tokenpanda-0.1.14.zip and its .sha256', 'Install',
+reg('browser-release', 'Releases page: tokenpanda-0.1.15.zip and its .sha256', 'Install',
     plain('<div class="win" style="left:150px;top:60px;width:980px;height:640px"><div class="wtb"><span class="tl"><i></i><i></i><i></i></span>Releases</div>'
-          '<div class="urlbar">github.com/tokenpandadev/tokenpanda-app/releases</div><div class="page"><h2>0.1.14</h2>' + b(520) + b(460) + b(380)
-          + '<div class="grp" style="margin-top:10px">' + A('term-shasum', '<span>tokenpanda-0.1.14.zip</span><span class="sp"></span><span class="note">629 KB</span>', 'asset')
-          + A('term-shasum', '<span>tokenpanda-0.1.14.zip.sha256</span><span class="sp"></span><span class="note">88 Bytes</span>', 'asset')
+          '<div class="urlbar">github.com/tokenpandadev/tokenpanda-app/releases</div><div class="page"><h2>0.1.15</h2>' + b(520) + b(460) + b(380)
+          + '<div class="grp" style="margin-top:10px">' + A('term-shasum', '<span>tokenpanda-0.1.15.zip</span><span class="sp"></span><span class="note">629 KB</span>', 'asset')
+          + A('term-shasum', '<span>tokenpanda-0.1.15.zip.sha256</span><span class="sp"></span><span class="note">88 Bytes</span>', 'asset')
           + '<div class="asset"><span>Source code (zip)</span></div></div></div></div>', app='Safari'))
 reg('term-shasum', 'Terminal: shasum checks the zip, OK', 'Install',
-    plain(term('Terminal, ~/Downloads', [('p', '$ shasum -a 256 -c tokenpanda-0.1.14.zip.sha256'), ('ok', 'tokenpanda-0.1.14.zip: OK'), ('p', '$ unzip -q tokenpanda-0.1.14.zip &amp;&amp; mv tokenpanda.app /Applications/')])
+    plain(term('Terminal, ~/Downloads', [('p', '$ shasum -a 256 -c tokenpanda-0.1.15.zip.sha256'), ('ok', 'tokenpanda-0.1.15.zip: OK'), ('p', '$ unzip -q tokenpanda-0.1.15.zip &amp;&amp; mv tokenpanda.app /Applications/')])
           + '<div class="alts"><a class="altg" href="finder-apps.html">Open Applications</a><a class="altg" href="term-brew.html">With Homebrew instead</a></div>', app='Terminal'))
 reg('term-brew', 'Terminal: brew trust, brew install from the tap, the caveats', 'Install',
     plain(term('Terminal', [('p', '$ brew trust --cask tokenpandadev/tap/tokenpanda'), ('p', '$ brew install tokenpandadev/tap/tokenpanda'), ('d', '==&gt; Tapping tokenpandadev/tap'), ('d', '==&gt; Installing Cask tokenpanda'),
@@ -671,17 +690,37 @@ reg('gk-confirm', 'The warning again: Open Anyway', 'Install',
 reg('notif-permission', 'The notification permission prompt: when Nudge or Reopen is ticked on, or the first nudge is due', 'Nudges',
     desk(item('61%', over=True, href='pop-settings-restore'), 'Thu 15 Oct 14:20', over=notif('"tokenpanda" would like to send you notifications', 'Notifications may include alerts, sounds and icon badges.', [('Allow', 'pop-settings-restore'), ("Don't Allow", 'pop-settings-denied')])
          + tip('Never at launch: the prompt comes with the first nudge that is due, or when the user ticks Nudge or Reopen sessions on; a choice made before is read without asking (Notifier.authorize).', 760, 140, 330, n=True)))
-reg('desk-hidden', 'First launch, the icon not visible: switched off in Menu Bar settings or behind the notch', 'Install',
-    desk('<span class="ext"></span>', 'Thu 15 Oct 14:20', over=tip('The app runs, but its icon is not on screen. Five seconds after the first launch the app checks (Controller.checkItemShows) and shows one window, once. While the screen is locked, another user is on the Mac or the display sleeps, it waits and asks again.', 760, 40, 330, n=True)
-                                                         + '<div class="alts"><a class="altg" href="dlg-hidden-26.html">macOS 26 and later</a><a class="altg" href="dlg-hidden-15.html">macOS 14 and 15</a></div>'))
-H26 = ('Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, or hidden behind the notch when the menu bar is full.')
-H15 = ('Its icon is not visible in the menu bar, most likely because the menu bar is full and the icon is hidden behind the notch. Quitting another menu bar app makes room for it.')
-reg('dlg-hidden-26', 'macOS 26 and later: tokenpanda is running, with Open Menu Bar Settings', 'Install',
-    plain(dlg('tokenpanda is running', H26, [('Open Menu Bar Settings', 'sys-menubar', True), ('OK', 'desk-hidden', False)], stack=True)
-          + tip('Grammar.hiddenIconHint(switchInSettings: true). From macOS 26 an app\'s icon can be switched off in System Settings, Menu Bar, so the window names both causes and offers the pane.', 820, 200, 300, n=True)))
-reg('dlg-hidden-15', 'macOS 14 and 15: tokenpanda is running, the full menu bar, OK only', 'Install',
-    plain(dlg('tokenpanda is running', H15, [('OK', 'desk-hidden', True)], stack=True)
-          + tip('Grammar.hiddenIconHint(switchInSettings: false). Before macOS 26 only Apple\'s own items have a switch, so the window names the one cause there is and has no button to a pane.', 820, 200, 300, n=True)))
+HID_MGR = 'an app that hides menu bar icons, such as Bartender or Ice'
+# the texts are Grammar.hiddenIconHint, word for word, for each notch case (notch true, false, nil = not known)
+H26_FULL = {'notch': 'hidden behind the notch when the menu bar is full', 'nonotch': 'left out when the menu bar is full', 'unknown': 'left out or hidden behind the notch when the menu bar is full'}
+H15_CAUSE = {'notch': 'the menu bar is full and the icon is hidden behind the notch', 'nonotch': 'the menu bar is full', 'unknown': 'the menu bar is full and the icon is left out or hidden behind the notch'}
+H_CASE = {'notch': 'a Mac with a notch', 'nonotch': 'a Mac with no notch', 'unknown': 'notch not known (a connected screen has one, the item\'s screen is not known)'}
+H_SUF = {'notch': '', 'nonotch': '-nonotch', 'unknown': '-unknown'}
+H_SHORT = {'notch': 'with a notch', 'nonotch': 'no notch', 'unknown': 'notch not known'}
+
+
+def h26(k):
+    return f'Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, {H26_FULL[k]}, or kept out of view by {HID_MGR}.'
+
+
+def h15(k):
+    return f'Its icon is not visible in the menu bar, most likely because {H15_CAUSE[k]}. Quitting another menu bar app makes room for it. An app that hides menu bar icons, such as Bartender or Ice, can also keep it out of view.'
+
+
+reg('desk-hidden', 'First launch, the icon not visible: switched off in Menu Bar settings, behind the notch, or kept out of view by a menu bar manager', 'Install',
+    desk('<span class="ext"></span>', 'Thu 15 Oct 14:20', over=tip('The app runs, but its icon is not on screen. Five seconds after the first launch the app checks (Controller.checkItemShows) and shows one window, once. While the screen is locked, another user is on the Mac or the display sleeps, it waits and asks again. The text is picked by the macOS version and by the notch: named only on a Mac with one, both causes when it is not known.', 700, 30, 400, n=True)
+                                                         + '<div class="alts"><a class="altg" href="dlg-hidden-26.html">macOS 26, with a notch</a><a class="altg" href="dlg-hidden-26-nonotch.html">macOS 26, no notch</a><a class="altg" href="dlg-hidden-26-unknown.html">macOS 26, notch not known</a>'
+                                                         '<a class="altg" href="dlg-hidden-15.html">macOS 14 and 15, with a notch</a><a class="altg" href="dlg-hidden-15-nonotch.html">macOS 14 and 15, no notch</a><a class="altg" href="dlg-hidden-15-unknown.html">macOS 14 and 15, notch not known</a></div>'))
+for k in ('notch', 'nonotch', 'unknown'):
+    n = {'notch': 'true', 'nonotch': 'false', 'unknown': 'nil'}[k]
+    reg('dlg-hidden-26' + H_SUF[k], f'macOS 26 and later, {H_SHORT[k]}: tokenpanda is running, with Open Menu Bar Settings', 'Install',
+        plain(dlg('tokenpanda is running', h26(k), [('Open Menu Bar Settings', 'sys-menubar', True), ('OK', 'desk-hidden', False)], stack=True)
+              + tip(f'Grammar.hiddenIconHint(switchInSettings: true, notch: {n}), {H_CASE[k]}. From macOS 26 an app\'s icon can be switched off in System Settings, Menu Bar, so the window names the causes and offers the pane; it also names a menu bar manager.', 840, 120, 300, n=True)))
+for k in ('notch', 'nonotch', 'unknown'):
+    n = {'notch': 'true', 'nonotch': 'false', 'unknown': 'nil'}[k]
+    reg('dlg-hidden-15' + H_SUF[k], f'macOS 14 and 15, {H_SHORT[k]}: tokenpanda is running, the full menu bar, OK only', 'Install',
+        plain(dlg('tokenpanda is running', h15(k), [('OK', 'desk-hidden', True)], stack=True)
+              + tip(f'Grammar.hiddenIconHint(switchInSettings: false, notch: {n}), {H_CASE[k]}. Before macOS 26 only Apple\'s own items have a switch, so the window names a full menu bar, has no button to a pane, and names a menu bar manager.', 840, 120, 300, n=True)))
 reg('sys-menubar', 'System Settings, Menu Bar: allow tokenpanda (macOS 26)', 'Install',
     plain(swin('Menu Bar', 'Menu Bar', '<h2>Menu Bar</h2><div class="grp"><div class="grow"><span>Allow in the Menu Bar</span></div>' + ''.join(f'<div class="grow"><i class="appic"></i>{b(120)}<span class="sp"></span><i class="sw on"></i></div>' for _ in range(3))
                                                 + '<div class="grow"><i class="appic"></i><span>tokenpanda</span><span class="sp"></span>' + A('desk-nofeed', '<i class="sw"></i>') + '</div></div>'), app='System Settings'))
@@ -734,8 +773,8 @@ reg('term-reopen', 'Terminal: each session started again as it was started, with
 reg('term-pmset', 'Terminal: pmset lists the tokenpanda assertion', 'Keep awake',
     plain(term('Terminal', [('p', '$ pmset -g assertions'), ('', '   pid 4242(tokenpanda): ... PreventUserIdleSystemSleep named: "tokenpanda: a Claude Code session is open"')]), app='Terminal'))
 reg('term-brew-upgrade', 'Terminal: brew upgrade, then Open Anyway again', 'Update',
-    plain(term('Terminal', [('p', '$ brew upgrade --cask tokenpanda'), ('d', '==&gt; Upgrading tokenpanda 0.1.13 -&gt; 0.1.14'), ('d', '==&gt; Quitting dev.tokenpanda.app'), ('ok', 'tokenpanda was successfully upgraded!')])
-          + tip('<b>Friction.</b> Each new build is signed ad hoc with a new code hash, so the Open Anyway steps can come back after an update. Settings says which build runs: "tokenpanda 0.1.14".', 760, 520, 330)
+    plain(term('Terminal', [('p', '$ brew upgrade --cask tokenpanda'), ('d', '==&gt; Upgrading tokenpanda 0.1.14 -&gt; 0.1.15'), ('d', '==&gt; Quitting dev.tokenpanda.app'), ('ok', 'tokenpanda was successfully upgraded!')])
+          + tip('<b>Friction.</b> Each new build is signed ad hoc with a new code hash, so the Open Anyway steps can come back after an update. Settings says which build runs: "tokenpanda 0.1.15".', 760, 520, 330)
           + '<div class="alts"><a class="altg" href="gk-blocked.html">Open the new build</a></div>', app='Terminal'))
 reg('finder-bin', 'Finder: tokenpanda.app moved to the Bin', 'Uninstall',
     plain('<div class="win" style="left:200px;top:90px;width:880px;height:520px"><div class="wtb"><span class="tl"><i></i><i></i><i></i></span>Bin</div><div class="fgrid">'

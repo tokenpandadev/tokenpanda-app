@@ -1,4 +1,4 @@
-/* Wireframes of tokenpanda as built (0.1.14, 2bc3011). drawn-ui hand on a dark ground: dark cards, radii 12/8/4,
+/* Wireframes of tokenpanda as built (0.1.15, 274b15c). drawn-ui hand on a dark ground: dark cards, radii 12/8/4,
    one card shadow, one lift shadow, bars for filler content (project, model, process and session names).
    Titles, labels, status words, figures and clock times are real text. The popover is drawn in the app's own
    dark tokens (Sources/Text/Tokens.swift); the light appearance swaps each for its partner (Tokens.light).

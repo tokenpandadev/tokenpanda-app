@@ -9,10 +9,10 @@ Method: the product read first (README, CHANGELOG, docs/spec.html, styleguide.ht
 
 ## Counts
 
-1. Flows: 14. Steps: 102.
-2. In the real app: 83 work, 6 friction, 0 broken.
-3. In the wireframes: 102 of 102 steps drawn; 72 reached by a click or key from the step before, 14 flow starts, 16 reached with Next.
-4. Screens: 81, a 1280 by 800 desktop with the menu bar, the popover at its real 380 point width and 16 point lines.
+1. Flows: 14. Steps: 105.
+2. In the real app: 86 work, 6 friction, 0 broken.
+3. In the wireframes: 105 of 105 steps drawn; 73 reached by a click or key from the step before, 14 flow starts, 18 reached with Next.
+4. Screens: 90, a 1280 by 800 desktop with the menu bar, the popover at its real 380 point width and 16 point lines.
 
 ## The 5 hour window for Ultra, exactly
 
@@ -33,7 +33,7 @@ Kept for plans that still send it: a Max or Pro feed carries five_hour on every 
 
 ## 01 Download and first open
 
-1. works. The releases page offers the zip of each version and its .sha256; the README says it runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later. Screens: browser-release. Do: Download both. Evidence: README.md, Install (0.1.14); flow-test-0.1.13 01.1. Wireframe: start.
+1. works. The releases page offers the zip of each version and its .sha256; the README says it runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later. Screens: browser-release. Do: Download both. Evidence: README.md, Install (0.1.15); flow-test-0.1.13 01.1. Wireframe: start.
 2. works. In Terminal, shasum -a 256 -c checks the zip and prints OK; unzip and move tokenpanda.app to Applications. Screens: term-shasum. Do: Run the two lines. Evidence: README.md, Install; flow-test-0.1.13 01.2. Wireframe: click.
 3. works. With Homebrew instead: brew trust --cask, then brew install tokenpandadev/tap/tokenpanda; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap. Screens: term-brew. Do: Read the caveats. Evidence: Casks/tokenpanda.rb: depends_on arch: :arm64 (0.1.14), caveats; README.md, Install. Wireframe: click.
 4. friction. Double click in Applications: macOS refuses the ad hoc build, "Apple could not verify tokenpanda is free of malware". Screens: finder-apps, gk-blocked. Do: Click Done. Evidence: codesign Signature=adhoc; spctl rejected (flow-test-0.1.13 01.4). By design until Developer ID signing (spec 17, path two). Wireframe: click.
@@ -41,7 +41,7 @@ Kept for plans that still send it: a Max or Pro feed carries five_hour on every 
 6. by hand. The warning comes back once; Open Anyway starts the app. Screens: gk-confirm. Do: Click Open Anyway. Evidence: README.md, Install. Wireframe: click.
 7. works. No notification prompt at launch: the app asks when the first nudge is due, or when Nudge or Reopen sessions is ticked. Screens: desk-nofeed. Do: Nothing. Evidence: Notifier.swift, refreshState and authorize; Controller.swift, applicationDidFinishLaunching. Wireframe: click.
 8. works. The menu bar shows the panda alone at half strength: no figures yet. No window, no Dock icon. Screens: desk-nofeed. Do: Click the panda. Evidence: ScreenBuilder.itemFigures; LSUIElement in scripts/build-app.sh. Wireframe: click.
-9. works. If the icon is not on screen five seconds after the first launch, one window: "tokenpanda is running". From macOS 26 the icon "may be switched off in System Settings, Menu Bar, or hidden behind the notch", with "Open Menu Bar Settings" and "OK"; before macOS 26 the menu bar is full and the icon is behind the notch, quitting another menu bar app makes room, with "OK" only. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once. Screens: desk-hidden, dlg-hidden-26, dlg-hidden-15. Do: Click Open Menu Bar Settings. Evidence: Grammar.hiddenIconHint and Controller.checkItemShows (0.1.14: the switch offered only from macOS 26, no verdict while locked, away or asleep); test theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne. The real macOS 26 switch and the notch were not reproduced. Wireframe: click.
+9. works. If the icon is not on screen five seconds after the first launch, one window: "tokenpanda is running". From macOS 26 the icon "may be switched off in System Settings, Menu Bar, hidden behind the notch when the menu bar is full, or kept out of view by an app that hides menu bar icons, such as Bartender or Ice", with "Open Menu Bar Settings" and "OK"; before macOS 26 the menu bar is "most likely" full, quitting another menu bar app makes room, and a menu bar manager can also keep the icon out of view, with "OK" only. The notch is named only on a Mac with one: with no notch the text says "left out when the menu bar is full", and when it is not known (a connected screen has a notch, the item's screen is not known) both causes are named. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once. Screens: desk-hidden, dlg-hidden-26, dlg-hidden-26-nonotch, dlg-hidden-26-unknown, dlg-hidden-15, dlg-hidden-15-nonotch, dlg-hidden-15-unknown. Do: Click Open Menu Bar Settings. Evidence: Grammar.hiddenIconHint and Grammar.notch (0.1.15: the notch named only on a Mac with one, a menu bar manager named in every text; texts approved 2026-11-04) and Controller.checkItemShows (0.1.14: the switch offered only from macOS 26, no verdict while locked, away or asleep); tests theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne, theNotchFollowsTheScreenThatHoldsTheItem. The real macOS 26 switch and the notch were not reproduced. Wireframe: click.
 10. by hand. Switching the item on in System Settings, Menu Bar, is the user's click. Screens: sys-menubar. Do: Switch tokenpanda on. Evidence: testing.html, section 5. Wireframe: click.
 
 ## 02 Set up the feed
@@ -53,11 +53,12 @@ Kept for plans that still send it: a Max or Pro feed carries five_hour on every 
 5. works. During the first call both windows and the session say "waiting for the first reply". Screens: term-claude, pop-firstcall. Do: Send a first prompt. Evidence: ScreenBuilder.limitsView .firstReply; flow-test-0.1.13 02.5. Wireframe: click.
 6. works. After the first reply: "Live from Claude Code", the windows with pace, each session with its bar. Screens: pop-live. Do: Read the figures. Evidence: flow-test-0.1.13 02.6. Wireframe: click.
 7. works. A settings.json that is not valid JSON, or valid JSON that is not an object: Install says why under the button, wrapped, on the Claude tab and in Settings. Screens: editor-broken, pop-install-failed, pop-settings-error. Do: Fix the file, click Install again. Evidence: Hook.unreadable; flow-test-0.1.13 02.7 and 02.12. Wireframe: click.
-8. works. Both places name the button "Install the status line entry", and no line runs past the panel edge. Screens: pop-settings-nohook. Do: Click it. Evidence: Grammar.hookRow and dimLines; flow-test-0.1.13 02.8. Wireframe: click.
-9. works. Several settings folders each get their own script and backup; a folder with only transcripts is left alone; a lost script offers Install again. Screens: pop-settings-folders. Do: Click Install. Evidence: HookSet; flow-test-0.1.13 02.9. Wireframe: next.
-10. works. A settings.json that is a link stays a link, and the file it names keeps its mode; a created settings.json is 0600. Screens: editor-after. Do: Nothing. Evidence: SettingsFile; flow-test-0.1.13 02.10. Wireframe: click.
-11. works. disableAllHooks on: "disableAllHooks is on in settings.json  so Claude Code runs no status line". Screens: pop-hooks-disabled. Do: Turn it off, or not. Evidence: Grammar.limits .hooksDisabled; flow-test-0.1.13 02.11. Wireframe: next.
-12. works. An entry installed by an earlier version gets the current script at the next launch, its chained command kept. Screens: editor-after. Do: Nothing. Evidence: HookSet.refreshScripts; flow-test-0.1.13 02.13. Wireframe: next.
+8. works. A settings.json that is a link into a folder that does not exist: Install refuses, says why under the button ("it is a link into ~/dotfiles/sub, a folder that does not exist"), and writes nothing: no folder, no script, no backup. Screens: pop-install-dangling, pop-settings-dangling. Do: Make the folder, or fix the link, and click Install again. Evidence: Hook.writableTarget, SettingsFile.reason (0.1.15, audit F-6; text approved 2026-11-04); test in HardeningTests (a dangling ~/.claude link, the reason string). Wireframe: next.
+9. works. Both places name the button "Install the status line entry", and no line runs past the panel edge. Screens: pop-settings-nohook. Do: Click it. Evidence: Grammar.hookRow and dimLines; flow-test-0.1.13 02.8. Wireframe: click.
+10. works. Several settings folders each get their own script and backup; a folder with only transcripts is left alone; a lost script offers Install again. Screens: pop-settings-folders. Do: Click Install. Evidence: HookSet; flow-test-0.1.13 02.9. Wireframe: next.
+11. works. A settings.json that is a link stays a link, and the file it names keeps its mode; a created settings.json is 0600. Screens: editor-after. Do: Nothing. Evidence: SettingsFile; flow-test-0.1.13 02.10. Wireframe: click.
+12. works. disableAllHooks on: "disableAllHooks is on in settings.json  so Claude Code runs no status line". Screens: pop-hooks-disabled. Do: Turn it off, or not. Evidence: Grammar.limits .hooksDisabled; flow-test-0.1.13 02.11. Wireframe: next.
+13. works. An entry installed by an earlier version gets the current script at the next launch, its chained command kept. Screens: editor-after. Do: Nothing. Evidence: HookSet.refreshScripts; flow-test-0.1.13 02.13. Wireframe: next.
 
 ## 03 Read the panel
 
@@ -101,8 +102,10 @@ Kept for plans that still send it: a Max or Pro feed carries five_hour on every 
 2. works. The reset passes with no session: "Reset Sun 17:00  no session since", the item dims; the old week keeps its figure and the new week says "no reply yet". Screens: pop-week-rolled. Do: Open Claude Code. Evidence: ScreenBuilder.windowView .resetPassed, weekViews; flow-test-0.1.13 06.2 and 06.7. Wireframe: click.
 3. works. The reset passes while idle sessions feed: "new window on the next reply". Screens: pop-week-rolled-live. Do: Send a prompt. Evidence: ScreenBuilder.windowView .nextReply; flow-test-0.1.13 06.3. Wireframe: click.
 4. works. The next reply brings the new week: a low figure, "On pace" or "Ahead", a new row in week over week. Screens: pop-week-new. Do: Read the new week. Evidence: FeedTests; Weeks.swift. Wireframe: click.
-5. works. Week over week keeps the highest value seen per week. Screens: pop-live. Do: Trust the history. Evidence: WindowsTests weekOverWeekKeepsTheHighestValuePerWeek; flow-test-0.1.13 06.5. Wireframe: next.
-6. works. At 100% the panda shows x x until the reset. Screens: desk-weekly-limit. Do: Wait for the reset. Evidence: ItemImage; flow-test-0.1.13 06.6. Wireframe: next.
+5. works. Early in a window the pace row does not guess: "On pace  too early to project" until 5% of the window has passed (8 h 24 min of a week, 15 min of a 5h window). The new week above shows it. Screens: pop-pace-early, pop-week-new. Do: Read the pace row in the first hours. Evidence: PaceModel.reading, earliestProjection (0.1.15, flow test 06.8; texts approved 2026-11-04); test theFirstMinutesOfAWindowProjectOnlyOverPace. Wireframe: next.
+6. works. On pace or Ahead the projection reads "N% by reset at this rate", N at most 100; Over pace keeps "limit ... at this rate" in every phase, also ten minutes in. Screens: pop-pace-reset, pop-pace-over-early. Do: Read the pace row. Evidence: PaceModel.reading (0.1.15; texts approved 2026-11-04); test aLimitIsNamedOnlyOverPace. Wireframe: next.
+7. works. Week over week keeps the highest value seen per week. Screens: pop-live. Do: Trust the history. Evidence: WindowsTests weekOverWeekKeepsTheHighestValuePerWeek; flow-test-0.1.13 06.5. Wireframe: click.
+8. works. At 100% the panda shows x x until the reset. Screens: desk-weekly-limit. Do: Wait for the reset. Evidence: ItemImage; flow-test-0.1.13 06.6. Wireframe: next.
 
 ## 07 Stale or missing feed
 
@@ -128,7 +131,7 @@ Kept for plans that still send it: a Max or Pro feed carries five_hour on every 
 2. by hand. Open at login: the box shows what macOS says; while macOS waits for approval a dim line opens Login Items. Screens: pop-settings-login, pop-settings-approval, sys-loginitems. Do: Tick it. Evidence: Controller.clickLogin; not clicked in the flow tests. Wireframe: click.
 3. works. List price equivalent off: the price chip goes. Screens: pop-nochip. Do: Untick it. Evidence: ScreenBuilder.tokensView. Wireframe: click.
 4. works. Quit and Command Q end the app; the item goes. Screens: desk-quit. Do: Click Quit. Evidence: Controller.handleKey; flow-test-0.1.13 09.4. Wireframe: click.
-5. works. The version line says what runs: "tokenpanda 0.1.14". Screens: pop-settings. Do: Read it. Evidence: ScreenBuilder.screen, CFBundleShortVersionString. Wireframe: click.
+5. works. The version line says what runs: "tokenpanda 0.1.15". Screens: pop-settings. Do: Read it. Evidence: ScreenBuilder.screen, CFBundleShortVersionString. Wireframe: click.
 6. works. Light mode: the same layout on a light glass, switching with the Mac's appearance. Screens: pop-settings. Do: Change the appearance. Evidence: Ground in Controller.swift; Tokens.light; flow-test-0.1.13 09.6. The live switch is by hand. Wireframe: click.
 7. works. A tall Settings tab on a short screen scrolls inside the panel, so Quit stays reachable. Screens: pop-small-settings. Do: Scroll to Quit. Evidence: PanelSize (0.1.14); see 03.11. Wireframe: click.
 

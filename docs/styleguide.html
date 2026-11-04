@@ -32,7 +32,7 @@
 </div></nav>
 
 <main class="main">
-<div class="head"><h1>Style guide</h1><span class="d">  tokenpanda  Claude Code native  4 November 2026, at 0.1.14</span></div>
+<div class="head"><h1>Style guide</h1><span class="d">  tokenpanda  Claude Code native  4 November 2026, at 0.1.15</span></div>
 <div class="head d">living: every specimen below is rendered by docs.css and docs.js</div>
 <div class="head"><span class="d">Pace  </span><button type="button" class="tab" data-pace="ahead"> Ahead </button><span>  </span><button type="button" class="tab" data-pace="on"> On pace </button><span>  </span><button type="button" class="tab" data-pace="over" aria-pressed="true"> Over pace </button><span class="q">  flips every live specimen</span></div>
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
@@ -199,7 +199,7 @@
 <div class="t"><div id="c-pover"></div><div class="cap">over pace</div></div>
 <div class="t"><div id="c-pstale"></div><div class="cap">stale</div></div>
 </div></div>
-<p class="use"><b>Use</b> under a window bar, three dim lines. The status word is the only bold text in the three lines. The projection has two branches: "limit Sun 01:20 at this rate" when the limit lands before the reset, "76% by reset at this rate" when it does not. The allowance is "0.5% an hour left" (one decimal under 1%, whole numbers above).</p>
+<p class="use"><b>Use</b> under a window bar, three dim lines. The status word is the only bold text in the three lines. The projection has three branches (0.1.15, approved 2026-11-04): "limit Sun 01:20 at this rate" only when the status is Over pace and the limit lands before the reset; otherwise "76% by reset at this rate", at most 100%; and "too early to project" while less than 5% of the window has passed and the status is not Over pace. The allowance is "0.5% an hour left" (one decimal under 1%, whole numbers above).</p>
 <p class="use"><b>Do not</b> join the lines with a separator; two spaces or a line break. Do not colour the status word; the bar's coral already says over pace.</p>
 
 <h3>6.5  Table row</h3>
@@ -303,7 +303,7 @@
 <li><b>Status words</b>, exactly: "Ahead", "On pace", "Over pace". Bold, at the start of the status line, nowhere else.</li>
 <li><b>The reset line</b>: "Resets" then the clock time, then two spaces, then the countdown. Weekly: "Resets Sun 18:00  in 3d 3h". 5h window: "Resets 17:45  in 3h 25m". The weekday is three letters; the clock is 24 hour with a leading zero in the minutes.</li>
 <li><b>Clock times, never a countdown alone.</b> A countdown may follow a clock time as the second value. "in 1d 13h" on its own is banned.</li>
-<li><b>Projection</b>: "limit Sun 01:20 at this rate" or "76% by reset at this rate". Times are rounded to five minutes.</li>
+<li><b>Projection</b>: "limit Sun 01:20 at this rate" (Over pace only), "76% by reset at this rate" (On pace or Ahead, at most 100%) or "too early to project" (On pace before 5% of the window has passed). Times are rounded to five minutes.</li>
 <li><b>Allowance</b>: "0.5% an hour left". One decimal under 1%, whole numbers from 1% up.</li>
 <li><b>The percent</b>: " 61% used" after the bar, one space before. "used" is lower case.</li>
 <li><b>Updated line</b>: "Live from Claude Code" while a session feeds; "As of 13:05, last Claude Code session" between sessions; "Waiting for a Claude Code session" before the first feed. Stale sections say "as of 13:05" under the reset line, and the stale Claude tab adds "limits are shared with the Claude app and other Macs, so the real figure may be higher".</li>

@@ -11,7 +11,7 @@ window.FLOWS = [
     ],
     "do": "Download both.",
     "now": "works",
-    "ev": "README.md, Install (0.1.14); flow-test-0.1.13 01.1.",
+    "ev": "README.md, Install (0.1.15); flow-test-0.1.13 01.1.",
     "walk": "start"
    },
    {
@@ -94,15 +94,19 @@ window.FLOWS = [
    },
    {
     "n": "9",
-    "text": "If the icon is not on screen five seconds after the first launch, one window: \"tokenpanda is running\". From macOS 26 the icon \"may be switched off in System Settings, Menu Bar, or hidden behind the notch\", with \"Open Menu Bar Settings\" and \"OK\"; before macOS 26 the menu bar is full and the icon is behind the notch, quitting another menu bar app makes room, with \"OK\" only. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once.",
+    "text": "If the icon is not on screen five seconds after the first launch, one window: \"tokenpanda is running\". From macOS 26 the icon \"may be switched off in System Settings, Menu Bar, hidden behind the notch when the menu bar is full, or kept out of view by an app that hides menu bar icons, such as Bartender or Ice\", with \"Open Menu Bar Settings\" and \"OK\"; before macOS 26 the menu bar is \"most likely\" full, quitting another menu bar app makes room, and a menu bar manager can also keep the icon out of view, with \"OK\" only. The notch is named only on a Mac with one: with no notch the text says \"left out when the menu bar is full\", and when it is not known (a connected screen has a notch, the item's screen is not known) both causes are named. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once.",
     "screens": [
      "desk-hidden",
      "dlg-hidden-26",
-     "dlg-hidden-15"
+     "dlg-hidden-26-nonotch",
+     "dlg-hidden-26-unknown",
+     "dlg-hidden-15",
+     "dlg-hidden-15-nonotch",
+     "dlg-hidden-15-unknown"
     ],
     "do": "Click Open Menu Bar Settings.",
     "now": "works",
-    "ev": "Grammar.hiddenIconHint and Controller.checkItemShows (0.1.14: the switch offered only from macOS 26, no verdict while locked, away or asleep); test theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne. The real macOS 26 switch and the notch were not reproduced.",
+    "ev": "Grammar.hiddenIconHint and Grammar.notch (0.1.15: the notch named only on a Mac with one, a menu bar manager named in every text; texts approved 2026-11-04) and Controller.checkItemShows (0.1.14: the switch offered only from macOS 26, no verdict while locked, away or asleep); tests theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne, theNotchFollowsTheScreenThatHoldsTheItem. The real macOS 26 switch and the notch were not reproduced.",
     "walk": "click"
    },
    {
@@ -204,6 +208,18 @@ window.FLOWS = [
    },
    {
     "n": "8",
+    "text": "A settings.json that is a link into a folder that does not exist: Install refuses, says why under the button (\"it is a link into ~/dotfiles/sub, a folder that does not exist\"), and writes nothing: no folder, no script, no backup.",
+    "screens": [
+     "pop-install-dangling",
+     "pop-settings-dangling"
+    ],
+    "do": "Make the folder, or fix the link, and click Install again.",
+    "now": "works",
+    "ev": "Hook.writableTarget, SettingsFile.reason (0.1.15, audit F-6; text approved 2026-11-04); test in HardeningTests (a dangling ~/.claude link, the reason string).",
+    "walk": "next"
+   },
+   {
+    "n": "9",
     "text": "Both places name the button \"Install the status line entry\", and no line runs past the panel edge.",
     "screens": [
      "pop-settings-nohook"
@@ -214,7 +230,7 @@ window.FLOWS = [
     "walk": "click"
    },
    {
-    "n": "9",
+    "n": "10",
     "text": "Several settings folders each get their own script and backup; a folder with only transcripts is left alone; a lost script offers Install again.",
     "screens": [
      "pop-settings-folders"
@@ -225,7 +241,7 @@ window.FLOWS = [
     "walk": "next"
    },
    {
-    "n": "10",
+    "n": "11",
     "text": "A settings.json that is a link stays a link, and the file it names keeps its mode; a created settings.json is 0600.",
     "screens": [
      "editor-after"
@@ -236,7 +252,7 @@ window.FLOWS = [
     "walk": "click"
    },
    {
-    "n": "11",
+    "n": "12",
     "text": "disableAllHooks on: \"disableAllHooks is on in settings.json  so Claude Code runs no status line\".",
     "screens": [
      "pop-hooks-disabled"
@@ -247,7 +263,7 @@ window.FLOWS = [
     "walk": "next"
    },
    {
-    "n": "12",
+    "n": "13",
     "text": "An entry installed by an earlier version gets the current script at the next launch, its chained command kept.",
     "screens": [
      "editor-after"
@@ -627,6 +643,30 @@ window.FLOWS = [
    },
    {
     "n": "5",
+    "text": "Early in a window the pace row does not guess: \"On pace  too early to project\" until 5% of the window has passed (8 h 24 min of a week, 15 min of a 5h window). The new week above shows it.",
+    "screens": [
+     "pop-pace-early",
+     "pop-week-new"
+    ],
+    "do": "Read the pace row in the first hours.",
+    "now": "works",
+    "ev": "PaceModel.reading, earliestProjection (0.1.15, flow test 06.8; texts approved 2026-11-04); test theFirstMinutesOfAWindowProjectOnlyOverPace.",
+    "walk": "next"
+   },
+   {
+    "n": "6",
+    "text": "On pace or Ahead the projection reads \"N% by reset at this rate\", N at most 100; Over pace keeps \"limit ... at this rate\" in every phase, also ten minutes in.",
+    "screens": [
+     "pop-pace-reset",
+     "pop-pace-over-early"
+    ],
+    "do": "Read the pace row.",
+    "now": "works",
+    "ev": "PaceModel.reading (0.1.15; texts approved 2026-11-04); test aLimitIsNamedOnlyOverPace.",
+    "walk": "next"
+   },
+   {
+    "n": "7",
     "text": "Week over week keeps the highest value seen per week.",
     "screens": [
      "pop-live"
@@ -634,10 +674,10 @@ window.FLOWS = [
     "do": "Trust the history.",
     "now": "works",
     "ev": "WindowsTests weekOverWeekKeepsTheHighestValuePerWeek; flow-test-0.1.13 06.5.",
-    "walk": "next"
+    "walk": "click"
    },
    {
-    "n": "6",
+    "n": "8",
     "text": "At 100% the panda shows x x until the reset.",
     "screens": [
      "desk-weekly-limit"
@@ -847,7 +887,7 @@ window.FLOWS = [
    },
    {
     "n": "5",
-    "text": "The version line says what runs: \"tokenpanda 0.1.14\".",
+    "text": "The version line says what runs: \"tokenpanda 0.1.15\".",
     "screens": [
      "pop-settings"
     ],
@@ -1232,6 +1272,7 @@ window.TITLES = {
  "pop-nohook": "Claude tab, first open: Install the status line entry",
  "pop-nohook-chained": "Claude tab, first open with a status line of your own: kept and chained",
  "pop-install-failed": "Claude tab after Install with a settings.json that is not valid JSON: the reason under the button",
+ "pop-install-dangling": "Claude tab after Install with a settings.json that is a link into a folder that does not exist: refused, nothing written",
  "pop-hooks-disabled": "Claude tab with disableAllHooks on: Claude Code runs no status line",
  "pop-nosession": "Claude tab, entry installed, no session yet",
  "pop-firstcall": "Claude tab during the first call: sessions open, both windows wait for the first reply",
@@ -1244,6 +1285,9 @@ window.TITLES = {
  "pop-week-rolled": "Claude tab, weekly reset passed with no session since: the new week says no reply yet",
  "pop-week-rolled-live": "Claude tab, weekly reset passed while idle sessions feed: new window on the next reply",
  "pop-week-new": "Claude tab, the new week arrived: 1% used, last week kept",
+ "pop-pace-early": "Claude tab, 100 minutes into a new week and 11 minutes into a 5h window: On pace, too early to project",
+ "pop-pace-reset": "Claude tab, On pace and Ahead read the share at the reset: 100% by reset at this rate",
+ "pop-pace-over-early": "Claude tab, ten minutes into a 5h window: Over pace keeps its limit time even this early",
  "desk-weekly-limit": "Menu bar, weekly limit reached: x x eyes until the reset",
  "pop-asof": "Claude tab, last session closed 20 minutes ago: As of 14:00, pace still computed",
  "pop-stale": "Claude tab, stale: no session for over an hour",
@@ -1268,12 +1312,13 @@ window.TITLES = {
  "pop-settings-nohook": "Settings, entry not installed: Install the status line entry",
  "pop-settings-folders": "Settings, two settings folders: Install for the one missing, Remove, the errors whole",
  "pop-settings-denied": "Settings, notifications denied: the note in the accent, a link, under Reopen too",
+ "pop-settings-dangling": "Settings, the install error for a link into a folder that does not exist, under the row, whole",
  "pop-settings-error": "Settings, the install error under the row, whole",
  "pop-voiceover": "VoiceOver in the popover: buttons, tabs and checkboxes with their state, pressable",
  "pop-keyboard": "Keyboard in the popover: the focus ring on a setting, Space ticks it",
  "pop-small": "Claude tab on a small or scaled screen: the panel stops short of the screen and scrolls, from the top",
  "pop-small-settings": "Settings on a small screen: the keyboard ring scrolls Quit into view",
- "browser-release": "Releases page: tokenpanda-0.1.14.zip and its .sha256",
+ "browser-release": "Releases page: tokenpanda-0.1.15.zip and its .sha256",
  "term-shasum": "Terminal: shasum checks the zip, OK",
  "term-brew": "Terminal: brew trust, brew install from the tap, the caveats",
  "finder-apps": "Finder, Applications: tokenpanda.app",
@@ -1281,9 +1326,13 @@ window.TITLES = {
  "gk-settings": "System Settings, Privacy & Security: Open Anyway, at the bottom",
  "gk-confirm": "The warning again: Open Anyway",
  "notif-permission": "The notification permission prompt: when Nudge or Reopen is ticked on, or the first nudge is due",
- "desk-hidden": "First launch, the icon not visible: switched off in Menu Bar settings or behind the notch",
- "dlg-hidden-26": "macOS 26 and later: tokenpanda is running, with Open Menu Bar Settings",
- "dlg-hidden-15": "macOS 14 and 15: tokenpanda is running, the full menu bar, OK only",
+ "desk-hidden": "First launch, the icon not visible: switched off in Menu Bar settings, behind the notch, or kept out of view by a menu bar manager",
+ "dlg-hidden-26": "macOS 26 and later, with a notch: tokenpanda is running, with Open Menu Bar Settings",
+ "dlg-hidden-26-nonotch": "macOS 26 and later, no notch: tokenpanda is running, with Open Menu Bar Settings",
+ "dlg-hidden-26-unknown": "macOS 26 and later, notch not known: tokenpanda is running, with Open Menu Bar Settings",
+ "dlg-hidden-15": "macOS 14 and 15, with a notch: tokenpanda is running, the full menu bar, OK only",
+ "dlg-hidden-15-nonotch": "macOS 14 and 15, no notch: tokenpanda is running, the full menu bar, OK only",
+ "dlg-hidden-15-unknown": "macOS 14 and 15, notch not known: tokenpanda is running, the full menu bar, OK only",
  "sys-menubar": "System Settings, Menu Bar: allow tokenpanda (macOS 26)",
  "sys-loginitems": "System Settings, General, Login Items: tokenpanda listed",
  "sys-notifications": "System Settings, Notifications, tokenpanda: the link from Settings lands here",

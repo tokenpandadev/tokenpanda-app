@@ -10,11 +10,12 @@ flowchart TD
   S5["5. During the first call both windows and the<br/>session say 'waiting for the first reply'.<br/><i>works</i>"]:::works
   S6["6. After the first reply: 'Live from Claude Code',<br/>the windows with pace, each session with its<br/>bar.<br/><i>works</i>"]:::works
   S7["7. A settings.json that is not valid JSON, or<br/>valid JSON that is not an object: Install says<br/>why under the button, wrapped, on the Claude<br/>tab and in Settings.<br/><i>works</i>"]:::works
-  S8["8. Both places name the button 'Install the status<br/>line entry', and no line runs past the panel<br/>edge.<br/><i>works</i>"]:::works
-  S9["9. Several settings folders each get their own<br/>script and backup; a folder with only<br/>transcripts is left alone; a lost script offers<br/>Install again.<br/><i>works</i>"]:::works
-  S10["10. A settings.json that is a link stays a link,<br/>and the file it names keeps its mode; a created<br/>settings.json is 0600.<br/><i>works</i>"]:::works
-  S11["11. disableAllHooks on: 'disableAllHooks is on in<br/>settings.json so Claude Code runs no status<br/>line'.<br/><i>works</i>"]:::works
-  S12["12. An entry installed by an earlier version gets<br/>the current script at the next launch, its<br/>chained command kept.<br/><i>works</i>"]:::works
+  S8["8. A settings.json that is a link into a folder<br/>that does not exist: Install refuses, says why<br/>under the button ('it is a link into<br/>~/dotfiles/sub, a folder that does not exist'),<br/>and writes nothing: no folder, no script, no<br/>backup.<br/><i>works</i>"]:::works
+  S9["9. Both places name the button 'Install the status<br/>line entry', and no line runs past the panel<br/>edge.<br/><i>works</i>"]:::works
+  S10["10. Several settings folders each get their own<br/>script and backup; a folder with only<br/>transcripts is left alone; a lost script offers<br/>Install again.<br/><i>works</i>"]:::works
+  S11["11. A settings.json that is a link stays a link,<br/>and the file it names keeps its mode; a created<br/>settings.json is 0600.<br/><i>works</i>"]:::works
+  S12["12. disableAllHooks on: 'disableAllHooks is on in<br/>settings.json so Claude Code runs no status<br/>line'.<br/><i>works</i>"]:::works
+  S13["13. An entry installed by an earlier version gets<br/>the current script at the next launch, its<br/>chained command kept.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3
   S3 --> S4
@@ -26,3 +27,4 @@ flowchart TD
   S9 --> S10
   S10 --> S11
   S11 --> S12
+  S12 --> S13

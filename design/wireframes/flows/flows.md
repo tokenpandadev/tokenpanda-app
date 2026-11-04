@@ -1,6 +1,6 @@
 # tokenpanda user flows, as built
 
-Brought to 0.1.14 (4.11.2026, main at 2bc3011, tag v0.1.14; the screens draw 0.1.14 too). Each flow as numbered steps; the screens are in ../screens, the walk in ../walk.html, the results in ../flow-test.md. One Mermaid diagram per flow sits next to this file.
+Brought to 0.1.15 (4.11.2026, main at 274b15c; the screens draw 0.1.15 too). Each flow as numbered steps; the screens are in ../screens, the walk in ../walk.html, the results in ../flow-test.md. One Mermaid diagram per flow sits next to this file.
 
 ## 01 Download and first open
 
@@ -14,7 +14,7 @@ Diagram: 01-download-and-first-open.mmd
 6. The warning comes back once; Open Anyway starts the app.
 7. No notification prompt at launch: the app asks when the first nudge is due, or when Nudge or Reopen sessions is ticked.
 8. The menu bar shows the panda alone at half strength: no figures yet. No window, no Dock icon.
-9. If the icon is not on screen five seconds after the first launch, one window: "tokenpanda is running". From macOS 26 the icon "may be switched off in System Settings, Menu Bar, or hidden behind the notch", with "Open Menu Bar Settings" and "OK"; before macOS 26 the menu bar is full and the icon is behind the notch, quitting another menu bar app makes room, with "OK" only. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once.
+9. If the icon is not on screen five seconds after the first launch, one window: "tokenpanda is running". From macOS 26 the icon "may be switched off in System Settings, Menu Bar, hidden behind the notch when the menu bar is full, or kept out of view by an app that hides menu bar icons, such as Bartender or Ice", with "Open Menu Bar Settings" and "OK"; before macOS 26 the menu bar is "most likely" full, quitting another menu bar app makes room, and a menu bar manager can also keep the icon out of view, with "OK" only. The notch is named only on a Mac with one: with no notch the text says "left out when the menu bar is full", and when it is not known (a connected screen has a notch, the item's screen is not known) both causes are named. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once.
 10. Switching the item on in System Settings, Menu Bar, is the user's click.
 
 ## 02 Set up the feed
@@ -28,11 +28,12 @@ Diagram: 02-set-up-the-feed.mmd
 5. During the first call both windows and the session say "waiting for the first reply".
 6. After the first reply: "Live from Claude Code", the windows with pace, each session with its bar.
 7. A settings.json that is not valid JSON, or valid JSON that is not an object: Install says why under the button, wrapped, on the Claude tab and in Settings.
-8. Both places name the button "Install the status line entry", and no line runs past the panel edge.
-9. Several settings folders each get their own script and backup; a folder with only transcripts is left alone; a lost script offers Install again.
-10. A settings.json that is a link stays a link, and the file it names keeps its mode; a created settings.json is 0600.
-11. disableAllHooks on: "disableAllHooks is on in settings.json  so Claude Code runs no status line".
-12. An entry installed by an earlier version gets the current script at the next launch, its chained command kept.
+8. A settings.json that is a link into a folder that does not exist: Install refuses, says why under the button ("it is a link into ~/dotfiles/sub, a folder that does not exist"), and writes nothing: no folder, no script, no backup.
+9. Both places name the button "Install the status line entry", and no line runs past the panel edge.
+10. Several settings folders each get their own script and backup; a folder with only transcripts is left alone; a lost script offers Install again.
+11. A settings.json that is a link stays a link, and the file it names keeps its mode; a created settings.json is 0600.
+12. disableAllHooks on: "disableAllHooks is on in settings.json  so Claude Code runs no status line".
+13. An entry installed by an earlier version gets the current script at the next launch, its chained command kept.
 
 ## 03 Read the panel
 
@@ -84,8 +85,10 @@ Diagram: 06-weekly-reset.mmd
 2. The reset passes with no session: "Reset Sun 17:00  no session since", the item dims; the old week keeps its figure and the new week says "no reply yet".
 3. The reset passes while idle sessions feed: "new window on the next reply".
 4. The next reply brings the new week: a low figure, "On pace" or "Ahead", a new row in week over week.
-5. Week over week keeps the highest value seen per week.
-6. At 100% the panda shows x x until the reset.
+5. Early in a window the pace row does not guess: "On pace  too early to project" until 5% of the window has passed (8 h 24 min of a week, 15 min of a 5h window). The new week above shows it.
+6. On pace or Ahead the projection reads "N% by reset at this rate", N at most 100; Over pace keeps "limit ... at this rate" in every phase, also ten minutes in.
+7. Week over week keeps the highest value seen per week.
+8. At 100% the panda shows x x until the reset.
 
 ## 07 Stale or missing feed
 
@@ -117,7 +120,7 @@ Diagram: 09-settings.mmd
 2. Open at login: the box shows what macOS says; while macOS waits for approval a dim line opens Login Items.
 3. List price equivalent off: the price chip goes.
 4. Quit and Command Q end the app; the item goes.
-5. The version line says what runs: "tokenpanda 0.1.14".
+5. The version line says what runs: "tokenpanda 0.1.15".
 6. Light mode: the same layout on a light glass, switching with the Mac's appearance.
 7. A tall Settings tab on a short screen scrolls inside the panel, so Quit stays reachable.
 

@@ -7,10 +7,14 @@ flowchart TD
   S2["2. The reset passes with no session: 'Reset Sun<br/>17:00 no session since', the item dims; the old<br/>week keeps its figure and the new week says 'no<br/>reply yet'.<br/><i>works</i>"]:::works
   S3["3. The reset passes while idle sessions feed: 'new<br/>window on the next reply'.<br/><i>works</i>"]:::works
   S4["4. The next reply brings the new week: a low<br/>figure, 'On pace' or 'Ahead', a new row in week<br/>over week.<br/><i>works</i>"]:::works
-  S5["5. Week over week keeps the highest value seen per<br/>week.<br/><i>works</i>"]:::works
-  S6["6. At 100% the panda shows x x until the reset.<br/><i>works</i>"]:::works
+  S5["5. Early in a window the pace row does not guess:<br/>'On pace too early to project' until 5% of the<br/>window has passed (8 h 24 min of a week, 15 min<br/>of a 5h window). The new week above shows it.<br/><i>works</i>"]:::works
+  S6["6. On pace or Ahead the projection reads 'N% by<br/>reset at this rate', N at most 100; Over pace<br/>keeps 'limit ... at this rate' in every phase,<br/>also ten minutes in.<br/><i>works</i>"]:::works
+  S7["7. Week over week keeps the highest value seen per<br/>week.<br/><i>works</i>"]:::works
+  S8["8. At 100% the panda shows x x until the reset.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3
   S3 --> S4
   S4 --> S5
   S5 --> S6
+  S6 --> S7
+  S7 --> S8
