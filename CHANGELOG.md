@@ -3,6 +3,7 @@
 ## 0.1.15, 2026-11-04
 
 - Install and Remove find the file a linked settings.json names the way macOS does, also when ~/.claude is itself a link into a dotfiles folder and the file is not made yet. From 0.1.11 such a relative link could name another file, which Install then wrote over with only the status line entry while Claude Code kept reading the missing one. A file written at the wrong place by those versions is left as it is.
+- When settings.json is a link into a folder that does not exist, Install stops and says so ("it is a link into ~/…, a folder that does not exist"). Before, it made that folder, and Remove left it behind.
 - The 7 day and 30 day token rows drop a record as soon as it is older than the window. Since 0.1.0 they kept counting it on a quiet day, until the next transcript line or midnight.
 - The window that says tokenpanda is running when its icon is not visible names the notch only on a Mac that has one, and also names an app that hides menu bar icons, such as Bartender or Ice.
 - With VoiceOver, a capped panel scrolls each line into view as VoiceOver reaches it, text lines as well as controls. Before, only controls scrolled.
