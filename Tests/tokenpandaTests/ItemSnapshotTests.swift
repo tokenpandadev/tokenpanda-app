@@ -5,6 +5,7 @@ import Foundation
 import AppKit
 import Text
 import Feed
+import Pace
 @testable import UI
 
 /// Snapshots of the menu bar item: the real ItemImage, a template image, tinted on a dark and a light menu bar strip
@@ -99,7 +100,9 @@ struct ItemSnapshotTests {
     @Test func nudgeTextsAreTheRulesOwn() {
         let weekly = NudgeRules.due(limits: Fixtures.limits(weekly: 86), now: Fixtures.now, enabled: true)
         #expect(weekly.map(\.title) == ["Weekly at 86%"])
-        #expect(weekly.map(\.body) == ["3 days 3 h to the reset. At this pace the limit lands Fri 07:20."])
+        // the banner names the limit in the Mac's own zone; the limit itself is Fri 16 Oct 05:20 in the sample zone (GMT)
+        let lands = PaceModel.format(Fixtures.date(2026, 10, 16, 5, 20), "EEE HH:mm", timeZone: .current)
+        #expect(weekly.map(\.body) == ["3 days 3 h to the reset. At this pace the limit lands \(lands)."])
         let fiveAt = Fixtures.date(2026, 10, 15, 17, 32)
         let five = NudgeRules.due(limits: Fixtures.limits(weekly: 61, five: 34, asOf: fiveAt.addingTimeInterval(-60)), now: fiveAt, enabled: true)
         #expect(five.map(\.title) == ["5h window ends in 15 min"])
