@@ -38,7 +38,7 @@
 <h2 id="short">1  The short version</h2>
 <p>This is our own audit, run with AI agents against OWASP ASVS 5.0.0 Level 2. It is not an outside audit, and no outside firm has reviewed tokenpanda.</p>
 <p>The newest audit is a release audit of version 0.1.15 (commit <code>0d04c06</code>), finished on 4 November 2026. It has 1 open finding and 13 fixed or accepted. Each requirement below shows its result from the newest audit that checked it.</p>
-<table><tr><th>Checked against</th><th class="n">pass</th><th class="n">fail</th><th class="n">does not apply</th></tr>
+<table class="xs"><tr><th>Checked against</th><th class="n">pass</th><th class="n">fail</th><th class="n">does not apply</th></tr>
 <tr><td>OWASP ASVS 5.0.0</td><td class="n">51</td><td class="n">1</td><td class="n">201</td></tr>
 <tr><td>Our checks, ISO/IEC 25010:2023 characteristics</td><td class="n">22</td><td class="n">1</td><td class="n">0</td></tr>
 <tr><td>Our platform checks</td><td class="n">3</td><td class="n">5</td><td class="n">1</td></tr>
@@ -113,7 +113,7 @@
 <p class="d">low  fixed  users may notice it</p>
 <p>Requirements: P-APPLE-3</p>
 <p>Where: <code>Sources/UI/LineView.swift:61-72, 318-320</code></p>
-<p>What was found: Re-audited at 0d04c06: every PanelElement now allows setAccessibilityFocused, and for a text line or group it scrolls the line into view with a line of room (LineView.swift:61-72, 318-320); test aLineVoiceOverFocusesScrollsIntoView calls that setter and passes. Whether VoiceOver calls it on a text line is the open part: docs/spec.html 20.5.3 marks it &#x27;to be verified&#x27;, it depends on &#x27;Keyboard focus follows the VoiceOver cursor&#x27; in VoiceOver Utility (docs/testing.html:95), and no public scroll to visible action is used. The VoiceOver step was not run in this audit, so the fix is not proven; low and possible stay until docs/testing.html section 5 step 95 is run on a capped panel. Verified by ear on 2026-11-04 by the maintainer on the 0.1.15 build (build/tokenpanda.app, VoiceOver on a capped panel): his words &#x27;i tested it and it worked&#x27;.</p>
+<p>What was found: Re-audited at 0d04c06: every PanelElement now allows setAccessibilityFocused, and for a text line or group it scrolls the line into view with a line of room (LineView.swift:61-72, 318-320); test aLineVoiceOverFocusesScrollsIntoView calls that setter and passes. Whether VoiceOver calls it on a text line is the open part: docs/spec.html 20.5.3 marks it &#x27;to be verified&#x27;, it depends on &#x27;Keyboard focus follows the VoiceOver cursor&#x27; in VoiceOver Utility (docs/testing.html:95), and no public scroll to visible action is used. The VoiceOver step was not run in this audit, so the fix is not proven; low and possible stay until docs/testing.html section 5 step 95 is run on a capped panel. Verified by ear on 2026-11-04 by the maintainer on the 0.1.15 build: on a capped panel VoiceOver reached the lines below the visible part and the panel scrolled each into view.</p>
 <p>The fix: Run the testing page step with VoiceOver on a capped panel on macOS 14 or 15 and on 26; if a text line stays outside the visible part, look for another hook. Then mark fixed.</p>
 <p>The verifier: confirmed. LineView.swift:61-72 allows and handles setAccessibilityFocused and reveal scrolls (318-320); whether VoiceOver calls it on a text line is not proven. Stays open until the testing page step is run.</p>
 <h3 id="c-1">C-1  <span class="d">Carried from the last report (F-3): the app is ad hoc signed, not notarised and without the hardened runtime; Gatekeeper blocks the first launch on every install</span></h3>
@@ -135,8 +135,8 @@
 <p class="d">low  fixed  no effect on users</p>
 <p>Requirements: V13.4.5</p>
 <p>Where: <code>docs/spec.html:558; Tests/tokenpandaTests/TranscriptsTests.swift:165, 167; design/system/README.md:3, 28, 53 and design/system/.storybook/main.js:3; Tests/tokenpandaTests/AccessTests.swift:79; Tests/tokenpandaTests/LaunchTests.swift:13</code></p>
-<p>What was found: New in this diff: spec.html:558 names the private audit folder the 2026-11-04-release audit; the summer time test names a European city and a European zone; the design system README and Storybook config refer to &#x27;the a private tool&#x27;s&#x27; versions, a private project. Since v0.1.14 and already public: a sample session name &#x27;Website, LinkedIn, the maintainer&#x27;s practice&#x27; (the maintainer&#x27;s practice is the maintainer&#x27;s practice) and the session name &#x27;a session&#x27;. No usage figures from a real account were found beyond the spec&#x27;s flow test readings (2% half a minute in), which carry no identity. Re-audited at 8563d0c: spec.html:558 no longer names the audit folder; a European city, the a private tool, the maintainer&#x27;s practice and the a session session name are gone (git grep at 8563d0c: no hits).</p>
-<p>The fix: Before pushing, drop the audit folder path from spec.html, use another zone or say &#x27;a European zone&#x27; in the test, describe the a private tool pin without naming it, and replace the the maintainer&#x27;s practice sample with a neutral one in the next release.</p>
+<p>What was found: New in this diff: spec.html:558 names the private audit folder the 2026-11-04-release audit; the summer time test names a European city and a European zone; the design system README and Storybook config refer to &#x27;a private tool&#x27;s&#x27; versions, a private project. Since v0.1.14 and already public: a sample session name &#x27;Website, LinkedIn, the maintainer&#x27;s practice&#x27; and the session name &#x27;a session&#x27;. No usage figures from a real account were found beyond the spec&#x27;s flow test readings (2% half a minute in), which carry no identity. Re-audited at 8563d0c: spec.html:558 no longer names the audit folder; a European city, a private tool, the maintainer&#x27;s practice and a session name are gone (git grep at 8563d0c: no hits).</p>
+<p>The fix: Before pushing, drop the audit folder path from spec.html, use another zone or say &#x27;a European zone&#x27; in the test, describe a private tool pin without naming it, and replace the maintainer&#x27;s practice sample with a neutral one in the next release.</p>
 <p>The verifier: found by the verifier (F-11)</p>
 <h3 id="f-14">F-14  <span class="d">audit-page.py labels each audit with the tag before it, so the 0.1.15 audit would show as 0.1.14 on the public page, and the committed page lacks the 0.1.14 audit</span></h3>
 <p class="d">low  fixed  users may notice it</p>
@@ -146,7 +146,7 @@
 <p>The fix: Store the audited version in findings.json (or read it from the commit) and print that; regenerate docs/audit.html after this audit is merged.</p>
 <p>The verifier: found by the verifier (F-12)</p>
 <p>Findings of earlier audits, with their state at the end of that audit:</p>
-<table><tr><th>Audit</th><th>Finding</th><th>Severity</th><th>State</th></tr>
+<table class="xs"><tr><th>Audit</th><th>Finding</th><th>Severity</th><th>State</th></tr>
 <tr><td>2026-11-03, 0.1.10</td><td>F-1  Mac tab lists Claude Code sessions by their version number instead of a name</td><td>medium</td><td>fixed</td></tr>
 <tr><td>2026-11-03, 0.1.10</td><td>F-2  Install and Remove replace a symlinked settings.json with a regular file of mode 0755</td><td>medium</td><td>fixed</td></tr>
 <tr><td>2026-11-03, 0.1.10</td><td>F-3  The app is ad hoc signed, not notarised and without the hardened runtime: Gatekeeper blocks the first launch on every install</td><td>medium</td><td>accepted, a written decision</td></tr>
@@ -534,7 +534,7 @@
 </details>
 <h2 id="scanners">5  Scanners</h2>
 <p>The scanners run in full on every audit, release audits too. What they flagged and how each hit was judged:</p>
-<table><tr><th>Hit</th><th>Judgement</th></tr>
+<table class="xs"><tr><th>Hit</th><th>Judgement</th></tr>
 <tr><td>gitleaks generic-api-key Sources/UI/Fixtures.swift:54 (tree) and commit e1b49a0 line 52 (history)</td><td>false positive: the model id in a sample, as in the last reports.</td></tr>
 <tr><td>gitleaks generic-api-key build/release-notes-0.1.0.md, 0.1.1, 0.1.3 to 0.1.7 line 9 (the gitleaks-worktree scan)</td><td>false positive: SHA-256 of release zips; build/ is gitignored and not in the history.</td></tr>
 <tr><td>osv-scanner deepmerge 4.3.1 GHSA-gcqx-w48m-w2h4 (CVE-2026-93753, low, CVSS 5.3) in design/system/package-lock.json; npm audit --package-lock-only: deepmerge, @bundled-es-modules/deepmerge, style-dictionary, 3 low (the npm-audit-design-system scan)</td><td>real advisory, not reachable from the app: design/system is a dev only Storybook and Style Dictionary setup, not in the release zip; Style Dictionary merges the repo&#x27;s own tokens.json, not outside input. npm&#x27;s only fix is a downgrade of style-dictionary to 3.9.2 (semver major); no patched deepmerge in range. Keep it listed, move when Style Dictionary ships a fixed deepmerge.</td></tr>
@@ -554,7 +554,7 @@
 <p>Next to ASVS it checks our own list, grouped by the ISO/IEC 25010 quality characteristics (stability, reliability, maintainability and the rest), and platform checks for a Mac app: signing, notarisation, the hardened runtime, entitlements, Apple's interface guidelines, accessibility and the privacy manifest. Those checks are ours and are named as ours; ISO's own text is not quoted.</p>
 <p>What this does not give: AI agents can miss things a person would find, and nobody outside the project has checked this work. If you find something, the <a href="https://github.com/tokenpandadev/tokenpanda-app/security/advisories/new">security advisory form</a> reaches me privately.</p>
 <h2 id="rounds">7  Every audit so far</h2>
-<table><tr><th>Finished</th><th>Kind</th><th>Version</th><th>Commit</th><th class="n">checked</th><th class="n">findings</th></tr>
+<table class="xs"><tr><th>Finished</th><th>Kind</th><th>Version</th><th>Commit</th><th class="n">checked</th><th class="n">findings</th></tr>
 <tr><td>2026-11-03</td><td>full audit</td><td>0.1.10</td><td><code>22b059f</code></td><td class="n">285</td><td class="n">15</td></tr>
 <tr><td>2026-11-04</td><td>release audit</td><td>0.1.13</td><td><code>1237d84</code></td><td class="n">56</td><td class="n">7</td></tr>
 <tr><td>2026-11-04</td><td>release audit</td><td>0.1.14</td><td><code>2bc3011</code></td><td class="n">56</td><td class="n">12</td></tr>

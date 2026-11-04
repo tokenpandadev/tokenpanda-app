@@ -91,6 +91,8 @@ With keep awake on, the app holds a power assertion only while a session is work
 
 The [privacy page](docs/privacy.html) names every file it reads and writes. Anthropic documents the status line feed as input for any script you configure. It has written nothing either way about a local tool reading the transcripts on your own Mac. That is silence, not permission, and I would rather say so than claim more.
 
+The [audit report](https://tokenpanda.dev/audit) is our own audit, run with AI agents against OWASP ASVS 5.0.0 Level 2, not an outside audit; it names the version it checked and every finding.
+
 ## Build from source
 
 You need a Mac on macOS 14 or later with the Command Line Tools or Xcode. Swift 6 is required; nothing else is downloaded.

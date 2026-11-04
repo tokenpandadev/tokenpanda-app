@@ -79,6 +79,11 @@ def clean(s):
     t = re.sub(r"\b" + held + r"\b", "slot", t)
     for ch, rep in (("—", ", "), ("–", " to "), ("·", ", "), ("|", " or ")):
         t = t.replace(ch, rep)
+    # what the replacements leave behind: a doubled article ("the a private tool"), a word twice ("a session session")
+    # and a gloss that now names itself ("(a practice is a practice)")
+    t = re.sub(r"\b([Tt])he (a|an|the) ", lambda m: (m.group(2)[0].upper() if m.group(1) == "T" else m.group(2)[0]) + m.group(2)[1:] + " ", t)
+    t = re.sub(r"\b(\w+) \1\b", r"\1", t)
+    t = re.sub(r" \(([^()]+) is \1\)", "", t)
     return t
 
 
@@ -247,7 +252,7 @@ def main():
     P.append("<p>This is our own audit, run with AI agents against OWASP ASVS 5.0.0 Level %d. It is not an outside audit, and no outside firm has reviewed tokenpanda.</p>" % level)
     P.append("<p>The newest audit is a %s of version %s (commit <code>%s</code>), finished on %s. It has %d open %s and %d fixed or accepted. Each requirement below shows its result from the newest audit that checked it.</p>"
              % (e(kind(newest)), e(v), e(short), e(long_date(d)), len(open_f), "finding" if len(open_f) == 1 else "findings", len(closed_f)))
-    rows = ["<table><tr><th>Checked against</th><th class=\"n\">pass</th><th class=\"n\">fail</th><th class=\"n\">does not apply</th></tr>"]
+    rows = ["<table class=\"xs\"><tr><th>Checked against</th><th class=\"n\">pass</th><th class=\"n\">fail</th><th class=\"n\">does not apply</th></tr>"]
     for fw in fw_names:
         c = counts[fw]
         rows.append('<tr><td>%s</td><td class="n">%d</td><td class="n">%d</td><td class="n">%d</td></tr>' % (e(fw), c["pass"], c["fail"], c["na"]))
@@ -269,7 +274,7 @@ def main():
     older = [r for r in rounds[:-1]]
     if older:
         P.append("<p>Findings of earlier audits, with their state at the end of that audit:</p>")
-        t = ["<table><tr><th>Audit</th><th>Finding</th><th>Severity</th><th>State</th></tr>"]
+        t = ["<table class=\"xs\"><tr><th>Audit</th><th>Finding</th><th>Severity</th><th>State</th></tr>"]
         for r in older:
             for x in r["f"]["findings"]:
                 t.append("<tr><td>%s</td><td>%s  %s</td><td>%s</td><td>%s</td></tr>" % (
@@ -309,7 +314,7 @@ def main():
     P.append("<p>The scanners run in full on every audit, release audits too. What they flagged and how each hit was judged:</p>")
     tri = newest["f"].get("scanner_triage", [])
     if tri:
-        t = ["<table><tr><th>Hit</th><th>Judgement</th></tr>"]
+        t = ["<table class=\"xs\"><tr><th>Hit</th><th>Judgement</th></tr>"]
         for h in tri:
             t.append("<tr><td>%s</td><td>%s</td></tr>" % (code(h.get("hit", "")), code(h.get("judgement", ""))))
         t.append("</table>")
@@ -329,7 +334,7 @@ def main():
     P.append("<p>What this does not give: AI agents can miss things a person would find, and nobody outside the project has checked this work. If you find something, the <a href=\"https://github.com/tokenpandadev/tokenpanda-app/security/advisories/new\">security advisory form</a> reaches me privately.</p>")
 
     P.append('<h2 id="rounds">7  Every audit so far</h2>')
-    t = ["<table><tr><th>Finished</th><th>Kind</th><th>Version</th><th>Commit</th><th class=\"n\">checked</th><th class=\"n\">findings</th></tr>"]
+    t = ["<table class=\"xs\"><tr><th>Finished</th><th>Kind</th><th>Version</th><th>Commit</th><th class=\"n\">checked</th><th class=\"n\">findings</th></tr>"]
     for r in rounds:
         t.append('<tr><td>%s</td><td>%s</td><td>%s</td><td><code>%s</code></td><td class="n">%d</td><td class="n">%d</td></tr>' % (
             e(date_of(r)), e(kind(r)), e(version(r)), e(r["f"].get("commit", "")[:7]), len(r["c"]["items"]), len(r["f"]["findings"])))
