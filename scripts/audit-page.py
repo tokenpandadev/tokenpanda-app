@@ -314,11 +314,9 @@ def main():
     P.append("<p>The scanners run in full on every audit, release audits too. What they flagged and how each hit was judged:</p>")
     tri = newest["f"].get("scanner_triage", [])
     if tri:
-        t = ["<table class=\"xs\"><tr><th>Hit</th><th>Judgement</th></tr>"]
+        # one hit per item, its judgement under it: a two column table of long texts reads at no width
         for h in tri:
-            t.append("<tr><td>%s</td><td>%s</td></tr>" % (code(h.get("hit", "")), code(h.get("judgement", ""))))
-        t.append("</table>")
-        P.append("\n".join(t))
+            P.append("<details><summary>%s</summary>\n<p>%s</p>\n</details>" % (code(h.get("hit", "")), code(h.get("judgement", ""))))
     P.append("<p>Run in the newest audit: secrets with gitleaks over the full git history and the working tree; known vulnerabilities with osv-scanner and the OSV database (the app has no third party packages; the dev only design tools under design/system are scanned too, and their hits are listed above); static analysis with semgrep and swiftlint; the full test suite with coverage; the Apple checks for SwiftUI and AppKit; and codesign, Gatekeeper and the notarisation ticket on the built app.</p>")
 
     P.append('<h2 id="method">6  How it is done</h2>')
