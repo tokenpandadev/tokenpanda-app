@@ -45,7 +45,7 @@ shasum -a 256 -c tokenpanda-<version>.zip.sha256
 
 It should print `OK`. Unzip it and move `tokenpanda.app` to Applications.
 
-The first launch, said plainly: the app is signed ad hoc, not notarised, so macOS blocks it the first time. Try to open it, then open System Settings, click Privacy & Security, scroll down and click Open Anyway. The warning comes back once more; click Open. From then on it opens normally. On macOS 26 and later, if the item does not show in the menu bar, allow it in System Settings under Menu Bar.
+The first launch, said plainly: the app is signed ad hoc, not notarised, so macOS blocks it the first time. Try to open it, then open System Settings, click Privacy & Security, scroll down and click Open Anyway. The warning comes back once more; click Open Anyway and enter your Mac password. From then on it opens normally. On macOS 26 and later, if the item does not show in the menu bar, allow it in System Settings under Menu Bar.
 
 With Homebrew. Homebrew loads casks from taps outside its own only after you trust them, so trust this one cask first:
 
