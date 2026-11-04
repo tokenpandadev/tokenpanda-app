@@ -29,7 +29,7 @@
 </div></nav>
 
 <main class="main">
-<div class="head"><h1>Testing</h1><span class="d">  tokenpanda  VoiceOver, the keyboard and the panel, by hand  4 November 2026, at 0.1.14</span></div>
+<div class="head"><h1>Testing</h1><span class="d">  tokenpanda  VoiceOver, the keyboard and the panel, by hand  4 November 2026, at 0.1.15</span></div>
 <div class="head d">what to press and what should be heard or seen; about twenty minutes</div>
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
 
@@ -92,22 +92,32 @@
 <li>Scroll to an end and push on: the lines stop, no rubber band. The scroller lies over the lines and takes no width, also with "Show scroll bars: Always" in System Settings, Appearance.</li>
 <li>Click another tab, or close and open the popover: it starts at the top. Each tab is only as tall as its lines, up to the same limit. On a full size screen nothing scrolls and no scroller shows.</li>
 <li>Scroll so a figure sits on the first visible line and focus or hover it: its tooltip opens below the line, inside the panel.</li>
-<li>Known limit: with VoiceOver on, VO Right reads every line, also those scrolled out of view, but before macOS 26 VoiceOver cannot ask the app to scroll, so its outline is not drawn for a line outside the visible part. The keyboard ring does scroll into view. Note it only if a line is silent.</li>
+<li>With VoiceOver on, VO Right through every line to the foot: each line, text as well as controls, scrolls into view as VoiceOver reaches it, with a line of room, and its outline stays inside the panel. This needs "Keyboard focus follows the VoiceOver cursor" on in VoiceOver Utility, Navigation, as it is by default; note whether a text line stays outside the visible part (spec section 20.5.3). 0.1.14 scrolled for controls only, on every macOS version.</li>
 </ol>
 <h3>The hidden icon window</h3>
 <p>It runs once, a few seconds after the first launch of the app bundle, and marks itself done in the preferences. To see it again, quit the app and run <code>defaults delete dev.tokenpanda.app hiddenItemHintShown</code>.</p>
 <ol>
 <li>On macOS 26 and later: quit the app, delete the key as above, and in System Settings, Menu Bar, switch tokenpanda off. Open the app.</li>
-<li>About five seconds later one window: "tokenpanda is running", "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, or hidden behind the notch when the menu bar is full.", with "Open Menu Bar Settings" and "OK".</li>
+<li>About five seconds later one window: "tokenpanda is running", with "Open Menu Bar Settings" and "OK". On a Mac with a notch: "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, hidden behind the notch when the menu bar is full, or kept out of view by an app that hides menu bar icons, such as Bartender or Ice." On a Mac without one: "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, left out when the menu bar is full, or kept out of view by an app that hides menu bar icons, such as Bartender or Ice."</li>
 <li>"Open Menu Bar Settings" opens System Settings at Menu Bar. Switch tokenpanda on: the panda appears.</li>
-<li>Before macOS 26, on a Mac with a notch: fill the menu bar with other apps until the panda is behind the notch, delete the key, open the app. The window says "Its icon is not visible in the menu bar, most likely because the menu bar is full and the icon is hidden behind the notch. Quitting another menu bar app makes room for it.", with "OK" only and no pane named.</li>
+<li>Before macOS 26, on a Mac with a notch: fill the menu bar with other apps until the panda is behind the notch, delete the key, open the app. The window says "Its icon is not visible in the menu bar, most likely because the menu bar is full and the icon is hidden behind the notch. Quitting another menu bar app makes room for it. An app that hides menu bar icons, such as Bartender or Ice, can also keep it out of view.", with "OK" only and no pane named.</li>
+<li>Before macOS 26, on a Mac without a notch (a Mac mini, an iMac, a Mac Studio, a MacBook without one), the same way: the window says "Its icon is not visible in the menu bar, most likely because the menu bar is full. Quitting another menu bar app makes room for it. An app that hides menu bar icons, such as Bartender or Ice, can also keep it out of view." It names no notch.</li>
+<li>With a menu bar manager (Bartender, Ice) set to hide tokenpanda, delete the key and open the app: the window comes, on any version, and names that kind of app. Note if it does not come: the check was read from the code only.</li>
 <li>Quit and open the app again: no window. It shows once.</li>
 <li>Lock the screen: delete the key, open the app and press Control Command Q within five seconds. Unlock after a minute. The window comes only after the unlock, within about 30 seconds, never on the lock screen. The same holds for a sleeping display and for another user switched in with Fast User Switching.</li>
 <li>With the item visible, delete the key and open the app: no window. <code>log show --info --last 5m --predicate 'subsystem == "dev.tokenpanda.app"'</code> has "status item visible, no menu bar hint needed".</li>
 </ol>
+<h3>Notifications turned off and on</h3>
+<ol>
+<li>With the app running and Nudge ticked, turn tokenpanda's notifications off in System Settings, Notifications. Open the panel on Settings: "Notifications are off in System Settings" stands under the Nudge row, in the accent.</li>
+<li>Close the panel, turn the notifications on again, open the panel: the note is gone, with no restart.</li>
+<li>Turn them off again and open the panel: the note is back.</li>
+<li>A nudge held back (spec 20.6.2): with notifications off and the weekly at 80% or more, and no "Weekly at" banner yet this week, wait a minute, then turn notifications on in System Settings without opening the panel. Within about a minute, while a session feeds, one "Weekly at N%" banner comes with the figure of that moment; it does not come again in that window, also not after a quit and a new launch.</li>
+<li>The same with the 5h window: turned on inside its last 15 minutes, "5h window ends in 15 min" comes once; turned on after its reset, nothing comes for it.</li>
+</ol>
 
 <h2 id="auto">6  What the tests cover</h2>
-<p><code>swift test</code> checks, without VoiceOver: the role, state, label and help of every control; that a press runs the same action as a click; the order the arrows move the focus in; that the focus and the VoiceOver elements survive a render; that no line of any sample screen runs past the panel; that a long tooltip breaks over lines; that the key hints keep 4.5 to 1 and the free memory cells 3 to 1 over a white desktop; that the panel height is capped at the screen's visible height less 60 points and never under 200; that the hidden icon window offers the Menu Bar switch only from macOS 26; and that the notification permission follows what System Settings says now. What it cannot check is what VoiceOver says out loud, how the panel scrolls on a real screen, and whether the hidden icon window comes. That is this page.</p>
+<p><code>swift test</code> checks, without VoiceOver: the role, state, label and help of every control; that a press runs the same action as a click; the order the arrows move the focus in; that the focus and the VoiceOver elements survive a render; that no line of any sample screen runs past the panel; that a long tooltip breaks over lines; that the key hints keep 4.5 to 1 and the free memory cells 3 to 1 over a white desktop; that the panel height is capped at the screen's visible height less 60 points and never under 200; that the hidden icon window offers the Menu Bar switch only from macOS 26, names the notch only on a Mac with one and names a menu bar manager; that the notification permission maps from what System Settings says, and that a stale read, one sent before a newer read or before the answer to the prompt, never writes over a newer one (with reads it plays out by hand, not the notification centre itself); and that a line VoiceOver focuses scrolls into view in a capped panel. What it cannot check is what VoiceOver says out loud and whether it sets that focus, how the panel scrolls on a real screen, what System Settings answers, and whether the hidden icon window comes. That is this page.</p>
 
 <div class="foot">Overview  Style guide  Spec  Privacy</div>
 </main>

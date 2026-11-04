@@ -54,9 +54,21 @@ final class PanelElement: NSAccessibilityElement {
         return MainActor.assumeIsolated { v.focus == c && v.window?.firstResponder === v }
     }
 
+    /// VoiceOver moves the keyboard focus with its cursor by setting this, on every element that allows it. A control
+    /// takes the keyboard focus, scrolled into view; a text line or a group is scrolled into view, so the outline VoiceOver
+    /// draws stays inside a capped panel. There is no public scroll to visible action an element can take: macOS 14 and
+    /// 15 declare none, and 26 only through deprecated API (0.1.15, audit F-5; 0.1.14 scrolled for controls only).
     override func setAccessibilityFocused(_ focused: Bool) {
-        guard focused, let v = view, let c = control else { return }
-        MainActor.assumeIsolated { v.setFocus(c, visible: true, announce: false) }
+        guard focused, let v = view else { return }
+        let r = rect, c = control
+        MainActor.assumeIsolated {
+            if let c { v.setFocus(c, visible: true, announce: false) } else { v.reveal(r) }
+        }
+    }
+
+    override func isAccessibilitySelectorAllowed(_ selector: Selector) -> Bool {
+        if selector == #selector(setAccessibilityFocused(_:)) { return true }
+        return super.isAccessibilitySelectorAllowed(selector)
     }
 }
 
@@ -294,11 +306,17 @@ public final class LineView: NSView {
         focusedElement = i.flatMap { accessibilityElement(forControl: $0) }
         if let i, controls[i].kind == .figure { hoverTip = tipPiece(of: controls[i]) } else if focusVisible { hoverTip = nil }
         // in a panel shorter than its lines, the focused control is scrolled into view, with a line of room around it
-        if focusVisible, let i { scrollToVisible(controlRect(controls[i]).insetBy(dx: 0, dy: -LineView.lineHeight)) }
+        if focusVisible, let i { reveal(controlRect(controls[i])) }
         needsDisplay = true
         if announce, let i, let e = accessibilityElement(forControl: i) {
             NSAccessibility.post(element: e, notification: .focusedUIElementChanged)
         }
+    }
+
+    /// Scrolls a rect of the lines into view with a line of room around it, in a panel shorter than its lines; a rect
+    /// already in view does not move the panel.
+    func reveal(_ r: NSRect) {
+        scrollToVisible(r.insetBy(dx: 0, dy: -LineView.lineHeight))
     }
 
     /// Puts the focus on the control that runs this action (the selected tab after Tab, for one).

@@ -2,17 +2,22 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 
-/// When the token aggregate must be built from every record, not only when a transcript moved: the first time, and on a
-/// new day, because the "today" and "7 days" windows move with the date while no file changes.
+/// When the token aggregate must be built from every record, not only when a transcript moved: the first time, on a
+/// new day (the "today" window), and once a record has crossed the edge of the 7 or 30 day window (TokenSummary.nextEdge),
+/// because those windows roll from now while no file changes. Until 0.1.14 only the day counted, so a quiet day kept up
+/// to a day of records past the edge (audit F-3).
 public enum TokenRefresh {
-    public static func needsAllRecords(lastDay: Date?, today: Date, haveTokens: Bool) -> Bool {
-        !haveTokens || lastDay != today
+    public static func needsAllRecords(lastDay: Date?, today: Date, haveTokens: Bool, now: Date? = nil, nextEdge: Date? = nil) -> Bool {
+        if !haveTokens || lastDay != today { return true }
+        guard let now, let nextEdge else { return false }
+        return now > nextEdge
     }
 
     /// One pass of the controller: whether to ask the store for changes only, and whether to build the aggregate anew
-    /// from the records that pass returns (new records, or all of them on a new day).
-    public static func plan(lastDay: Date?, today: Date, haveTokens: Bool) -> (onlyIfChanged: Bool, rebuildOnNewDay: Bool) {
-        let all = needsAllRecords(lastDay: lastDay, today: today, haveTokens: haveTokens)
+    /// from the records that pass returns (new records, or all of them on a new day or past an edge).
+    public static func plan(lastDay: Date?, today: Date, haveTokens: Bool, now: Date? = nil,
+                            nextEdge: Date? = nil) -> (onlyIfChanged: Bool, rebuildOnNewDay: Bool) {
+        let all = needsAllRecords(lastDay: lastDay, today: today, haveTokens: haveTokens, now: now, nextEdge: nextEdge)
         return (!all, all)
     }
 

@@ -23,11 +23,16 @@ public struct TokenSummary: Sendable, Equatable {
     public var tokens30d: Int
     public var total7d: Int
     public var totalToday: Int
+    /// The first time after which these figures are out of date with no new record: a record leaves the 7 or the 30 day
+    /// window, or one dated after now enters. nil when no record will ever cross an edge. (0.1.15, audit F-3)
+    public var nextEdge: Date?
     public init(byModel7d: [TokenGroup], byProject7d: [TokenGroup], bySessionToday: [TokenGroup], agentShare7d: Int,
-                listPrice7d: Double, unpricedModels: Int, tokensToday: Int, tokens7d: Int, tokens30d: Int, total7d: Int, totalToday: Int) {
+                listPrice7d: Double, unpricedModels: Int, tokensToday: Int, tokens7d: Int, tokens30d: Int, total7d: Int, totalToday: Int,
+                nextEdge: Date? = nil) {
         self.byModel7d = byModel7d; self.byProject7d = byProject7d; self.bySessionToday = bySessionToday
         self.agentShare7d = agentShare7d; self.listPrice7d = listPrice7d; self.unpricedModels = unpricedModels
         self.tokensToday = tokensToday; self.tokens7d = tokens7d; self.tokens30d = tokens30d; self.total7d = total7d; self.totalToday = totalToday
+        self.nextEdge = nextEdge
     }
 }
 
@@ -53,10 +58,13 @@ public enum Aggregator {
         return out
     }
 
+    public static let weekLength: TimeInterval = 7 * 24 * 3600
+    public static let monthLength: TimeInterval = 30 * 24 * 3600
+
     public static func summarize(_ records: [UsageRecord], now: Date = Date(), calendar: Calendar = .current) -> TokenSummary {
         let midnight = calendar.startOfDay(for: now)
-        let d7 = now.addingTimeInterval(-7 * 24 * 3600)
-        let d30 = now.addingTimeInterval(-30 * 24 * 3600)
+        let d7 = now.addingTimeInterval(-weekLength)
+        let d30 = now.addingTimeInterval(-monthLength)
         let today = records.filter { $0.timestamp >= midnight && $0.timestamp <= now }
         let week = records.filter { $0.timestamp >= d7 && $0.timestamp <= now }
         let month = records.filter { $0.timestamp >= d30 && $0.timestamp <= now }
@@ -67,6 +75,10 @@ public enum Aggregator {
         for r in week {
             if let c = PriceTable.cost(model: r.model, usage: r.usage) { price += c } else { unpriced.insert(r.model) }
         }
+        // the oldest record of each window leaves it at its time plus the window; a record dated after now enters at its time
+        let edges = [week.map(\.timestamp).min().map { $0.addingTimeInterval(Self.weekLength) },
+                     month.map(\.timestamp).min().map { $0.addingTimeInterval(Self.monthLength) },
+                     records.lazy.map(\.timestamp).filter { $0 > now }.min()]
         return TokenSummary(
             byModel7d: groups(week, key: \.model, name: { PriceTable.displayName(forModel: $0) }),
             byProject7d: groups(week, key: \.project, name: { $0 }),
@@ -74,6 +86,7 @@ public enum Aggregator {
             agentShare7d: total7 > 0 ? Int((Double(agent7) / Double(total7) * 100).rounded()) : 0,
             listPrice7d: price, unpricedModels: unpriced.count,
             tokensToday: today.reduce(0) { $0.saturatingAdd($1.usage.total) }, tokens7d: total7, tokens30d: month.reduce(0) { $0.saturatingAdd($1.usage.total) },
-            total7d: total7, totalToday: today.reduce(0) { $0.saturatingAdd($1.usage.total) })
+            total7d: total7, totalToday: today.reduce(0) { $0.saturatingAdd($1.usage.total) },
+            nextEdge: edges.compactMap { $0 }.min())
     }
 }

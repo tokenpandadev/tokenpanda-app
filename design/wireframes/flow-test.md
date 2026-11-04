@@ -9,10 +9,10 @@ Method: the product read first (README, CHANGELOG, docs/spec.html, styleguide.ht
 
 ## Counts
 
-1. Flows: 14. Steps: 83.
-2. In the real app: 51 work, 20 friction, 12 broken.
-3. In the wireframes: 83 of 83 steps drawn; 69 reached by a click or key from the step before, 14 flow starts, 0 reached with Next.
-4. Screens: 80, a 1280 by 800 desktop with the menu bar, the popover at its real 380 point width and 16 point lines.
+1. Flows: 14. Steps: 102.
+2. In the real app: 83 work, 6 friction, 0 broken.
+3. In the wireframes: 102 of 102 steps drawn; 72 reached by a click or key from the step before, 14 flow starts, 16 reached with Next.
+4. Screens: 81, a 1280 by 800 desktop with the menu bar, the popover at its real 380 point width and 16 point lines.
 
 ## The 5 hour window for Ultra, exactly
 
@@ -33,128 +33,147 @@ Kept for plans that still send it: a Max or Pro feed carries five_hour on every 
 
 ## 01 Download and first open
 
-1. works. The releases page offers tokenpanda-0.1.7.zip and tokenpanda-0.1.7.zip.sha256. Screens: browser-release. Do: Download both. Evidence: README.md, Install; build/release-notes-0.1.7.md. Wireframe: start.
-2. works. In Terminal, shasum -a 256 -c checks the zip and prints OK; unzip and move tokenpanda.app to Applications. Screens: term-shasum. Do: Run the two lines. Evidence: README.md, Install; build/tokenpanda-0.1.7.zip.sha256. Wireframe: click.
-3. works. With Homebrew instead: brew install tokenpandadev/tap/tokenpanda, and the caveats say Open Anyway and Remove before uninstalling. Screens: term-brew. Do: Read the caveats. Evidence: Casks/tokenpanda.rb:26-33. Wireframe: click.
-4. friction. Double click in Applications: macOS refuses, "Apple could not verify tokenpanda is free of malware". Screens: finder-apps, gk-blocked. Do: Click Done. Evidence: codesign: Signature=adhoc, TeamIdentifier not set; spctl -a -t exec: rejected. By design for now (spec 17, path one). Wireframe: click.
-5. friction. System Settings, Privacy and Security, scroll to the bottom, Open Anyway. Screens: gk-settings. Do: Find the button. Evidence: README.md, Install; spec 17. Not walked on a clean account in this run (left out 1). Wireframe: click.
-6. works. The warning comes back once; Open Anyway starts the app. Screens: gk-confirm. Do: Click Open Anyway. Evidence: README.md, Install. Wireframe: click.
-7. friction. The first thing the app shows is the notification permission prompt: nudges are on by default and the app asks at launch, before the user has seen it or knows what a nudge is. Screens: notif-permission. Do: Allow or not, without context. Evidence: Controller.swift:124; Settings.swift:21 (nudges default true); Notifier.swift:40-51. Wireframe: click.
-8. works. The menu bar shows the panda alone at half strength: no figures yet. No window, no Dock icon. Screens: desk-nofeed. Do: Click the panda. Evidence: fixtures/item-nofeed; ScreenBuilder.swift:315-319; LSUIElement in scripts/build-app.sh. Wireframe: click.
-9. friction. On macOS 26 and later the item stays hidden until it is allowed in System Settings, Menu Bar; a crowded menu bar behind the notch hides it too, and nothing else says the app runs. Screens: desk-hidden, sys-menubar. Do: Allow it under Menu Bar. Evidence: README.md, Install; spec 19, by hand. Wireframe: click.
+1. works. The releases page offers the zip of each version and its .sha256; the README says it runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later. Screens: browser-release. Do: Download both. Evidence: README.md, Install (0.1.14); flow-test-0.1.13 01.1. Wireframe: start.
+2. works. In Terminal, shasum -a 256 -c checks the zip and prints OK; unzip and move tokenpanda.app to Applications. Screens: term-shasum. Do: Run the two lines. Evidence: README.md, Install; flow-test-0.1.13 01.2. Wireframe: click.
+3. works. With Homebrew instead: brew trust --cask, then brew install tokenpandadev/tap/tokenpanda; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap. Screens: term-brew. Do: Read the caveats. Evidence: Casks/tokenpanda.rb: depends_on arch: :arm64 (0.1.14), caveats; README.md, Install. Wireframe: click.
+4. friction. Double click in Applications: macOS refuses the ad hoc build, "Apple could not verify tokenpanda is free of malware". Screens: finder-apps, gk-blocked. Do: Click Done. Evidence: codesign Signature=adhoc; spctl rejected (flow-test-0.1.13 01.4). By design until Developer ID signing (spec 17, path two). Wireframe: click.
+5. by hand. System Settings, Privacy and Security, scroll to the bottom, Open Anyway. Screens: gk-settings. Do: Find the button. Evidence: README.md, Install; flow-test-0.1.13 01.5. Wireframe: click.
+6. by hand. The warning comes back once; Open Anyway starts the app. Screens: gk-confirm. Do: Click Open Anyway. Evidence: README.md, Install. Wireframe: click.
+7. works. No notification prompt at launch: the app asks when the first nudge is due, or when Nudge or Reopen sessions is ticked. Screens: desk-nofeed. Do: Nothing. Evidence: Notifier.swift, refreshState and authorize; Controller.swift, applicationDidFinishLaunching. Wireframe: click.
+8. works. The menu bar shows the panda alone at half strength: no figures yet. No window, no Dock icon. Screens: desk-nofeed. Do: Click the panda. Evidence: ScreenBuilder.itemFigures; LSUIElement in scripts/build-app.sh. Wireframe: click.
+9. works. If the icon is not on screen five seconds after the first launch, one window: "tokenpanda is running". From macOS 26 the icon "may be switched off in System Settings, Menu Bar, or hidden behind the notch", with "Open Menu Bar Settings" and "OK"; before macOS 26 the menu bar is full and the icon is behind the notch, quitting another menu bar app makes room, with "OK" only. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once. Screens: desk-hidden, dlg-hidden-26, dlg-hidden-15. Do: Click Open Menu Bar Settings. Evidence: Grammar.hiddenIconHint and Controller.checkItemShows (0.1.14: the switch offered only from macOS 26, no verdict while locked, away or asleep); test theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne. The real macOS 26 switch and the notch were not reproduced. Wireframe: click.
+10. by hand. Switching the item on in System Settings, Menu Bar, is the user's click. Screens: sys-menubar. Do: Switch tokenpanda on. Evidence: testing.html, section 5. Wireframe: click.
 
 ## 02 Set up the feed
 
-1. works. The Claude tab says what is needed: "needs Claude Code's status line feed, one statusLine entry in ~/.claude/settings.json", and one button, Install the status line hook. Screens: pop-nohook. Do: Read, click Install. Evidence: live-nohook tab0; Grammar.swift:100-110. Wireframe: start.
-2. works. With a status line of your own it says "your current status line is kept and chained". Screens: pop-nohook-chained. Do: Click Install. Evidence: Grammar.swift:105; hookrun own-statusline: the hook printed MINE, the user's own output. Wireframe: click.
-3. works. Install writes one statusLine entry with refreshInterval 5 and keeps every other key; an existing entry keeps its padding and refreshInterval and is chained. Screens: editor-after. Do: Nothing to do. Evidence: hookrun no-settings, no-statusline, own-statusline; Hook.swift:108-136. Wireframe: click.
-4. works. The windows then read "no session yet  open Claude Code once". Screens: pop-nosession. Do: Start Claude Code. Evidence: fixtures/claude-nosession; Grammar.swift:111-113. Wireframe: click.
-5. friction. During the first call the open sessions show "waiting for the first reply" while both windows still say "open Claude Code once". Screens: term-claude, pop-firstcall. Do: Send a first prompt. Evidence: states/claude-first-call; Grammar.swift:112; ScreenBuilder.swift:93-95. Wireframe: click.
-6. works. After the first reply: header Usage live, both windows with pace, the session with its context bar. Screens: pop-live. Do: Read the figures. Evidence: live-max tab0; fixtures/claude-overpace. Wireframe: click.
-7. broken. If settings.json is not valid JSON, Install on the Claude tab changes nothing on screen; the error is drawn only on the Settings tab, cut at the width, without its reason. Screens: editor-broken, pop-install-failed, pop-settings-error. Do: Click Install, wonder, open Settings. Evidence: hookrun broken-json: "cannot read settings.json: settings.json is not a JSON object"; Grammar.swift:100-110 draws no error; ScreenBuilder.swift:284-285 passes hookError to Settings only; states/settings-errors. Wireframe: click.
-8. friction. In Settings the row says "Install the status line entry" (the Claude tab says hook), and its second line runs past the popover edge: "...~/.claude/settings.js". Screens: pop-settings-nohook. Do: Click it. Evidence: live-settings tab2 and states/settings-nohook-denied: the line is cut; Grammar.swift:318 (51 cells in a 47 cell popover). Wireframe: click.
+1. works. The Claude tab says what is needed: "needs Claude Code's status line feed", "one statusLine entry in ~/.claude/settings.json", "chained if one exists", and one button, Install the status line entry. Screens: pop-nohook. Do: Read, click Install. Evidence: Grammar.limits .noHook; flow-test-0.1.13 02.1. Wireframe: start.
+2. works. With a status line of your own it says "your current status line is kept and chained". Screens: pop-nohook-chained. Do: Click Install. Evidence: flow-test-0.1.13 02.2: the hook printed the user's own output. Wireframe: click.
+3. works. Install writes one statusLine entry with refreshInterval 5 and keeps every other key; an existing entry keeps its padding and a refreshInterval of 5 or less and is chained. Screens: editor-after. Do: Nothing to do. Evidence: Hook.install; flow-test-0.1.13 02.3. Wireframe: click.
+4. works. The windows then read "no session yet  open Claude Code once". Screens: pop-nosession. Do: Start Claude Code. Evidence: Grammar.limits .noSession; flow-test-0.1.13 02.4. Wireframe: click.
+5. works. During the first call both windows and the session say "waiting for the first reply". Screens: term-claude, pop-firstcall. Do: Send a first prompt. Evidence: ScreenBuilder.limitsView .firstReply; flow-test-0.1.13 02.5. Wireframe: click.
+6. works. After the first reply: "Live from Claude Code", the windows with pace, each session with its bar. Screens: pop-live. Do: Read the figures. Evidence: flow-test-0.1.13 02.6. Wireframe: click.
+7. works. A settings.json that is not valid JSON, or valid JSON that is not an object: Install says why under the button, wrapped, on the Claude tab and in Settings. Screens: editor-broken, pop-install-failed, pop-settings-error. Do: Fix the file, click Install again. Evidence: Hook.unreadable; flow-test-0.1.13 02.7 and 02.12. Wireframe: click.
+8. works. Both places name the button "Install the status line entry", and no line runs past the panel edge. Screens: pop-settings-nohook. Do: Click it. Evidence: Grammar.hookRow and dimLines; flow-test-0.1.13 02.8. Wireframe: click.
+9. works. Several settings folders each get their own script and backup; a folder with only transcripts is left alone; a lost script offers Install again. Screens: pop-settings-folders. Do: Click Install. Evidence: HookSet; flow-test-0.1.13 02.9. Wireframe: next.
+10. works. A settings.json that is a link stays a link, and the file it names keeps its mode; a created settings.json is 0600. Screens: editor-after. Do: Nothing. Evidence: SettingsFile; flow-test-0.1.13 02.10. Wireframe: click.
+11. works. disableAllHooks on: "disableAllHooks is on in settings.json  so Claude Code runs no status line". Screens: pop-hooks-disabled. Do: Turn it off, or not. Evidence: Grammar.limits .hooksDisabled; flow-test-0.1.13 02.11. Wireframe: next.
+12. works. An entry installed by an earlier version gets the current script at the next launch, its chained command kept. Screens: editor-after. Do: Nothing. Evidence: HookSet.refreshScripts; flow-test-0.1.13 02.13. Wireframe: next.
 
 ## 03 Read the panel
 
-1. works. The item shows the panda and the weekly percentage; semibold when over pace. Screens: desk. Do: Glance. Evidence: fixtures/closed; ItemImage.swift:54-99. Wireframe: start.
-2. works. Weekly: bar with the tick at the elapsed share, "Resets Sun 18:00  in 3d 3h", "Over pace  limit Sun 01:20 at this rate", "0.5% an hour left". Coral past the tick only when over pace. Screens: pop-live. Do: Read the weekly. Evidence: fixtures/claude-overpace; spec 7 worked example; PaceTests. Wireframe: click.
-3. works. 5h window, the same five lines, for plans that have it. Screens: pop-live. Do: Read the 5h window. Evidence: fixtures/claude-overpace; live-max tab0. Wireframe: click.
-4. friction. Open sessions: project, model, context bar and "405.6k of 1M  41%"; hovering the figure shows list price, lines added and removed, effort. Screens: pop-session-tip. Do: Hover the figure. Evidence: The tooltip text is 66 characters plus padding (68 cells) in a 50 cell view, drawn from the left edge and clipped by the view, so it ends at "9 remo" and the effort is never seen: LineView.swift:203-213, ScreenBuilder.swift:106-107. Computed from the code, hover not possible in this run. Wireframe: click.
-5. works. Tokens by model, project or session with the price chip and the subagent share; click the switch or press m, p, s. Screens: pop-projects, pop-sessions. Do: Press p, then s. Evidence: fixtures/claude-projects, claude-sessions; Controller.swift:539. Wireframe: click.
-6. works. Week over week: four rows, the hit week marked with the time it hit. Screens: pop-live. Do: Read the rows. Evidence: fixtures/claude-overpace. Wireframe: click.
-7. broken. With several sessions open the weekly figure jumps every few seconds between the values each session last saw: 28%, 12%, 28%, 18%, 11% within 30 s, in the bar, the item, the projection and the allowance. Screens: desk-flicker-a, desk-flicker-b, pop-flicker-a, pop-flicker-b. Do: Watch the item. Evidence: Real data folder, sampled 11:11:16 to 11:11:45: limits.json used 12, 28, 18, 11 as the newest session file changed; ten session files carried 9 to 28 for the same resets_at. FeedReader.swift:96-101 takes the newest file; idle sessions rewrite their cached figure every 5 s (refreshInterval, Hook.swift:68). Wireframe: click.
-8. works. Esc closes, Tab and Shift Tab switch tabs, Command Q quits. Screens: pop-live. Do: Press Tab. Evidence: Controller.swift:529-541. Wireframe: click.
+1. works. The item shows the panda and the weekly percentage; semibold when over pace. Screens: desk. Do: Glance. Evidence: ItemImage; flow-test-0.1.13 03.1. Wireframe: start.
+2. works. Weekly: bar with the notch at the elapsed share, the reset and countdown, the status and projection, the allowance. Coral past the notch only when over pace. Screens: pop-live. Do: Read the weekly. Evidence: Grammar.windowSection; PaceTests; flow-test-0.1.13 03.2. Wireframe: click.
+3. works. 5h window, the same five lines, for plans that have it. Screens: pop-live. Do: Read the 5h window. Evidence: flow-test-0.1.13 03.3. Wireframe: click.
+4. works. Open sessions by name (set with -n or /rename), by folder when unnamed, each with its model, its 24 cell context bar and "405.6k of 1M  41%"; the figure's tooltip breaks over two lines inside the panel. Screens: pop-session-tip. Do: Hover the figure. Evidence: ScreenBuilder.sessionViews, Grammar.sessionRows, LineView.tipLines; flow-test-0.1.13 03.4 and 03.12. Hover itself is by hand. Wireframe: click.
+5. works. Tokens by model, project or session with the price chip and the subagent share; click the switch or press m, p, s. Screens: pop-projects, pop-sessions. Do: Press p, then s. Evidence: flow-test-0.1.13 03.5. Wireframe: click.
+6. works. Week over week: up to four rows, the current week "so far", a hit week marked with the time it hit. Screens: pop-live. Do: Read the rows. Evidence: ScreenBuilder.weekViews; flow-test-0.1.13 03.6. Wireframe: click.
+7. works. With several sessions open the weekly figure holds still: the highest figure at the latest reset, across every session file. Screens: pop-live. Do: Watch the item. Evidence: Limits.merge and apply (0.1.8); WindowsTests; flow-test-0.1.13 03.7: 28 in all 26 samples. Wireframe: click.
+8. works. Esc closes, Tab and Shift Tab switch tabs, Command Q quits. Screens: pop-live. Do: Press Tab. Evidence: Controller.handleKey. Wireframe: click.
+9. works. The header says where the figures come from: "Live from Claude Code", "As of 22:02, last Claude Code session", or "Waiting for a Claude Code session". Screens: pop-live, pop-asof. Do: Read the header. Evidence: ScreenBuilder.headerLine; flow-test-0.1.13 03.9 to 03.11. Wireframe: click.
+10. works. After midnight the token rows stay: the first pass of a new day sums every record, not only new ones. Screens: pop-live. Do: Open the panel after midnight. Evidence: TokenRefresh.needsAllRecords in Controller.refreshTranscripts (0.1.14); test theTokenRowsSurviveMidnightWithoutANewTranscriptLine. Until 0.1.13 the rows read "nothing in the last 7 days" until the next reply (flow-test-0.1.13 03.13). Wireframe: click.
+11. works. On a short or scaled screen the panel stops 60 points short of the screen's visible height and scrolls with an overlay scroller and no rubber band, from the top on every open and tab click; the keyboard focus scrolls into view, and a tooltip with no room above opens below its line. Screens: pop-small. Do: Scroll, or press Down. Evidence: PanelSize and Controller.fitPanel (0.1.14); test thePanelIsNeverTallerThanTheScreen. The real scroll on a small screen is by hand (testing.html, section 5). Wireframe: click.
 
 ## 04 Nudges
 
-1. friction. Nudges are on by default; permission is asked at launch. Screens: notif-permission. Do: Allow. Evidence: Controller.swift:124 (see 01.7). Wireframe: start.
-2. works. The weekly passes 80% while a session feeds: "Weekly at 80%" with the countdown and the landing time, once per weekly window. Screens: notif-weekly. Do: Read the banner. Evidence: Controller.swift:413-419; PaceModel.nudgeBody, PaceTests. Notifications need the app bundle, so not posted by the debug binary (left out 3). Wireframe: click.
-3. works. 15 minutes before the 5h reset: "5h window ends in 15 min" with the percentage, once per window. Screens: notif-five. Do: Read the banner. Evidence: Controller.swift:420-424. Wireframe: click.
-4. broken. Ultra: the frozen 5h record can still pass that test once, and announce the end of a window the plan no longer has. Screens: notif-five-false. Do: Ignore it. Evidence: Controller.swift:420-424 reads l.windows["five_hour"], kept by FeedReader.swift:23-37; the real record resets_at is 31 Oct 00:10. Read from the code, not seen on screen. Wireframe: click.
-5. friction. Notifications denied: the Nudge row says "Notifications are off for this app in System" and stops at the edge; it does not open System Settings. Screens: pop-settings-denied. Do: Find the setting yourself. Evidence: states/settings-nohook-denied; Grammar.swift:279; Notifier.swift:30. Wireframe: click.
-6. works. No nudge comes from stale figures: an hour without a session and the nudges wait. Screens: pop-stale. Do: Nothing. Evidence: Controller.swift:412. Wireframe: click.
+1. works. Permission is asked when the first nudge is due or Nudge is ticked, not at launch. Screens: pop-settings. Do: Allow. Evidence: Notifier.postAsking and requestIfNeeded. Wireframe: start.
+2. by hand. The weekly passes 80% while a session feeds: "Weekly at 80%" (the percentage when it fires) with the countdown and the landing time, once per weekly window. Screens: notif-weekly. Do: Read the banner. Evidence: Controller.checkNudges; PaceModel.nudgeBody. Not posted by the debug binary (flow-test-0.1.13 04.2). Wireframe: next.
+3. by hand. 15 minutes before the 5h reset: "5h window ends in 15 min" with the percentage, once per window. Screens: notif-five. Do: Read the banner. Evidence: Controller.checkNudges. Wireframe: click.
+4. works. No 5h nudge from a window the plan no longer has. Screens: pop-ultra-today. Do: Nothing. Evidence: Limits.active; flow-test-0.1.13 04.4. Wireframe: click.
+5. works. Notifications denied: "Notifications are off in System Settings" under Nudge, and under Reopen while it is on, in the accent, a link the keyboard and VoiceOver reach, said once. Screens: pop-settings-denied. Do: Click it. Evidence: Grammar.cbRow (0.1.14: accent, not also the checkbox's help); AccessTests; flow-test-0.1.13 04.5 and 04.7. Wireframe: next.
+6. by hand. The click opens System Settings, Notifications, at tokenpanda. Screens: sys-notifications. Do: Turn notifications on. Evidence: Controller.perform .openNotificationSettings. Wireframe: click.
+7. works. Notifications turned on in System Settings count at once: the note goes at the next open of the popover, and the next nudge is posted, no restart. Screens: pop-settings. Do: Open the popover. Evidence: Notifier.refreshState on every popover open and authorize before each post, from any state (0.1.14). Until 0.1.13 a denial held until a restart. No test covers the Notifier; a banner on screen is by hand. Wireframe: click.
+8. works. No nudge comes from stale figures: an hour without a session and the nudges wait. Screens: pop-stale. Do: Nothing. Evidence: Controller.checkNudges. Wireframe: next.
 
 ## 05 The 5 hour window removed for Ultra (30 Oct 2026)
 
-1. broken. 30 Oct, evening: the feed stops sending five_hour for verified Ultra accounts. The app keeps the last figure (63% in this example) and draws it as live: countdown running, tick moving, "Over pace  limit 22:50 at this rate". Screens: pop-ultra-evening. Do: Believe it. Evidence: live-ultra-day1: after 50 s of feeds without five_hour, limits.json still held five_hour used 63 and the tab showed it with pace lines. FeedReader.swift:23-37 (apply only touches keys present); ScreenBuilder.swift:60-78 (asOf is shared, so it is never stale). Wireframe: start.
-2. broken. Near the stored reset the same 63% reads "Ahead  66% by reset", "185% an hour left". Screens: pop-ultra-late. Do: Read nonsense. Evidence: states/ultra-late. Wireframe: click.
-3. broken. If the 5h window was at 100% when the feed stopped, the panda shows - - eyes and VoiceOver says "5h limit reached" until the old reset. Screens: desk-five-limit. Do: Think you are blocked. Evidence: states/ultra-five-at-limit: label "... 5h limit reached"; ScreenBuilder.swift:292-299. Wireframe: click.
-4. broken. Around the old reset a "5h window ends in 15 min" nudge can fire for it. Screens: notif-five-false. Do: Ignore it. Evidence: Controller.swift:420-424 (see 04.4). Wireframe: click.
-5. broken. Today, 31 Oct: the 5h window is an empty bar with "Reset 00:10  no session since", under "Usage live" and a listed open session, and it stays that way for good. The smallest fix drops the window when a fresh feed comes without it. Screens: pop-ultra-today, pop-ultra-fixed. Do: Read a contradiction. Evidence: Real limits.json: five_hour used 1, resetsAt 31 Oct 00:10, asOf 11:11 today; all ten live session files carry seven_day only. live-ultra-today tab0 shows exactly this. ScreenBuilder.swift:62 (.absent is never reached once a record exists), :65-66 (resetPassed). Wireframe: click.
-6. friction. A new Ultra user, whose feed never had five_hour, sees an empty 5h bar with "not in the last feed" for good. Screens: pop-ultra-new. Do: Wonder what it means. Evidence: states/ultra-new; ScreenBuilder.swift:62. Wireframe: click.
-7. works. Max and Pro feeds still carry five_hour; their panel is unchanged. Screens: pop-live-max. Do: Nothing. Evidence: live-max tab0; states/max-both. Wireframe: click.
+1. works. The feed stops carrying five_hour while the stored 5h window still runs: the last percent dim, "not in the last feed", no countdown or pace. Screens: pop-ultra-evening. Do: Nothing. Evidence: Limits.apply retired; ScreenBuilder .quiet; flow-test-0.1.13 05.1 and 05.2. Wireframe: start.
+2. works. A retired 5h window at 100% gives normal eyes and no "5h limit reached". Screens: desk-ultra. Do: Nothing. Evidence: ScreenBuilder.eyes uses Limits.active; flow-test-0.1.13 05.3. Wireframe: click.
+3. works. No false "5h window ends in 15 min". Screens: pop-ultra-evening. Do: Nothing. Evidence: See 04.4. Wireframe: click.
+4. works. After the old reset the 5h row goes for good: a reply without five_hour hides it. Screens: pop-ultra-today. Do: Nothing. Evidence: Limits.apply hidden; flow-test-0.1.13 05.5. Wireframe: click.
+5. works. A new Ultra user sees the weekly alone after the first reply. Screens: pop-ultra-today. Do: Nothing. Evidence: flow-test-0.1.13 05.6. Wireframe: click.
+6. works. Max and Pro keep both windows. Screens: pop-live-max. Do: Nothing. Evidence: flow-test-0.1.13 05.7. Wireframe: click.
+7. friction. Before the first reply a new Ultra user still sees a "5h window" row, and the Install text is titled "Weekly and 5h window". Screens: pop-nosession, pop-firstcall. Do: Wait for the first reply. Evidence: Grammar.limits .noSession, .firstReply, .noHook; still open in 0.1.14 (flow-test-0.1.13 05.8). Wireframe: next.
+8. works. On Ultra the nudge row reads "Nudge at 80%". Screens: pop-settings-ultra. Do: Nothing. Evidence: ScreenBuilder.screen, fiveHour. Wireframe: next.
 
 ## 06 Weekly reset
 
-1. works. Before the reset the countdown reads in hours and minutes. Screens: pop-week-near. Do: Plan the last hour. Evidence: PaceModel.countdown; PaceTests. Wireframe: start.
-2. works. The reset passes with no session open: the weekly reads "Reset Sun 17:00  no session since", the item dims, the week row says "last seen 91%". Screens: pop-week-rolled. Do: Open Claude Code. Evidence: fixtures/claude-resetpassed; ScreenBuilder.swift:176-178. Wireframe: click.
-3. friction. The reset passes while idle sessions feed: Claude Code drops the passed window, the app keeps it, and the weekly reads "no session since" under "Usage live" with sessions listed, until the next reply. Screens: pop-week-rolled-live. Do: Send a prompt. Evidence: states/weekly-rolled-live; Claude Code docs as quoted in spec 3 ("Claude Code drops a window once its resets_at time passes"); real weeks.json: the 25 Oct week was last updated 22 min after its reset, so the old record outlived it. Wireframe: click.
-4. works. The next reply brings the new week: "1% used", "On pace", a new row in week over week. Screens: pop-week-new. Do: Read the new week. Evidence: states/weekly-new; Feed/Weeks.swift:22-32. Wireframe: click.
-5. broken. Week over week keeps the last value seen per week; with several sessions that is whichever session wrote last, often an idle one with a lower figure. Screens: pop-flicker-b. Do: Trust the history. Evidence: Real weeks.json: current week lastUsed 12 while the account is at 28; Controller.swift:197-201 applies whatever limits holds. Wireframe: click.
-6. works. At 100% the panda shows x x until the reset. Screens: desk-weekly-limit. Do: Wait for the reset. Evidence: fixtures/item-weekly-limit; ItemImage.swift:32-48. Wireframe: click.
+1. works. Before the reset the countdown reads in days and hours, then hours and minutes. Screens: pop-week-near. Do: Plan the last hour. Evidence: PaceModel.countdown. Wireframe: start.
+2. works. The reset passes with no session: "Reset Sun 17:00  no session since", the item dims; the old week keeps its figure and the new week says "no reply yet". Screens: pop-week-rolled. Do: Open Claude Code. Evidence: ScreenBuilder.windowView .resetPassed, weekViews; flow-test-0.1.13 06.2 and 06.7. Wireframe: click.
+3. works. The reset passes while idle sessions feed: "new window on the next reply". Screens: pop-week-rolled-live. Do: Send a prompt. Evidence: ScreenBuilder.windowView .nextReply; flow-test-0.1.13 06.3. Wireframe: click.
+4. works. The next reply brings the new week: a low figure, "On pace" or "Ahead", a new row in week over week. Screens: pop-week-new. Do: Read the new week. Evidence: FeedTests; Weeks.swift. Wireframe: click.
+5. works. Week over week keeps the highest value seen per week. Screens: pop-live. Do: Trust the history. Evidence: WindowsTests weekOverWeekKeepsTheHighestValuePerWeek; flow-test-0.1.13 06.5. Wireframe: next.
+6. works. At 100% the panda shows x x until the reset. Screens: desk-weekly-limit. Do: Wait for the reset. Evidence: ItemImage; flow-test-0.1.13 06.6. Wireframe: next.
 
 ## 07 Stale or missing feed
 
-1. works. The last session closes: its row leaves after 60 s and the header says "Usage as of 13:05, last Claude Code session"; pace is still computed for an hour. Screens: pop-asof. Do: Read the time. Evidence: FeedTests openSessionsTiming; ScreenBuilder.swift:275-279. Wireframe: start.
-2. works. After an hour: the stale form, dim bars, "as of 13:05", the note that limits are shared, the item at half strength. Screens: pop-stale, desk-stale. Do: Open Claude Code to refresh. Evidence: fixtures/claude-stale, item-stale. Wireframe: click.
-3. friction. Use on the web or in the Claude app moves the limits, but the app sees it only when a Claude Code session feeds; the stale note says so. Screens: pop-stale. Do: Keep it in mind. Evidence: README.md, By the rules; spec 3. By design: no network. Wireframe: click.
-4. works. An account without plan limits: "this account has no plan limits to show". Screens: pop-nolimits. Do: Nothing. Evidence: fixtures/claude-nolimits. Wireframe: click.
-5. works. No transcripts folder: "No transcripts in ~/.claude/projects" in the token section; a read error shows its own message. Screens: pop-notranscripts. Do: Nothing. Evidence: states/claude-no-transcripts, claude-transcripts-denied. Wireframe: click.
-6. works. The statusLine entry removed by hand: the app notices the settings.json change on the next tick and offers Install again. Screens: pop-nohook. Do: Install again or not. Evidence: Controller.swift:196; Hook.swift:75-81. Wireframe: click.
+1. works. The last session closes: its row leaves after 60 s and the header says "As of 13:05, last Claude Code session"; pace is still computed for an hour. Screens: pop-asof. Do: Read the time. Evidence: FeedTests openSessionsTiming; flow-test-0.1.13 07.1. Wireframe: start.
+2. works. After an hour: the stale form, dim bars, "as of 13:05", the note that limits are shared with the Claude app and other Macs, the item at half strength. Screens: pop-stale, desk-stale. Do: Open Claude Code to refresh. Evidence: flow-test-0.1.13 07.2. Wireframe: click.
+3. friction. Use on the web, in the Claude app or on another Mac shows only with the next Claude Code reply on this Mac; the stale note says so. Screens: pop-stale. Do: Keep it in mind. Evidence: By design: no network (README.md; flow-test-0.1.13 07.3). Wireframe: click.
+4. works. Sessions on an API key, Bedrock or Vertex: "these sessions carry no plan limits". Screens: pop-nolimits. Do: Nothing. Evidence: Limits.planless; flow-test-0.1.13 07.4. Wireframe: click.
+5. works. No transcripts folder: "No transcripts in ~/.claude/projects" in the token section; a read error shows its own message. Screens: pop-notranscripts. Do: Nothing. Evidence: ScreenBuilder.tokensView. Wireframe: click.
+6. works. The statusLine entry removed by hand: the app notices the settings.json change on the next tick and offers Install again. Screens: pop-nohook. Do: Install again or not. Evidence: Controller.refreshFeed, settingsModified. Wireframe: click.
 
 ## 08 The Mac tab
 
-1. works. Click Mac or press Tab: CPU, GPU, the memory grid with pressure and swap, battery, the busiest processes. Screens: pop-mac. Do: Read. Evidence: fixtures/mac; live-max tab1. Wireframe: start.
-2. works. Under memory pressure or a process over 80% CPU for a minute, the Mac tab gets a dot and the item a warning sign. Screens: desk-warning, pop-mac-warning. Do: Open the Mac tab. Evidence: fixtures/mac-warning, item-warning; live runs on this Mac showed the dot and the sign. Wireframe: click.
-3. works. Battery health unknown: "health n/a", never a dash. Screens: pop-mac-health. Do: Nothing. Evidence: fixtures/mac-health-na. Wireframe: click.
-4. works. Mac figures in the bar appends " CPU 9%" to the item. Screens: desk-mac. Do: Tick it in Settings. Evidence: ScreenBuilder.swift:314. Wireframe: click.
+1. works. Click Mac or press Tab: CPU, GPU, the memory grid with pressure and swap, battery, the busiest processes. Screens: pop-mac. Do: Read. Evidence: flow-test-0.1.13 08.1. Wireframe: start.
+2. works. The free cells of the memory grid are #949494, 3 to 1 even over a white desktop. Screens: pop-mac. Do: Read the grid over a bright wallpaper. Evidence: Tokens.dimmer (0.1.14, was #888888, 2.7 to 1); AccessTests. Wireframe: click.
+3. works. Under memory pressure or a process over 80% CPU for a minute, the Mac tab gets a dot and the item a warning sign. Screens: desk-warning, pop-mac-warning. Do: Open the Mac tab. Evidence: flow-test-0.1.13 08.2. Wireframe: click.
+4. works. Battery health unknown: "health n/a", never a dash. Screens: pop-mac-health. Do: Nothing. Evidence: flow-test-0.1.13 08.3. Wireframe: click.
+5. works. Mac figures in the bar appends " CPU 9%" to the item. Screens: desk-mac. Do: Tick it in Settings. Evidence: flow-test-0.1.13 08.4. Wireframe: click.
+6. works. Claude Code's processes show as "Claude Code". Screens: pop-mac. Do: Nothing. Evidence: flow-test-0.1.13 08.5. Wireframe: next.
 
 ## 09 Settings
 
-1. works. Settings: Open at login, Mac figures in the bar, nudges, list price, keep awake, reopen sessions, the status line row, the privacy sentence, Quit. Screens: pop-settings. Do: Read the rows. Evidence: fixtures/settings; live-settings tab2. Wireframe: start.
-2. works. Open at login: the box shows what macOS says; while macOS waits for approval a dim line opens Login Items. Screens: pop-settings-login, pop-settings-approval, sys-loginitems. Do: Tick it. Evidence: Controller.swift:283-304; spec 10, seen on the build Mac. Not clicked in this run (left out 2). Wireframe: click.
-3. works. List price equivalent off: the price chip goes. Screens: pop-nochip. Do: Untick it. Evidence: ScreenBuilder.swift:136-140. Wireframe: click.
-4. works. Quit and Command Q end the app; the item goes. Screens: desk-quit. Do: Click Quit. Evidence: Grammar.swift:291; Controller.swift:531. Wireframe: click.
-5. friction. Nowhere in the app is the version: no About, no line in Settings. Screens: pop-settings. Do: Look for the version. Evidence: No read of CFBundleShortVersionString in Sources/. Wireframe: click.
+1. works. Settings: Open at login, Mac figures in the bar, nudges, list price, keep awake, reopen sessions, the status line row, the privacy sentence, the version line, Quit. Screens: pop-settings. Do: Read the rows. Evidence: Grammar.settingsTab; flow-test-0.1.13 09.1. Wireframe: start.
+2. by hand. Open at login: the box shows what macOS says; while macOS waits for approval a dim line opens Login Items. Screens: pop-settings-login, pop-settings-approval, sys-loginitems. Do: Tick it. Evidence: Controller.clickLogin; not clicked in the flow tests. Wireframe: click.
+3. works. List price equivalent off: the price chip goes. Screens: pop-nochip. Do: Untick it. Evidence: ScreenBuilder.tokensView. Wireframe: click.
+4. works. Quit and Command Q end the app; the item goes. Screens: desk-quit. Do: Click Quit. Evidence: Controller.handleKey; flow-test-0.1.13 09.4. Wireframe: click.
+5. works. The version line says what runs: "tokenpanda 0.1.14". Screens: pop-settings. Do: Read it. Evidence: ScreenBuilder.screen, CFBundleShortVersionString. Wireframe: click.
+6. works. Light mode: the same layout on a light glass, switching with the Mac's appearance. Screens: pop-settings. Do: Change the appearance. Evidence: Ground in Controller.swift; Tokens.light; flow-test-0.1.13 09.6. The live switch is by hand. Wireframe: click.
+7. works. A tall Settings tab on a short screen scrolls inside the panel, so Quit stays reachable. Screens: pop-small-settings. Do: Scroll to Quit. Evidence: PanelSize (0.1.14); see 03.11. Wireframe: click.
 
 ## 10 Keep the Mac awake
 
-1. works. Keep the Mac awake while Claude works: while a session's figures move, "awake  1 session working" and one power assertion. Screens: pop-settings-awake. Do: Tick it. Evidence: live-settings: pmset -g assertions listed "tokenpanda: a Claude Code session is open" for the throwaway run; Controller.swift:254-265. Wireframe: start.
-2. works. Also while a session waits for you: idle sessions count too, "awake  1 session open". Screens: pop-settings-awake-open, term-pmset. Do: Tick the second row. Evidence: live-settings tab2 showed "awake  1 session open". Wireframe: click.
-3. friction. A closed lid on battery still sleeps the Mac; the README says so, the row does not. Screens: pop-settings-awake. Do: Read the README. Evidence: README.md, What it shows. Wireframe: click.
+1. works. Keep the Mac awake while Claude works: while a session's figures move, "awake  1 session working" and one power assertion. Screens: pop-settings-awake. Do: Tick it. Evidence: Controller.updateAwake; FeedTests keep awake. Wireframe: start.
+2. works. Also while a session waits for you: idle sessions count too, "awake  1 session open". Screens: pop-settings-awake-open, term-pmset. Do: Tick the second row. Evidence: flow-test-0.1.13 10.2. Wireframe: click.
+3. works. The row says "a closed lid on battery still sleeps". Screens: pop-settings-awake. Do: Read it. Evidence: Grammar.settingsTab; flow-test-0.1.13 10.3. Wireframe: click.
 
 ## 11 Reopen sessions after a restart
 
-1. works. Turn on Reopen sessions after a restart: the app keeps the open sessions in restore.json, readable only by you. Screens: pop-settings-restore. Do: Tick it. Evidence: live-settings: restore.json written with mode 0600, entries id, folder, lastSeen. Wireframe: start.
-2. works. After a restart, one notification: "3 Claude Code sessions were open before the restart", with Reopen. Screens: notif-reopen. Do: Click Reopen. Evidence: Controller.swift:318-337; RestoreTests. Wireframe: click.
-3. works. Reopen opens each session in Terminal with claude --resume, and --remote-control where it had it. Screens: term-reopen. Do: Work on. Evidence: pgrep on this Mac: nine tokenpanda-reopen .command scripts running under zsh -l; Restore.swift:82-88. Wireframe: click.
-4. friction. With notifications off the offer never comes and the Reopen row does not say why. Screens: desk-reopen-denied. Do: Nothing happens. Evidence: Notifier.swift:53-54; Grammar.swift:279-285 (the note sits under the Nudge row only). Wireframe: click.
-5. works. Turning it off deletes restore.json. Screens: pop-settings. Do: Untick it. Evidence: Controller.swift:468-471. Wireframe: click.
+1. works. Turn on Reopen sessions after a restart: the app keeps the open sessions with their names and start options in restore.json, readable only by you. Screens: pop-settings-restore. Do: Tick it. Evidence: flow-test-0.1.13 11.1. Wireframe: start.
+2. by hand. After a restart, one notification names the sessions that were open, with Reopen. Screens: notif-reopen. Do: Click Reopen. Evidence: Controller.offerRestore; flow-test-0.1.13 11.2 and 11.7. Wireframe: click.
+3. by hand. Reopen opens each session in Terminal as it was started, with --remote-control where it had it, and the fallbacks. Screens: term-reopen. Do: Work on. Evidence: Reopen.script; flow-test-0.1.13 11.3. Wireframe: click.
+4. works. With notifications off the Reopen row says so, as the same link as under Nudge; turned on again, the offer and the end notices come without a restart. Screens: pop-settings-denied. Do: Click the link. Evidence: Grammar.settingsTab; Notifier.refreshState and authorize (0.1.14). Wireframe: next.
+5. works. Turning it off deletes restore.json. Screens: pop-settings. Do: Untick it. Evidence: Controller.perform .toggle. Wireframe: click.
+6. works. A print run is never reopened; a start prompt is not sent again. Screens: term-reopen. Do: Nothing. Evidence: LaunchOptions; flow-test-0.1.13 11.6. Wireframe: next.
+7. friction. The end notice also comes after a deliberate /exit in a window you keep. Screens: notif-ended. Do: Dismiss it. Evidence: Controller.watchEnds has no working check; still open in 0.1.14 (flow-test-0.1.13 11.8). Wireframe: click.
 
 ## 12 Update
 
-1. friction. The app never checks for updates (no network); a new version is found on the releases page or with brew outdated. Screens: browser-release. Do: Look on GitHub. Evidence: spec 16; privacy 5. Wireframe: start.
-2. works. brew upgrade --cask tokenpanda quits and replaces the app. Screens: term-brew-upgrade. Do: Run it. Evidence: Casks/tokenpanda.rb (uninstall quit). Wireframe: click.
-3. friction. A new ad hoc build can bring back the Open Anyway steps, and the app has no version line to confirm what runs. Screens: term-brew-upgrade, gk-blocked. Do: Open Anyway again. Evidence: codesign adhoc; no version in Sources/. Not walked across two releases in this run (left out 1). Wireframe: click.
-4. works. Settings, the hook, limits.json and weeks.json survive the update; Open at login keeps working. Screens: pop-live. Do: Nothing. Evidence: Application Support and preferences are outside the bundle; SMAppService.mainApp. Wireframe: click.
+1. friction. The app never checks for updates (no network); a new version is found on the releases page or with brew outdated. Screens: browser-release. Do: Look on GitHub. Evidence: By design (spec 16). Wireframe: start.
+2. by hand. brew upgrade --cask tokenpanda quits and replaces the app. Screens: term-brew-upgrade. Do: Run it. Evidence: Casks/tokenpanda.rb, uninstall quit. Wireframe: click.
+3. by hand. A new ad hoc build can bring back the Open Anyway steps; the version line in Settings confirms what runs. Screens: term-brew-upgrade, gk-blocked. Do: Open Anyway again. Evidence: codesign adhoc; flow-test-0.1.13 12.3. Wireframe: click.
+4. works. Settings, the entry and the records survive the update, and the installed script is brought up to date at launch. Screens: pop-live. Do: Nothing. Evidence: flow-test-0.1.13 12.4. Wireframe: click.
 
 ## 13 Uninstall
 
-1. works. Settings, Remove the status line entry puts the previous statusLine back exactly, or removes the key. Screens: editor-restored. Do: Click it. Evidence: hookrun own-statusline: command, padding back as before; Hook.swift:141-161. Wireframe: start.
-2. friction. If there was no settings.json before, an empty "{}" file stays. Screens: editor-empty. Do: Delete it by hand. Evidence: hookrun no-settings: settings.json after uninstall is {}. Wireframe: click.
+1. works. Settings, Remove the status line entry puts the previous statusLine back exactly, or removes the key. Screens: editor-restored. Do: Click it. Evidence: Hook.uninstall; flow-test-0.1.13 13.1. Wireframe: start.
+2. works. A settings.json Install created is deleted on Remove; when it is a link whose file Install created, the file goes and the link stays. Screens: term-settings-gone. Do: Nothing. Evidence: Hook.uninstall resolves the link (0.1.14); test aDanglingLinkStaysALinkAfterRemoveInTheAppAndInTheScript. Until 0.1.13 the link went and the entry stayed in the file. Wireframe: click.
 3. works. Quit and move the app to the Bin. Screens: finder-bin. Do: Drag to the Bin. Evidence: privacy 9. Wireframe: click.
-4. friction. Moved to the Bin without Remove first: the hook keeps running from Application Support and leaves one session file per session that nothing deletes. Screens: term-leftover. Do: Find the folder. Evidence: Hook.swift:59-67; FeedReader.swift:92-95 is the only deleter. Wireframe: click.
-5. broken. brew uninstall --zap deletes the folder that holds hook.sh while settings.json still points at it: the Claude Code status line goes blank, including the status line the user had before. Screens: term-zap. Do: Repair settings.json by hand. Evidence: Casks/tokenpanda.rb:21-24 zap; HookScript chains PREV inside hook.sh (Hook.swift:25); the caveat asks to Remove first, nothing enforces it. Wireframe: click.
-6. works. Delete Application Support and the preferences file by hand; nothing else was created. Screens: finder-bin. Do: Delete two paths. Evidence: privacy 9. Wireframe: click.
+4. works. Moved to the Bin without Remove: the script deletes its folder's session files that stopped changing over a minute ago, so the leftover stays small. Screens: term-leftover. Do: Nothing. Evidence: hook/statusline.sh cleanup line (0.1.13); flow-test-0.1.13 13.4 and 13.7. Wireframe: click.
+5. works. brew uninstall --zap runs remove.sh, which puts the previous status line back, the same way through a link (readlink -f), before the data folder goes. Screens: term-zap. Do: Run it. Evidence: HookSet remove script (0.1.14 for the link); flow-test-0.1.13 13.5. brew itself is by hand. Wireframe: click.
+6. works. Delete Application Support and the preferences file by hand; nothing else was created. Screens: finder-bin. Do: Delete two paths. Evidence: The cask's zap trash list. Wireframe: click.
 
 ## 14 VoiceOver and the keyboard
 
-1. works. VoiceOver on the item reads the state in words: "Weekly 28% used, ahead, resets sun 17:00". Screens: desk-ultra. Do: Listen. Evidence: live and states item labels; ScreenBuilder.swift:327-331. The weekday is lower case and abbreviated; the style guide says "Sunday". Wireframe: start.
-2. works. Inside the popover VoiceOver reads each line as text, so the figures are heard. Screens: pop-live. Do: Read with VO keys. Evidence: LineView.swift:90-97. Wireframe: click.
-3. broken. The Install button, the tabs, the section switch and every checkbox are static text to VoiceOver: no role, no state, no press. A VoiceOver user cannot set up the feed or change a setting. Screens: pop-voiceover. Do: Try to press Install. Evidence: LineView.swift:95 role staticText for every line; style guide 9 promises button, tab list and checkbox roles. Wireframe: click.
-4. broken. From the keyboard only Tab, Esc, m, p, s and Command Q work; no row takes focus and Space does nothing, so settings need a pointer. Screens: pop-keyboard. Do: Try Space on a row. Evidence: Controller.swift:529-541; style guide 9 promises focus and Space. Wireframe: click.
-5. friction. The key hints are #505050 on the glass, about 2.1 to 1. Screens: pop-keyboard. Do: Squint. Evidence: Tokens.swift:19; style guide 9 measures 2.0 to 2.3. Wireframe: click.
-6. works. Reduce motion: the popover opens without animation. Screens: pop-live. Do: Nothing. Evidence: Controller.swift:98. Wireframe: click.
+1. by hand. VoiceOver on the item says "tokenpanda, Weekly 28% used, ahead, resets Sunday 17:00". Screens: desk-ultra. Do: Listen. Evidence: ScreenBuilder.itemFigures; Controller.render. Wireframe: start.
+2. works. The privacy sentence is one element, and each window, week and Mac figure is one sentence. Screens: pop-voiceover. Do: Read with VO keys. Evidence: AccessTests; flow-test-0.1.13 14.2. Wireframe: next.
+3. by hand. Tabs are radio buttons, settings checkboxes with values, Install, Remove, Quit and the notifications link buttons with press. Screens: pop-voiceover. Do: Press Install. Evidence: LineView accessibility elements; AccessTests. Not heard in the flow tests. Wireframe: click.
+4. works. The keyboard reaches every control: Down and Up, Left and Right, Space or Return; a thin accent ring shows where. Screens: pop-keyboard. Do: Press Down, then Space. Evidence: LineView.moveFocus; flow-test-0.1.13 14.4. Wireframe: click.
+5. works. The key hints read clearly over white, at 4.5 to 1 or more. Screens: pop-keyboard. Do: Read them. Evidence: Tokens.quiet; AccessTests. Wireframe: click.
+6. works. Reduce motion: the popover opens without animation. Screens: pop-live. Do: Nothing. Evidence: Controller.swift, popover.animates. Wireframe: click.
+7. works. Down also stops on the key figures, and in a panel shorter than its lines the focused one is scrolled into view. Screens: pop-small-settings. Do: Press Down to the end. Evidence: LineView.focus scrollToVisible (0.1.14); flow-test-0.1.13 14.7. Wireframe: next.
+8. friction. In a panel capped by a small screen VoiceOver reads every line, but before macOS 26 its outline is not shown on a line outside the visible part, since VoiceOver cannot ask the app to scroll there. Screens: pop-small. Do: Use the keyboard ring to scroll. Evidence: Known limit of 0.1.14 (spec 1, testing.html section 5). Wireframe: next.
 
 ## Gaps, by user impact
 

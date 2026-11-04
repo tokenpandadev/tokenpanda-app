@@ -164,6 +164,8 @@ public struct Hook: Sendable {
     /// previousFallback: the chained command the app kept in its preferences, used when the entry is ours but the backup is gone.
     public func install(previousFallback: String? = nil) throws -> HookStatus {
         let fm = FileManager.default
+        // before anything is written: a link into a folder that does not exist fails here, with nothing left behind
+        do { _ = try SettingsFile.writableTarget(settingsURL) } catch { throw HookError.cannotWriteSettings(SettingsFile.reason(error)) }
         var settings: [String: Any] = [:]
         let created = !fm.fileExists(atPath: settingsURL.path)
         if !created {
@@ -266,32 +268,92 @@ public struct Hook: Sendable {
         do {
             let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .withoutEscapingSlashes])
             try SettingsFile.write(data, to: settingsURL)
-        } catch { throw HookError.cannotWriteSettings(error.localizedDescription) }
+        } catch { throw HookError.cannotWriteSettings(SettingsFile.reason(error)) }
     }
 }
 
 /// Writes settings.json the way an editor that respects links does.
 enum SettingsFile {
-    /// The file a path finally names, following links (relative ones from their own folder). A link to a file that does
-    /// not exist yet names that file. More than 32 hops is a loop.
+    /// The file a path finally names, found the way the kernel opens it: part by part from /, each part that is a link
+    /// replaced by its target (an absolute one from /, a relative one from the real folder reached so far), and ".."
+    /// stepping up from that real folder, never by text. A part that does not exist yet (ENOENT) ends the walk, the rest
+    /// appended, so a link to a file not made yet names that file; a ".." after it throws ENOENT, as the kernel does, and
+    /// any other error on the way (ENOTDIR, EACCES) is thrown. 0.1.11 to 0.1.14 joined a relative link to the folder as
+    /// written and removed ".." by text, which named another file when a folder on the way was itself a link (audit F-2,
+    /// 04.11). More than 32 links is a loop, the kernel's limit.
     static func resolve(_ url: URL) throws -> URL {
-        let fm = FileManager.default
-        var current = url.standardizedFileURL
-        for _ in 0..<32 {
-            guard let type = (try? fm.attributesOfItem(atPath: current.path))?[.type] as? FileAttributeType, type == .typeSymbolicLink else {
-                return current
+        var pending = url.absoluteURL.path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+        pending.reverse()   // a stack: the next part last
+        var real = ""       // the real path reached so far, no link in it; "" is /
+        var links = 0
+        var missing = false
+        while let part = pending.popLast() {
+            if part == "." { continue }
+            if part == ".." {
+                // the real folder is known, so its parent is too; past a missing part there is no folder to step out of
+                if missing { throw POSIXError(.ENOENT) }
+                if let slash = real.lastIndex(of: "/") { real = String(real[..<slash]) }
+                continue
             }
-            let dest = try fm.destinationOfSymbolicLink(atPath: current.path)
-            current = (dest.hasPrefix("/") ? URL(fileURLWithPath: dest) : current.deletingLastPathComponent().appendingPathComponent(dest)).standardizedFileURL
+            let next = real + "/" + part
+            if missing { real = next; continue }
+            var st = stat()
+            guard lstat(next, &st) == 0 else {
+                let e = errno
+                guard e == ENOENT else { throw POSIXError(POSIXErrorCode(rawValue: e) ?? .EIO) }
+                // not there (yet): what follows cannot be a link either
+                missing = true
+                real = next
+                continue
+            }
+            guard st.st_mode & S_IFMT == S_IFLNK else {
+                // a file with more parts after it: the kernel stops there, also for a ".."
+                if st.st_mode & S_IFMT != S_IFDIR, !pending.isEmpty { throw POSIXError(.ENOTDIR) }
+                real = next
+                continue
+            }
+            links += 1
+            if links > 32 { throw POSIXError(.ELOOP) }
+            let dest = try FileManager.default.destinationOfSymbolicLink(atPath: next)
+            if dest.hasPrefix("/") { real = "" }
+            pending.append(contentsOf: dest.split(separator: "/", omittingEmptySubsequences: true).map(String.init).reversed())
         }
-        throw POSIXError(.ELOOP)
+        return URL(fileURLWithPath: real.isEmpty ? "/" : real)
+    }
+
+    /// A link into a folder that does not exist: Install does not make it (spec 20.1.9).
+    struct MissingFolder: Error { let folder: URL }
+
+    static func reason(_ error: Error) -> String {
+        if let m = error as? MissingFolder {
+            return "it is a link into " + (m.folder.path as NSString).abbreviatingWithTildeInPath + ", a folder that does not exist"
+        }
+        return error.localizedDescription
+    }
+
+    /// The file to write, and whether its folder may be made: only the settings folder itself, when it is no link, as
+    /// Claude Code makes its own folder. A settings.json that is a link into a folder that does not exist is refused,
+    /// as Claude Code's own write there would fail; from 0.1.11 Install made that folder (and its parents) and Remove
+    /// left it (audit F-6).
+    static func writableTarget(_ url: URL) throws -> URL {
+        let target = try resolve(url)
+        let dir = target.deletingLastPathComponent()
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue { return target }
+        // the settings folder as named, itself no link (a dangling ~/.claude link is a folder elsewhere): it may be made
+        let folder = url.deletingLastPathComponent()
+        let own = try? resolve(folder), parent = try? resolve(folder.deletingLastPathComponent())
+        guard let own, let parent, own.path == dir.path, own.path == parent.appendingPathComponent(folder.lastPathComponent).path else {
+            throw MissingFolder(folder: dir)
+        }
+        return target
     }
 
     /// Writes data to the file the path names: a temporary file in the same folder, made with the old file's mode (0600 for
     /// a new file), then renamed over it. Neither a link nor a mode is ever replaced or widened.
     static func write(_ data: Data, to url: URL) throws {
         let fm = FileManager.default
-        let target = try resolve(url)
+        let target = try writableTarget(url)
         let dir = target.deletingLastPathComponent()
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         var mode: mode_t = 0o600

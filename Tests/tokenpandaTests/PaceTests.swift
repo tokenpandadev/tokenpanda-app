@@ -38,10 +38,12 @@ struct PaceTests {
     }
 
     @Test func onPaceSample() throws {
-        // the draft's on pace state: 57% against E 55 is within the band; the limit still lands before the reset
+        // the draft's on pace state: 57% against E 55 is within the band. The rate lands the limit Sun 12:00, before the
+        // reset, but under On pace no limit is named; the share at the reset, at most 100 (0.1.15, spec 20.7.2)
         let r = try #require(PaceModel.reading(used: 57, start: d(2026, 10, 11, 18, 0), reset: d(2026, 10, 18, 18, 0), now: now, timeZone: tz))
         #expect(r.status == .onPace)
-        #expect(r.projection == "limit Sun 12:00 at this rate")
+        #expect(r.projection == "100% by reset at this rate")
+        #expect(!r.early)
         #expect(r.allowance == "0.6% an hour left")
     }
 
@@ -85,6 +87,44 @@ struct PaceTests {
         let r = try #require(PaceModel.reading(used: 10, start: start, reset: start.addingTimeInterval(5 * 3600), now: now, timeZone: tz))
         #expect(r.status == .overPace)
         #expect(r.projection == "limit 15:50 at this rate")
+    }
+
+    @Test func theFirstMinutesOfAWindowProjectOnlyOverPace() throws {
+        // flow test 06.8: 2% half a minute into a week read "On pace  limit Wed 10:35 at this rate" (spec 20.7.1)
+        let start = d(2026, 11, 4, 10, 3)
+        let reset = start.addingTimeInterval(168 * 3600)
+        let first = try #require(PaceModel.reading(used: 2, start: start, reset: reset, now: start.addingTimeInterval(30), timeZone: tz))
+        #expect(first.status == .onPace)
+        #expect(first.projection == "too early to project" && first.early)
+        // no projection in the nudge body in that phase
+        #expect(PaceModel.nudgeBody(first) == "6 days 23 h to the reset.")
+        // the edge: 5% of a week is 8 h 24 min; just before it still early, from it the share at the reset
+        let before = try #require(PaceModel.reading(used: 4, start: start, reset: reset, now: start.addingTimeInterval(8.4 * 3600 - 60), timeZone: tz))
+        #expect(before.early && before.projection == "too early to project")
+        let after = try #require(PaceModel.reading(used: 4, start: start, reset: reset, now: start.addingTimeInterval(8.4 * 3600), timeZone: tz))
+        #expect(!after.early && after.status == .onPace)
+        #expect(after.projection == "80% by reset at this rate")
+        // nothing used yet, early: the same text, never a figure
+        let zero = try #require(PaceModel.reading(used: 0, start: start, reset: reset, now: start.addingTimeInterval(3600), timeZone: tz))
+        #expect(zero.projection == "too early to project")
+        // a 5h window: 15 min is its 5%
+        let five = now.addingTimeInterval(-14 * 60)
+        let f = try #require(PaceModel.reading(used: 3, start: five, reset: five.addingTimeInterval(5 * 3600), now: now, timeZone: tz))
+        #expect(f.early && f.projection == "too early to project")
+        // Over pace projects in every phase (20.7.3; justStartedBurstProjectsHonestly)
+        let burst = try #require(PaceModel.reading(used: 12, start: start, reset: reset, now: start.addingTimeInterval(1800), timeZone: tz))
+        #expect(burst.status == .overPace && !burst.early && burst.projection?.hasPrefix("limit ") == true)
+    }
+
+    @Test func aLimitIsNamedOnlyOverPace() throws {
+        // 20.7.2: On pace with the rate past 100 reads "100% by reset", Over pace names the limit
+        let start = d(2026, 10, 11, 18, 0), reset = d(2026, 10, 18, 18, 0)
+        for used in stride(from: 50.0, through: 60.0, by: 0.5) {
+            let r = try #require(PaceModel.reading(used: used, start: start, reset: reset, now: now, timeZone: tz))
+            #expect(r.projection?.hasPrefix("limit ") == (r.status == .overPace), "\(used)")
+            if r.status != .overPace { #expect(r.projection?.hasSuffix("% by reset at this rate") == true) }
+        }
+        #expect(PaceModel.reading(used: 61, start: start, reset: reset, now: now, timeZone: tz)?.projection == "limit Sun 01:20 at this rate")
     }
 
     @Test func usedIsClampedAndFractional() throws {

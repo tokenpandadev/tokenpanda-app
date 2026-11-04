@@ -1,0 +1,45 @@
+# SPDX-FileCopyrightText: 2026 tokenpanda
+# SPDX-License-Identifier: MIT
+# OpenSSF Scorecard: checks the repository's security practices, publishes the result for the badge
+# (api.scorecard.dev) and puts the findings in the repository's code scanning alerts. Every action is pinned by commit.
+name: scorecard
+
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: "23 4 * * 1"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# nothing at the workflow level; the one job asks for what it needs
+permissions: {}
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      # to upload the SARIF to code scanning
+      security-events: write
+      # to sign the published result, which the badge reads
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Scorecard
+        uses: ossf/scorecard-action@fa7117db83c52d787ae5a89f350999701505d78e # v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        with:
+          sarif_file: results.sarif

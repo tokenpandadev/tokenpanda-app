@@ -4,7 +4,7 @@ SPDX-PackageSupplier = "tokenpanda <https://tokenpanda.dev>"
 SPDX-PackageDownloadLocation = "https://github.com/tokenpandadev/tokenpanda-app"
 
 [[annotations]]
-path = ["**.md", "**.json", "**.html", "**.png", "**.jpg", "**.svg", "**.icns", ".gitignore", "hook/statusline.sh", "Tests/tokenpandaTests/Fixtures/*.sh"]
+path = ["**.md", "**.json", "**.html", "**.png", "**.jpg", "**.svg", "**.icns", ".gitignore", "**/.gitignore", "design/**", "hook/statusline.sh", "Tests/tokenpandaTests/Fixtures/*.sh"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 tokenpanda"
 SPDX-License-Identifier = "MIT"

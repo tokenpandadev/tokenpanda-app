@@ -36,6 +36,7 @@ public struct PaceReading: Sendable, Equatable {
     public var elapsedShare: Double        // E, percent
     public var status: PaceStatus
     public var projection: String?         // nil when the window has no rate yet (U = 0 or nothing elapsed)
+    public var early = false               // the projection is the early text: too little of the window has passed
     public var allowance: String           // "0.5% an hour left"
     public var countdown: String           // "in 3d 3h" or "in 3h 25m"
     public var resetText: String           // "Resets Sun 18:00" or "Resets 17:45"
@@ -45,6 +46,11 @@ public struct PaceReading: Sendable, Equatable {
 
 public enum PaceModel {
     public static let band = 5.0           // points either side of E that count as on pace
+    /// The share of the window, in percent, before which only Over pace projects: 8 h 24 min of a week, 15 min of a
+    /// 5h window. From the first reply a week read "On pace  limit Wed 10:35 at this rate", 22 minutes away (0.1.15,
+    /// flow test 06.8; the texts are proposed).
+    public static let earliestProjection = 5.0
+    public static let tooEarly = "too early to project"
 
     /// DateFormatters are costly to create and not thread safe: one per format and zone, behind a lock.
     nonisolated(unsafe) static var formatters: [String: DateFormatter] = [:]
@@ -104,18 +110,22 @@ public enum PaceModel {
         let st = status(used: used, elapsedShare: e)
         var projection: String? = nil
         var rate = 0.0
-        if used > 0, used < 100, elapsedH > 0 {
-            rate = used / elapsedH
+        if used > 0, used < 100, elapsedH > 0 { rate = used / elapsedH }
+        let early = e < earliestProjection && st != .overPace
+        if early {
+            projection = tooEarly
+        } else if rate > 0 {
+            // the limit by a clock time only when Over pace; On pace or Ahead the share at the reset, at most 100
             let toLimitH = (100 - used) / rate
-            if toLimitH < remainH {
+            if toLimitH < remainH, st == .overPace {
                 let raw = now.addingTimeInterval(toLimitH * 3600)
                 let rounded = Date(timeIntervalSince1970: (raw.timeIntervalSince1970 / 300).rounded() * 300)
                 projection = "limit " + clock(rounded, weekday: weekday, timeZone: timeZone) + " at this rate"
             } else {
-                projection = "\(Int((used + rate * remainH).rounded()))% by reset at this rate"
+                projection = "\(min(100, Int((used + rate * remainH).rounded())))% by reset at this rate"
             }
         }
-        return PaceReading(elapsedShare: e, status: st, projection: projection,
+        return PaceReading(elapsedShare: e, status: st, projection: projection, early: early,
                            allowance: allowance(used: used, remainingHours: remainH),
                            countdown: countdown(remainingHours: remainH),
                            resetText: resetText(reset: reset, weekday: weekday, timeZone: timeZone),
@@ -127,7 +137,7 @@ public enum PaceModel {
         let d = Int((r.remainingHours / 24).rounded(.down))
         let h = Int(r.remainingHours.truncatingRemainder(dividingBy: 24).rounded(.down))
         let lead = d > 0 ? "\(d) day\(d == 1 ? "" : "s") \(h) h to the reset." : "\(h) h to the reset."
-        guard let p = r.projection else { return lead }
+        guard let p = r.projection, !r.early else { return lead }
         if p.hasPrefix("limit ") {
             let when = p.replacingOccurrences(of: "limit ", with: "").replacingOccurrences(of: " at this rate", with: "")
             return lead + " At this pace the limit lands \(when)."

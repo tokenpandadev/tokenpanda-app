@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 tokenpanda
 // SPDX-License-Identifier: MIT
 import Foundation
+import UI
 
 /// The UserDefaults keys of the spec, section 10. Nothing else is stored in preferences.
 /// Open at login is not among them: its state is the system's, SMAppService.mainApp.status, read each time it is shown.
@@ -15,8 +16,8 @@ enum Settings {
     static let restoreSessions = "restoreSessions"
     static let hookPreviousCommand = "hookPreviousCommand"
     static let hookPreviousRefresh = "hookPreviousRefresh"   // the user's refreshInterval Install lowered, for Remove without the backup
-    static let nudgedWeeklyWindow = "nudgedWeeklyWindow"
-    static let nudgedFiveHourWindow = "nudgedFiveHourWindow"
+    static let nudgedWeeklyWindow = NudgeRules.weeklyKey       // "nudgedWeeklyWindow", as every version wrote it
+    static let nudgedFiveHourWindow = NudgeRules.fiveHourKey   // "nudgedFiveHourWindow"
 
     /// The fallback keys per settings folder: the old names for ~/.claude, a suffix for every other folder.
     static func previousCommandKey(_ id: String?) -> String { id.map { hookPreviousCommand + "." + $0 } ?? hookPreviousCommand }
@@ -33,7 +34,10 @@ enum Settings {
     static func nudged(_ key: String) -> Double? {
         defaults.object(forKey: key) == nil ? nil : defaults.double(forKey: key)
     }
-    static func setNudged(_ key: String, _ epoch: Double) { defaults.set(epoch, forKey: key) }
+    /// nil takes the mark back (a post the centre refused).
+    static func setNudged(_ key: String, _ epoch: Double?) {
+        if let epoch { defaults.set(epoch, forKey: key) } else { defaults.removeObject(forKey: key) }
+    }
 }
 
 enum Paths {

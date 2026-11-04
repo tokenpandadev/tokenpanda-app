@@ -10,7 +10,7 @@ struct LaunchTests {
     let id = "3f1a9c2e-0000-4000-8000-000000000001"
 
     @Test func keepsTheSetupAndLeavesOutTheRest() {
-        let argv = ["claude", "-n", "Pinned", "--add-dir", "/a", "/b", "--append-system-prompt", "# rules\nline", "--model", "opus",
+        let argv = ["claude", "-n", "Notes", "--add-dir", "/a", "/b", "--append-system-prompt", "# rules\nline", "--model", "opus",
                     "--session-id", id, "--debug-file", "/l.log", "--remote-control", "--effort=high", "fix the bug"]
         #expect(LaunchOptions.kept(fromArguments: argv) == ["--add-dir", "/a", "/b", "--append-system-prompt", "# rules\nline",
                                                             "--model", "opus", "--debug-file", "/l.log", "--effort=high"])

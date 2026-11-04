@@ -116,6 +116,74 @@ struct TranscriptsTests {
         #expect(s.tokensToday == 0)   // a new day: today starts empty, the week does not
     }
 
+    @Test func theWeekAndMonthRowsDropARecordAtTheirEdgeWithoutANewLine() {
+        // 0.1.0 to 0.1.14: the aggregate was built again only with a new record or a new day, so on a quiet day the
+        // 7 and 30 day rows kept records past their edge (audit F-3). A fixed clock, the same day throughout.
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "UTC")!
+        let noon = ISO8601DateFormatter().date(from: "2026-11-04T12:00:00Z")!
+        let hour: TimeInterval = 3600
+        func rec(age: TimeInterval, _ tokens: Int, model: String = "claude-fable-5-1") -> UsageRecord {
+            UsageRecord(timestamp: noon.addingTimeInterval(-age), model: model, project: "p", session: "s", isAgent: false,
+                        usage: Usage(input: tokens, output: 0, cacheRead: 0, cacheWrite: 0))
+        }
+        let records = [rec(age: 7 * 24 * hour - hour, 100, model: "claude-opus-5-5"),   // leaves 7 days in an hour
+                       rec(age: 30 * 24 * hour - 3 * hour, 10),                          // leaves 30 days in three
+                       rec(age: 2 * hour, 1)]
+        let day = cal.startOfDay(for: noon)
+        let s0 = Aggregator.summarize(records, now: noon, calendar: cal)
+        #expect(s0.tokens7d == 101 && s0.tokens30d == 111)
+        #expect(s0.nextEdge == noon.addingTimeInterval(hour))
+        // the controller's pass, as it runs it: before the edge, changes only and no rebuild
+        let early = noon.addingTimeInterval(hour / 2)
+        let p1 = TokenRefresh.plan(lastDay: day, today: day, haveTokens: true, now: early, nextEdge: s0.nextEdge)
+        #expect(p1.onlyIfChanged && !TokenRefresh.rebuild(plan: p1, versionMoved: false))
+        // past the 7 day edge: every record, rebuilt; the week drops the record, the month keeps it (20.2.1)
+        let t1 = noon.addingTimeInterval(2 * hour)
+        let p2 = TokenRefresh.plan(lastDay: day, today: day, haveTokens: true, now: t1, nextEdge: s0.nextEdge)
+        #expect(!p2.onlyIfChanged && TokenRefresh.rebuild(plan: p2, versionMoved: false))
+        let s1 = Aggregator.summarize(records, now: t1, calendar: cal)
+        #expect(s1.tokens7d == 1 && s1.total7d == 1 && s1.tokens30d == 111)
+        #expect(s1.byModel7d.map(\.key) == ["claude-fable-5-1"])
+        #expect(s1.byProject7d.first?.tokens == 1)
+        #expect(s1.listPrice7d < s0.listPrice7d)
+        #expect(s1.nextEdge == noon.addingTimeInterval(3 * hour))
+        // past the 30 day edge: the month drops the oldest record too (20.2.2)
+        let t2 = noon.addingTimeInterval(4 * hour)
+        #expect(TokenRefresh.needsAllRecords(lastDay: day, today: day, haveTokens: true, now: t2, nextEdge: s1.nextEdge))
+        let s2 = Aggregator.summarize(records, now: t2, calendar: cal)
+        #expect(s2.tokens30d == 101 && s2.tokens7d == 1)
+        // the next edge is the newest record's, a week on; nothing crosses before it (20.2.3)
+        #expect(s2.nextEdge == noon.addingTimeInterval(-2 * hour + 7 * 24 * hour))
+        #expect(!TokenRefresh.needsAllRecords(lastDay: day, today: day, haveTokens: true, now: t2.addingTimeInterval(hour), nextEdge: s2.nextEdge))
+        // a record dated after now (a clock moved back) enters at its time
+        let ahead = Aggregator.summarize([rec(age: -hour, 5)], now: noon, calendar: cal)
+        #expect(ahead.tokens7d == 0 && ahead.nextEdge == noon.addingTimeInterval(hour))
+        #expect(Aggregator.summarize([], now: noon, calendar: cal).nextEdge == nil)
+    }
+
+    @Test func theWindowEdgesAreLengthsOfTimeAcrossSummerTime() {
+        // spec 20.2.4: Lisbon left summer time on 25 Oct 2026, 02:00 back to 01:00. A record from 23 Oct 12:00 local
+        // leaves the 7 day window exactly 168 hours later, 30 Oct 11:00 local, not at 12:00 by the calendar.
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = TimeZone(identifier: "Europe/Lisbon")!
+        let iso = ISO8601DateFormatter()
+        let ts = iso.date(from: "2026-10-23T11:00:00Z")!            // 12:00 in summer time
+        let r = UsageRecord(timestamp: ts, model: "claude-fable-5-1", project: "p", session: "s", isAgent: false,
+                            usage: Usage(input: 5, output: 0, cacheRead: 0, cacheWrite: 0))
+        let now = iso.date(from: "2026-10-30T09:00:00Z")!           // 09:00 in winter time
+        let s = Aggregator.summarize([r], now: now, calendar: cal)
+        #expect(s.tokens7d == 5)
+        #expect(s.nextEdge == ts.addingTimeInterval(168 * 3600))
+        #expect(cal.dateComponents([.hour], from: s.nextEdge!).hour == 11)
+        let day = cal.startOfDay(for: now)
+        #expect(!TokenRefresh.needsAllRecords(lastDay: day, today: day, haveTokens: true, now: s.nextEdge!, nextEdge: s.nextEdge))
+        let past = s.nextEdge!.addingTimeInterval(1)
+        #expect(TokenRefresh.needsAllRecords(lastDay: day, today: day, haveTokens: true, now: past, nextEdge: s.nextEdge))
+        #expect(Aggregator.summarize([r], now: past, calendar: cal).tokens7d == 0)
+        // the today rows start at local midnight, the day the clocks went back as well
+        let back = iso.date(from: "2026-10-25T12:00:00Z")!
+        #expect(cal.startOfDay(for: back) == iso.date(from: "2026-10-24T23:00:00Z")!)
+    }
+
     @Test func aggregateWindowsAndAgentShare() async throws {
         let root = try makeTree()
         let store = TranscriptStore(roots: [root])

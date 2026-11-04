@@ -19,8 +19,6 @@ enum KeyCode {
 
 /// The thresholds of the nudges and of the Mac warning.
 enum Rules {
-    static let weeklyNudgeAt = 80.0                           // percent of the weekly window
-    static let fiveHourNudgeLead: TimeInterval = 15 * 60      // before the 5h window resets
     static let hogSustained: TimeInterval = 60                // one process over the hog threshold this long
     static let pressureWarn = 2                               // kern.memorystatus_vm_pressure_level: 2 warn, 4 critical
     static let keepAwakeGrace: TimeInterval = 10 * 60         // a session works while its figures moved this recently
@@ -38,6 +36,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let store: TranscriptStore
     let sampler = MacSampler()
     let notifier = Notifier()
+    let nudges = NudgeLedger(mark: { Settings.nudged($0) }, setMark: { Settings.setNudged($0, $1) })   // the rule: NudgeRules
 
     var feedState = FeedState()
     var hookStatus = HookStatus(installed: false, previousCommand: nil)
@@ -255,11 +254,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         guard !transcriptsBusy else { return }
         transcriptsBusy = true
         let now = Date()
-        // the aggregate moves only with new records or a new day (the "today" window). On a new day the records are
-        // needed even when no transcript changed: an unchanged pass returns none, and summing none emptied every row
-        // after midnight until the next transcript write (0.1.0 to 0.1.13).
+        // the aggregate moves with new records, a new day (the "today" window) and a record crossing the 7 or 30 day
+        // edge (0.1.15). Then the records are needed even when no transcript changed: an unchanged pass returns none,
+        // and summing none emptied every row after midnight until the next transcript write (0.1.0 to 0.1.13).
         let day = Calendar.current.startOfDay(for: now)
-        let plan = TokenRefresh.plan(lastDay: tokensDay, today: day, haveTokens: tokens != nil)
+        let plan = TokenRefresh.plan(lastDay: tokensDay, today: day, haveTokens: tokens != nil, now: now, nextEdge: tokens?.nextEdge)
         let result = await store.refresh(now: now, onlyIfChanged: plan.onlyIfChanged)
         transcriptsBusy = false
         transcriptsRootsExist = result.rootsExist
@@ -525,19 +524,20 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     // MARK: nudges
 
+    /// Each window's nudge is spent only once it was posted: one held back while notifications are off comes at a
+    /// later check after they are on again, while its rule still holds (0.1.15, flow test 04.10). While they are off,
+    /// the permission is read again at most once a minute here, and at each open of the panel.
     func checkNudges(now: Date) {
-        guard Settings.bool(Settings.nudges), let l = feedState.limits, !OpenSessionsRule.isStale(asOf: l.asOf, now: now) else { return }
-        if let w = l.active("seven_day"), let length = WindowKind.length(forKey: "seven_day"), w.used >= Rules.weeklyNudgeAt, now < w.resetsAt,
-           Settings.nudged(Settings.nudgedWeeklyWindow) != w.resetsAt.timeIntervalSince1970 {
-            let start = w.resetsAt.addingTimeInterval(-length)
-            let body = PaceModel.reading(used: w.used, start: start, reset: w.resetsAt, now: now).map { PaceModel.nudgeBody($0) } ?? ""
-            notifier.postAsking(title: "Weekly at \(Int(w.used.rounded()))%", body: body, id: "weekly-\(Int(w.resetsAt.timeIntervalSince1970))")
-            Settings.setNudged(Settings.nudgedWeeklyWindow, w.resetsAt.timeIntervalSince1970)
-        }
-        if let f = l.active("five_hour"), now >= f.resetsAt.addingTimeInterval(-Rules.fiveHourNudgeLead), now < f.resetsAt,
-           Settings.nudged(Settings.nudgedFiveHourWindow) != f.resetsAt.timeIntervalSince1970 {
-            notifier.postAsking(title: "5h window ends in 15 min", body: "\(Int(f.used.rounded()))% used.", id: "five-\(Int(f.resetsAt.timeIntervalSince1970))")
-            Settings.setNudged(Settings.nudgedFiveHourWindow, f.resetsAt.timeIntervalSince1970)
+        for o in NudgeRules.due(limits: feedState.limits, now: now, enabled: Settings.bool(Settings.nudges))
+        where nudges.isDue(o.key, window: o.window) && notifier.mayRead(now: now) {
+            nudges.offer(o, ask: { [notifier] in await notifier.authorize() },
+                         stillDue: { [weak self] o in
+                             guard let self else { return false }
+                             // the same text as now, or nothing: a figure that moved while the prompt was up is posted
+                             // fresh by the next pass
+                             return NudgeRules.due(limits: feedState.limits, now: Date(), enabled: Settings.bool(Settings.nudges)).contains(o)
+                         },
+                         post: { [notifier] in await notifier.deliver(title: o.title, body: o.body, id: o.id) })
         }
     }
 
@@ -593,8 +593,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     static let hiddenHintKey = "hiddenItemHintShown"
 
-    /// Is the status item on screen? Not when macOS keeps it switched off or the notch covers it. While the menu bar
-    /// itself is away (a full screen app), ask again later.
+    /// Is the status item on screen? Not when macOS keeps it switched off, the notch covers it or a menu bar manager
+    /// keeps it out of view. While the menu bar itself is away (a full screen app), ask again later.
     func checkItemShows(tries: Int) {
         // a locked screen, a session switched away (Fast User Switching) or a sleeping display hides the menu bar too:
         // no verdict until the user is back at an awake, unlocked screen
@@ -616,7 +616,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         log.info("status item not visible, showing the menu bar hint")
         var switchInSettings = false
         if #available(macOS 26, *) { switchInSettings = true }
-        let hint = Grammar.hiddenIconHint(switchInSettings: switchInSettings)
+        // the notch of the screen whose menu bar holds the item; with the item on no screen, none when no screen has one,
+        // and both causes when one does (a MacBook with an external display): a Mac mini or an iMac has a full bar, no notch
+        let notch = Grammar.notch(itemScreen: item.button?.window?.screen.map { $0.safeAreaInsets.top > 0 },
+                                  anyScreen: NSScreen.screens.contains { $0.safeAreaInsets.top > 0 })
+        let hint = Grammar.hiddenIconHint(switchInSettings: switchInSettings, notch: notch)
         let alert = NSAlert()
         alert.messageText = hint.title
         alert.informativeText = hint.text

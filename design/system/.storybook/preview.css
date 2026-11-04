@@ -1,0 +1,17 @@
+/* SPDX-FileCopyrightText: 2026 tokenpanda */
+/* SPDX-License-Identifier: MIT */
+/* Storybook stage only: the canvas around the parts. Token variables only. */
+html, body { background: var(--tp-color-stage); }
+.sb-show-main.sb-main-padded { padding: 0; }
+.stage { min-height: 100vh; box-sizing: border-box; padding: calc(var(--tp-size-line) * 2); display: flex; flex-direction: column; gap: calc(var(--tp-size-line) * 2); }
+.demo { display: flex; flex-wrap: wrap; gap: calc(var(--tp-size-line) * 2); align-items: flex-start; }
+.demo-item { display: flex; flex-direction: column; gap: calc(var(--tp-size-line) / 2); }
+.demo-label { color: var(--tp-color-dim); white-space: pre-wrap; max-width: var(--tp-size-panel-width); }
+.demo-note { color: var(--tp-color-dim); max-width: calc(var(--tp-size-panel-width) * 2); white-space: pre-wrap; }
+.demo-title { color: var(--tp-color-bold); font-weight: var(--tp-font-weight-bold); }
+.tbl { display: grid; gap: 0 calc(var(--tp-cell) * 2); color: var(--tp-color-text); }
+.tbl > span { padding: calc(var(--tp-size-line) / 4) 0; border-bottom: var(--tp-size-focus-ring) solid var(--tp-color-track); }
+.tbl > span.th { color: var(--tp-color-dim); }
+.sw { display: inline-block; width: calc(var(--tp-cell) * 4); height: var(--tp-font-size-body); vertical-align: middle; }
+.flow svg { max-width: 100%; height: auto; }
+.shot { width: var(--tp-size-panel-width); height: auto; display: block; }

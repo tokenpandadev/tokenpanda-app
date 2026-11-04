@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.15, 2026-11-04
+
+- Install and Remove find the file a linked settings.json names the way macOS does, also when ~/.claude is itself a link into a dotfiles folder and the file is not made yet. From 0.1.11 such a relative link could name another file, which Install then wrote over with only the status line entry while Claude Code kept reading the missing one. A file written at the wrong place by those versions is left as it is.
+- The 7 day and 30 day token rows drop a record as soon as it is older than the window. Since 0.1.0 they kept counting it on a quiet day, until the next transcript line or midnight.
+- The window that says tokenpanda is running when its icon is not visible names the notch only on a Mac that has one, and also names an app that hides menu bar icons, such as Bartender or Ice.
+- With VoiceOver, a capped panel scrolls each line into view as VoiceOver reaches it, text lines as well as controls. Before, only controls scrolled.
+- A nudge that comes due while notifications are off is kept: once they are on again it comes at the next check, while the window still calls for it. Before, it was spent and never came for that window.
+- The first minutes of a window no longer project a limit from one reply: until 5% of the window has passed the row reads "too early to project" unless the pace is over. A limit time is named only when the pace is over; on pace the row says what share the reset is likely to find, at most 100%.
+- The testing page has a step for turning notifications off and on while the app runs, and the order in which the app reads that setting is now tested.
+
 ## 0.1.14, 2026-11-04
 
 - The token rows keep their figures after midnight. Since 0.1.0 they read "nothing in the last 7 days" from midnight until the next transcript change.

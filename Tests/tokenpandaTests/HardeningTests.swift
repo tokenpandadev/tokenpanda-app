@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import Testing
 import Foundation
-import Feed
+@testable import Feed
 import Text
 import Prices
 @testable import Transcripts
@@ -82,6 +82,248 @@ struct HardeningTests {
         #expect(isLink(link))
         #expect(try mode(target) == 0o600)
         #expect(hook.status().installed)
+    }
+
+    // MARK: links followed as the kernel follows them (0.1.15, audit F-2)
+
+    /// A home under /tmp, itself a link to /private/tmp, so every test also walks a linked folder at the root.
+    func tmpHome() throws -> URL {
+        let url = URL(fileURLWithPath: "/tmp/tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    /// realpath(3): what the kernel names, for a path that exists.
+    func real(_ url: URL) throws -> String {
+        let p = try #require(realpath(url.path, nil))
+        defer { free(p) }
+        return String(cString: p)
+    }
+
+    func sh(_ script: URL) throws -> Int32 {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = [script.path]
+        p.standardOutput = FileHandle.nullDevice
+        try p.run(); p.waitUntilExit()
+        return p.terminationStatus
+    }
+
+    /// ~/.claude a link to dotfiles/claudedir, as stow or a dotfiles script makes it.
+    func linkedClaude(_ home: URL) throws -> (claude: URL, dots: URL, claudedir: URL) {
+        let fm = FileManager.default
+        let dots = home.appendingPathComponent("dotfiles"), claudedir = dots.appendingPathComponent("claudedir")
+        try fm.createDirectory(at: claudedir, withIntermediateDirectories: true)
+        let claude = home.appendingPathComponent(".claude")
+        try fm.createSymbolicLink(atPath: claude.path, withDestinationPath: "dotfiles/claudedir")
+        return (claude, dots, claudedir)
+    }
+
+    /// Install, then Remove in the app or through remove.sh: the file the kernel names gets the entry and goes again,
+    /// the link stays, and the file a text resolver named is never touched.
+    func installAndRemove(home: URL, claude: URL, kernelTarget: String, untouched: URL, untouchedText: String) throws {
+        let fm = FileManager.default
+        for viaScript in [false, true] {
+            let data = home.appendingPathComponent("data-\(viaScript)")
+            let link = claude.appendingPathComponent("settings.json")
+            #expect(try SettingsFile.resolve(link).path == kernelTarget)
+            let set = HookSet(folders: [claude], dataDir: data, home: home)
+            _ = try set.install()
+            #expect(set.status().installed, "Claude Code reads the file Install wrote")
+            let obj = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: kernelTarget))) as? [String: Any])
+            #expect((obj["statusLine"] as? [String: Any])?["command"] as? String == set.hooks[0].hookCommand)
+            #expect(try String(contentsOf: untouched, encoding: .utf8) == untouchedText)
+            if viaScript { #expect(try sh(try #require(set.removeScriptPath)) == 0) }
+            else { try set.uninstall(previousCommand: { _ in nil }, previousRefresh: { _ in nil }) }
+            #expect(!fm.fileExists(atPath: kernelTarget), viaScript ? "script" : "app")
+            #expect(isLink(link), viaScript ? "script" : "app")
+            #expect(try String(contentsOf: untouched, encoding: .utf8) == untouchedText, viaScript ? "script" : "app")
+            // the target's folder is the user's and stays; Install made no folder of its own (audit F-6)
+            #expect(fm.fileExists(atPath: (kernelTarget as NSString).deletingLastPathComponent), viaScript ? "script" : "app")
+        }
+    }
+
+    @Test func aRelativeLinkInALinkedFolderIsReadFromTheRealFolder() throws {
+        // the audit's caseA, the verifier's V2: settings.json -> ../dotfiles/claude.json inside the linked ~/.claude.
+        // The kernel counts .. from dotfiles/claudedir and names dotfiles/dotfiles/claude.json; 0.1.14 named
+        // dotfiles/claude.json, the user's other file, and wrote over it whole.
+        let home = try tmpHome()
+        let (claude, dots, _) = try linkedClaude(home)
+        try FileManager.default.createSymbolicLink(atPath: claude.appendingPathComponent("settings.json").path,
+                                                   withDestinationPath: "../dotfiles/claude.json")
+        let other = dots.appendingPathComponent("claude.json"), text = "{\"user\":\"my other config\",\"keep\":true}"
+        try text.write(to: other, atomically: true, encoding: .utf8)
+        // the kernel's file lies in dotfiles/dotfiles, which does not exist: Install says so and makes nothing (20.1.9;
+        // 0.1.15 before the audit made that folder and Remove left it, audit F-6)
+        let link = claude.appendingPathComponent("settings.json")
+        #expect(try SettingsFile.resolve(link).path == (try real(dots)) + "/dotfiles/claude.json")
+        let set = HookSet(folders: [claude], dataDir: home.appendingPathComponent("data"), home: home)
+        do {
+            _ = try set.install()
+            Issue.record("Install wrote through a link into a missing folder")
+        } catch {
+            #expect("\(error)".contains("a folder that does not exist"))
+        }
+        #expect(!FileManager.default.fileExists(atPath: dots.appendingPathComponent("dotfiles").path))
+        #expect(try String(contentsOf: other, encoding: .utf8) == text)
+        #expect(isLink(link) && !set.status().installed)
+        // nothing of Install is left: no script, no backup, no remove.sh
+        #expect(!FileManager.default.fileExists(atPath: set.hooks[0].hookPath.path))
+        #expect(!FileManager.default.fileExists(atPath: set.hooks[0].backupPath.path))
+        #expect(!FileManager.default.fileExists(atPath: try #require(set.removeScriptPath).path))
+        // once the user makes the folder, Install writes the file there and Remove takes it out again
+        try FileManager.default.createDirectory(at: dots.appendingPathComponent("dotfiles"), withIntermediateDirectories: false)
+        try installAndRemove(home: home, claude: claude, kernelTarget: try real(dots) + "/dotfiles/claude.json", untouched: other, untouchedText: text)
+    }
+
+    @Test func installMakesOnlyTheSettingsFolderItselfNeverAFolderALinkPointsInto() throws {
+        // spec 20.1.9: a missing ~/.claude is made, as Claude Code makes it; a ~/.claude that is a link into a missing
+        // folder, or a settings.json that links into one, is refused with the folder named
+        let fm = FileManager.default
+        let home = try tmpHome()
+        let plain = home.appendingPathComponent("plain/.claude")
+        _ = try Hook(settingsURL: plain.appendingPathComponent("settings.json"), dataDir: home.appendingPathComponent("d1")).install()
+        #expect(fm.fileExists(atPath: plain.appendingPathComponent("settings.json").path))
+        let dangling = home.appendingPathComponent(".claude")
+        try fm.createSymbolicLink(atPath: dangling.path, withDestinationPath: "dotfiles/claudedir")
+        let hook = Hook(settingsURL: dangling.appendingPathComponent("settings.json"), dataDir: home.appendingPathComponent("d2"))
+        #expect(throws: HookError.self) { try hook.install() }
+        #expect(!fm.fileExists(atPath: home.appendingPathComponent("dotfiles").path))
+        #expect(!fm.fileExists(atPath: hook.hookPath.path) && !fm.fileExists(atPath: hook.backupPath.path))
+        let reason = SettingsFile.reason(SettingsFile.MissingFolder(folder: URL(fileURLWithPath: NSHomeDirectory() + "/dotfiles/sub")))
+        #expect(reason == "it is a link into ~/dotfiles/sub, a folder that does not exist")
+    }
+
+    @Test func aCorrectRelativeLinkFromTheDotfilesFolderWritesItsOwnTarget() throws {
+        // the verifier's V1: settings.json -> ../claude.json, right for the real folder, its target not made yet.
+        // The kernel names dotfiles/claude.json; 0.1.14 named claude.json in the home folder.
+        let home = try tmpHome()
+        let (claude, dots, _) = try linkedClaude(home)
+        try FileManager.default.createSymbolicLink(atPath: claude.appendingPathComponent("settings.json").path, withDestinationPath: "../claude.json")
+        let inHome = home.appendingPathComponent("claude.json"), text = "{\"mine\":1}"
+        try text.write(to: inHome, atomically: true, encoding: .utf8)
+        try installAndRemove(home: home, claude: claude, kernelTarget: try real(dots) + "/claude.json", untouched: inHome, untouchedText: text)
+    }
+
+    @Test func theResolverMatchesTheKernelForEveryLinkLayout() throws {
+        let fm = FileManager.default
+        let home = try tmpHome()
+        let (claude, dots, claudedir) = try linkedClaude(home)
+        let target = dots.appendingPathComponent("settings-real.json")
+        try "{}".write(to: target, atomically: true, encoding: .utf8)
+        func link(_ name: String, _ dest: String, in dir: URL) throws -> URL {
+            let u = dir.appendingPathComponent(name)
+            try fm.createSymbolicLink(atPath: u.path, withDestinationPath: dest)
+            return u
+        }
+        // a target that exists: the same file as realpath, whatever the layout
+        let existing = [
+            try link("abs", target.path, in: claude),                         // absolute, through the linked folder
+            try link("rel", "../settings-real.json", in: claude),             // relative, through the linked folder
+            try link("plainrel", "dotfiles/settings-real.json", in: home),    // relative, no linked folder on the way
+            try link("chain", "rel", in: claude),                             // a link to a link
+            target,                                                           // no link at all
+        ]
+        for u in existing { #expect(try SettingsFile.resolve(u).path == (try real(u)), "\(u.lastPathComponent)") }
+        // a target not made yet: the real folder it would be made in, plus its name
+        let plainDir = home.appendingPathComponent("plain")
+        try fm.createDirectory(at: plainDir, withIntermediateDirectories: true)
+        #expect(try SettingsFile.resolve(plainDir.appendingPathComponent("settings.json")).path == (try real(plainDir)) + "/settings.json")
+        let dangling = try link("dangling", "../new/settings.json", in: claude)
+        #expect(try SettingsFile.resolve(dangling).path == (try real(dots)) + "/new/settings.json")
+        #expect(try SettingsFile.resolve(claude.appendingPathComponent("missing.json")).path == (try real(claudedir)) + "/missing.json")
+        // a loop: an error, never a hang
+        _ = try link("a", "b", in: home)
+        let loop = try link("b", "a", in: home)
+        #expect(throws: POSIXError.self) { try SettingsFile.resolve(loop) }
+    }
+
+    @Test func aDotDotAfterAMissingFolderIsAnErrorAsInTheKernel() throws {
+        // spec 20.1.6: d/settings.json -> nodir/../other.json, other.json next to it. The kernel opens nothing (ENOENT);
+        // removing ".." by text named other.json, and Install wrote over it.
+        let fm = FileManager.default
+        let home = try tmpHome()
+        let d = home.appendingPathComponent("d")
+        try fm.createDirectory(at: d, withIntermediateDirectories: true)
+        let other = d.appendingPathComponent("other.json"), text = "{\"keep\":true}"
+        try text.write(to: other, atomically: true, encoding: .utf8)
+        let link = d.appendingPathComponent("settings.json")
+        try fm.createSymbolicLink(atPath: link.path, withDestinationPath: "nodir/../other.json")
+        #expect(open(link.path, O_RDONLY) == -1 && errno == ENOENT)
+        #expect(throws: POSIXError(.ENOENT)) { try SettingsFile.resolve(link) }
+        let set = HookSet(folders: [d], dataDir: home.appendingPathComponent("data"), home: home)
+        #expect(throws: (any Error).self) { try set.install() }
+        #expect(try String(contentsOf: other, encoding: .utf8) == text)
+        #expect(!set.status().installed)
+    }
+
+    @Test func onlyAMissingPartEndsTheWalkOtherErrorsAreThrown() throws {
+        // spec 20.1.7: a file used as a folder is ENOTDIR, also before a ".."; a folder that cannot be read is EACCES
+        let fm = FileManager.default
+        let home = try tmpHome()
+        let file = home.appendingPathComponent("file")
+        try "x".write(to: file, atomically: true, encoding: .utf8)
+        #expect(throws: POSIXError(.ENOTDIR)) { try SettingsFile.resolve(file.appendingPathComponent("settings.json")) }
+        try fm.createSymbolicLink(atPath: home.appendingPathComponent("l").path, withDestinationPath: "file/../file")
+        #expect(throws: POSIXError(.ENOTDIR)) { try SettingsFile.resolve(home.appendingPathComponent("l")) }
+        let locked = home.appendingPathComponent("locked")
+        try fm.createDirectory(at: locked.appendingPathComponent("inner"), withIntermediateDirectories: true)
+        try fm.setAttributes([.posixPermissions: 0], ofItemAtPath: locked.path)
+        defer { try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: locked.path) }
+        #expect(throws: POSIXError(.EACCES)) { try SettingsFile.resolve(locked.appendingPathComponent("inner/settings.json")) }
+    }
+
+    @Test func thirtyTwoLinksResolveTheThirtyThirdIsALoopAsInTheKernel() throws {
+        // spec 20.1.8: /tmp is itself a link, so 31 links in the home plus /tmp are 32
+        let fm = FileManager.default
+        let home = try tmpHome()
+        try "{}".write(to: home.appendingPathComponent("t"), atomically: true, encoding: .utf8)
+        var prev = "t"
+        for i in 1...32 {
+            try fm.createSymbolicLink(atPath: home.appendingPathComponent("l\(i)").path, withDestinationPath: prev)
+            prev = "l\(i)"
+        }
+        let ok = home.appendingPathComponent("l31"), loop = home.appendingPathComponent("l32")
+        let fd = open(ok.path, O_RDONLY)
+        #expect(fd >= 0)
+        if fd >= 0 { close(fd) }
+        #expect(try SettingsFile.resolve(ok).path == (try real(home)) + "/t")
+        #expect(open(loop.path, O_RDONLY) == -1 && errno == ELOOP)
+        #expect(throws: POSIXError(.ELOOP)) { try SettingsFile.resolve(loop) }
+    }
+
+    @Test func aFolderLeftBy0114InstallsIntoTheRightFileWithTheWrongOneKept() throws {
+        // spec 20.1.5: 0.1.14 in the verifier's V1 layout wrote the entry into ~/claude.json and a backup with
+        // createdSettings, and said not installed. 0.1.15 offers Install, writes dotfiles/claude.json, leaves
+        // ~/claude.json as 0.1.14 left it, and Remove gives back the state before 0.1.15's Install.
+        let fm = FileManager.default
+        let home = try tmpHome()
+        let (claude, dots, _) = try linkedClaude(home)
+        let link = claude.appendingPathComponent("settings.json")
+        try fm.createSymbolicLink(atPath: link.path, withDestinationPath: "../claude.json")
+        let data = home.appendingPathComponent("data")
+        let set = HookSet(folders: [claude], dataDir: data, home: home)
+        let hook = set.hooks[0]
+        // what 0.1.14's Install left: the entry in the wrong file, the script, the backup
+        try fm.createDirectory(at: data.appendingPathComponent("sessions"), withIntermediateDirectories: true)
+        let wrong = home.appendingPathComponent("claude.json")
+        let wrongText = "{\n  \"statusLine\" : {\n    \"command\" : \"\(hook.hookCommand)\",\n    \"refreshInterval\" : 5,\n    \"type\" : \"command\"\n  }\n}"
+        try wrongText.write(to: wrong, atomically: true, encoding: .utf8)
+        try "#!/bin/sh\nPREV=''\n".write(to: hook.hookPath, atomically: true, encoding: .utf8)
+        try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hook.hookPath.path)
+        try "{\"createdSettings\":true}".write(to: hook.backupPath, atomically: true, encoding: .utf8)
+        #expect(!set.status().installed)   // Claude Code's path is still missing: Install is offered
+        _ = try set.install()
+        let right = try real(dots) + "/claude.json"
+        #expect(set.status().installed)
+        let obj = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: right))) as? [String: Any])
+        #expect((obj["statusLine"] as? [String: Any])?["command"] as? String == hook.hookCommand)
+        #expect(try String(contentsOf: wrong, encoding: .utf8) == wrongText)
+        let backup = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: hook.backupPath)) as? [String: Any])
+        #expect(backup["createdSettings"] as? Bool == true && backup["statusLine"] == nil)
+        try set.uninstall(previousCommand: { _ in nil }, previousRefresh: { _ in nil })
+        #expect(!fm.fileExists(atPath: right) && isLink(link))
+        #expect(try String(contentsOf: wrong, encoding: .utf8) == wrongText)
     }
 
     // MARK: the hook script's data folder

@@ -53,15 +53,38 @@ public enum Grammar {
 
     /// The window that says the app runs while its menu bar icon is not visible. From macOS 26 an app's icon can be
     /// switched off in System Settings, Menu Bar, and a button opens that pane; before, only Apple's own items have a
-    /// switch (Control Center), so the text names the one cause there is, a full menu bar, and has no button.
-    public static func hiddenIconHint(switchInSettings: Bool) -> (title: String, text: String, button: String?) {
-        switchInSettings
-            ? ("tokenpanda is running",
-               "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, or hidden behind the notch when the menu bar is full.",
-               "Open Menu Bar Settings")
-            : ("tokenpanda is running",
-               "Its icon is not visible in the menu bar, most likely because the menu bar is full and the icon is hidden behind the notch. Quitting another menu bar app makes room for it.",
-               nil)
+    /// switch (Control Center), so the text names a full menu bar first and has no button. The notch is named only on a
+    /// Mac with one (0.1.14 named it on every Mac), both causes when it is not known (notch nil), and every text names a
+    /// menu bar manager, which the check also catches (0.1.15, audit F-1; the wording is proposed).
+    public static func hiddenIconHint(switchInSettings: Bool, notch: Bool?) -> (title: String, text: String, button: String?) {
+        let title = "tokenpanda is running"
+        let manager = "an app that hides menu bar icons, such as Bartender or Ice"
+        if switchInSettings {
+            let full: String
+            switch notch {
+            case true?: full = "hidden behind the notch when the menu bar is full"
+            case false?: full = "left out when the menu bar is full"
+            case nil: full = "left out or hidden behind the notch when the menu bar is full"
+            }
+            return (title, "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, \(full), or kept out of view by \(manager).",
+                    "Open Menu Bar Settings")
+        }
+        let cause: String
+        switch notch {
+        case true?: cause = "the menu bar is full and the icon is hidden behind the notch"
+        case false?: cause = "the menu bar is full"
+        case nil: cause = "the menu bar is full and the icon is left out or hidden behind the notch"
+        }
+        return (title, "Its icon is not visible in the menu bar, most likely because \(cause). Quitting another menu bar app makes room for it. "
+                    + "An app that hides menu bar icons, such as Bartender or Ice, can also keep it out of view.", nil)
+    }
+
+    /// Whether the hidden icon window names the notch (spec 20.3.0): the screen whose menu bar holds the item, when the
+    /// item's window has a screen (true when that screen has a notch); otherwise no notch when no connected screen has
+    /// one, and nil, not known, when some screen has one.
+    public static func notch(itemScreen: Bool?, anyScreen: Bool) -> Bool? {
+        if let itemScreen { return itemScreen }
+        return anyScreen ? nil : false
     }
     public static let popCells = 47      // content cells in the 380 pt popover at SF Mono 12
     public static let popBar = 36        // the window bar

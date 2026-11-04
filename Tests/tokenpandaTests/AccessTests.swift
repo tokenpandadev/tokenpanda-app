@@ -6,6 +6,7 @@ import Foundation
 import AppKit
 import Text
 import Feed
+import Pace
 @testable import UI
 
 /// 0.1.9: VoiceOver roles and the keyboard, text that fits the panel, the key hint contrast, several settings folders,
@@ -72,11 +73,11 @@ struct AccessTests {
         var input = try #require(Fixtures.all().first { $0.0 == "claude-overpace" }?.1)
         let ids = input.feed.sessions.map(\.snapshot.sessionId)
         try #require(!ids.isEmpty)
-        input.sessionNames = [ids[0]: "Planning"]
+        input.sessionNames = [ids[0]: "Release notes"]
         let plain = Grammar.popover(ScreenBuilder.screen(input)).map(\.plain)
-        #expect(plain.contains { $0.hasPrefix(" Planning  ") })
-        input.sessionNames = [ids[0]: String(repeating: "Website, LinkedIn, halftone ", count: 3)]
-        let long = Grammar.popover(ScreenBuilder.screen(input)).map(\.plain).first { $0.hasPrefix(" Website") }
+        #expect(plain.contains { $0.hasPrefix(" Release notes  ") })
+        input.sessionNames = [ids[0]: String(repeating: "Docs, tests and the release notes ", count: 3)]
+        let long = Grammar.popover(ScreenBuilder.screen(input)).map(\.plain).first { $0.hasPrefix(" Docs") }
         #expect(long.map { $0.count <= Grammar.popCells + 1 } == true)
     }
 
@@ -272,19 +273,6 @@ struct AccessTests {
         #expect(PanelSize.height(content: 700, visible: nil) == 700)        // no screen known: the lines
     }
 
-    @Test func theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne() {
-        // macOS 26: the Menu Bar pane switches an app's icon off and on; the button opens it
-        let now = Grammar.hiddenIconHint(switchInSettings: true)
-        #expect(now.text.contains("System Settings, Menu Bar"))
-        #expect(now.text.contains("notch"))
-        #expect(now.button == "Open Menu Bar Settings")
-        // macOS 14 and 15: Control Center switches only Apple's items, so no pane is named and no button offered
-        let old = Grammar.hiddenIconHint(switchInSettings: false)
-        #expect(!old.text.contains("System Settings"))
-        #expect(old.text.contains("notch"))
-        #expect(old.button == nil)
-    }
-
     @Test func notificationPermissionFollowsWhatSystemSettingsSaysNow() {
         #expect(NotificationPermission.from(.authorized) == .allowed)
         #expect(NotificationPermission.from(.provisional) == .allowed)
@@ -306,7 +294,7 @@ struct AccessTests {
 
     @Test func versionLineInSettings() throws {
         let plain = Grammar.popover(try screen("settings")).map(\.plain)
-        #expect(plain.contains(" tokenpanda 0.1.14"))
+        #expect(plain.contains(" tokenpanda 0.1.15"))
         var i = Fixtures.input(tab: 2); i.version = nil
         #expect(!Grammar.popover(ScreenBuilder.screen(i)).map(\.plain).contains { $0.contains("tokenpanda 0") })
     }
@@ -739,5 +727,294 @@ struct AccessTests {
         try set.uninstall(previousCommand: { _ in nil }, previousRefresh: { _ in nil })
         set.writeRemoveScript()
         #expect(!FileManager.default.fileExists(atPath: script.path))
+    }
+}
+
+/// 0.1.15: the hidden icon window by version and screen, the notification reads in order and VoiceOver in a capped
+/// panel (audit F-1, F-4, F-5).
+extension AccessTests {
+    @Test func theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne() {
+        for notch in [true, false, nil] as [Bool?] {
+            // macOS 26: the Menu Bar pane switches an app's icon off and on; the button opens it
+            let now = Grammar.hiddenIconHint(switchInSettings: true, notch: notch)
+            #expect(now.text.contains("System Settings, Menu Bar"))
+            #expect(now.button == "Open Menu Bar Settings")
+            // macOS 14 and 15: Control Center switches only Apple's items, so no pane is named and no button offered
+            let old = Grammar.hiddenIconHint(switchInSettings: false, notch: notch)
+            #expect(!old.text.contains("System Settings"))
+            #expect(old.button == nil)
+            // the notch only on a Mac with one, both causes when not known (0.1.14 named it on every Mac); a full bar
+            // and a menu bar manager on every Mac, which the check catches too (0.1.15, audit F-1)
+            for h in [now, old] {
+                #expect(h.title == "tokenpanda is running")
+                #expect(h.text.contains("notch") == (notch != false))
+                #expect(h.text.contains("left out") == (notch == nil || (h.button != nil && notch == false)))
+                #expect(h.text.contains("menu bar is full"))
+                #expect(h.text.contains("Bartender or Ice"))
+                #expect(!h.text.contains("\u{2014}") && !h.text.contains("\u{2013}") && !h.text.contains("\u{00B7}") && !h.text.contains("\u{7C}"))
+            }
+        }
+        // the six texts, word for word as spec section 20.3 has them
+        // swiftlint:disable line_length
+        #expect(Grammar.hiddenIconHint(switchInSettings: true, notch: true).text == "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, hidden behind the notch when the menu bar is full, or kept out of view by an app that hides menu bar icons, such as Bartender or Ice.")
+        #expect(Grammar.hiddenIconHint(switchInSettings: true, notch: false).text == "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, left out when the menu bar is full, or kept out of view by an app that hides menu bar icons, such as Bartender or Ice.")
+        #expect(Grammar.hiddenIconHint(switchInSettings: true, notch: nil).text == "Its icon is not visible in the menu bar. It may be switched off in System Settings, Menu Bar, left out or hidden behind the notch when the menu bar is full, or kept out of view by an app that hides menu bar icons, such as Bartender or Ice.")
+        #expect(Grammar.hiddenIconHint(switchInSettings: false, notch: true).text == "Its icon is not visible in the menu bar, most likely because the menu bar is full and the icon is hidden behind the notch. Quitting another menu bar app makes room for it. An app that hides menu bar icons, such as Bartender or Ice, can also keep it out of view.")
+        #expect(Grammar.hiddenIconHint(switchInSettings: false, notch: false).text == "Its icon is not visible in the menu bar, most likely because the menu bar is full. Quitting another menu bar app makes room for it. An app that hides menu bar icons, such as Bartender or Ice, can also keep it out of view.")
+        #expect(Grammar.hiddenIconHint(switchInSettings: false, notch: nil).text == "Its icon is not visible in the menu bar, most likely because the menu bar is full and the icon is left out or hidden behind the notch. Quitting another menu bar app makes room for it. An app that hides menu bar icons, such as Bartender or Ice, can also keep it out of view.")
+        // swiftlint:enable line_length
+    }
+
+    @Test func theNotchFollowsTheScreenThatHoldsTheItem() {
+        // spec 20.3.0: the item's screen decides when known; a MacBook with an external display decides by the item
+        #expect(Grammar.notch(itemScreen: true, anyScreen: true) == true)
+        #expect(Grammar.notch(itemScreen: false, anyScreen: true) == false)    // the item on the external display
+        // the item on no screen: no notch anywhere is a Mac mini or an iMac; a notch somewhere cannot tell
+        #expect(Grammar.notch(itemScreen: nil, anyScreen: false) == false)
+        #expect(Grammar.notch(itemScreen: nil, anyScreen: true) == nil)
+    }
+
+    // MARK: the order of notification reads and answers (0.1.15, audit F-4)
+
+    /// Replies the test hands out by hand, in any order.
+    @MainActor final class Replies {
+        var reads: [CheckedContinuation<NotificationPermission, Never>] = []
+        var asks: [CheckedContinuation<Bool, Never>] = []
+        func read() async -> NotificationPermission { await withCheckedContinuation { reads.append($0) } }
+        func ask() async -> Bool { await withCheckedContinuation { asks.append($0) } }
+        /// Lets the started tasks run until they wait; bounded, so a wrong order fails instead of hanging.
+        func settle(_ done: () -> Bool) async -> Bool {
+            for _ in 0..<1000 where !done() { await Task.yield() }
+            return done()
+        }
+    }
+
+    @Test @MainActor func aStaleNotificationReadNeverWritesOverANewerOne() async throws {
+        let r = Replies()
+        let reader = PermissionReader(state: .denied, read: { await r.read() }, ask: { await r.ask() })
+        let older = Task { await reader.refresh() }
+        #expect(await r.settle { r.reads.count == 1 })
+        let newer = Task { await reader.refresh() }
+        #expect(await r.settle { r.reads.count == 2 })
+        // the newer read answers first: notifications on in System Settings
+        r.reads[1].resume(returning: .allowed)
+        #expect(await newer.value)
+        #expect(reader.state == .allowed)
+        // the older one, sent before the switch, comes last: dropped
+        r.reads[0].resume(returning: .denied)
+        #expect(await older.value == false)
+        #expect(reader.state == .allowed)
+    }
+
+    @Test @MainActor func aReadDuringThePromptIsDroppedOnceTheAnswerLands() async throws {
+        let r = Replies()
+        let reader = PermissionReader(read: { await r.read() }, ask: { await r.ask() })
+        let auth = Task { await reader.authorize() }
+        #expect(await r.settle { r.reads.count == 1 })
+        r.reads[0].resume(returning: .undecided)
+        #expect(await r.settle { r.asks.count == 1 })
+        // the popover opens while the prompt is up: a read starts
+        let during = Task { await reader.refresh() }
+        #expect(await r.settle { r.reads.count == 2 })
+        r.asks[0].resume(returning: true)
+        await auth.value
+        #expect(reader.state == .allowed)
+        // its reply started before the answer: dropped
+        r.reads[1].resume(returning: .undecided)
+        #expect(await during.value == false)
+        #expect(reader.state == .allowed)
+        // asked once only: a user who decided is not asked again
+        let again = Task { await reader.authorize() }
+        #expect(await r.settle { r.reads.count == 3 })
+        r.reads[2].resume(returning: .denied)
+        await again.value
+        #expect(reader.state == .denied && r.asks.count == 1)
+    }
+
+    @Test @MainActor func aChangeInSystemSettingsIsReportedOnce() async {
+        @MainActor final class SystemSettings { var permission = NotificationPermission.denied }
+        let system = SystemSettings()
+        let reader = PermissionReader(state: .denied, read: { system.permission }, ask: { false })
+        #expect(await reader.refresh() == false)        // nothing moved: the note stays, no render
+        system.permission = .allowed                    // turned on in System Settings
+        #expect(await reader.refresh())
+        #expect(reader.state == .allowed)
+        #expect(await reader.refresh() == false)        // said once
+        system.permission = .denied                     // and off again
+        #expect(await reader.refresh())
+        #expect(reader.state == .denied)
+    }
+
+    // MARK: a nudge is spent only when it was posted (0.1.15, flow test 04.10)
+
+    @MainActor final class Marks { var stored: [String: Double] = [:] }
+
+    func offer(_ key: String = NudgeRules.weeklyKey, window: Double, title: String = "Weekly at 85%") -> NudgeOffer {
+        NudgeOffer(key: key, window: window, title: title, body: "", id: "weekly-\(Int(window))")
+    }
+
+    @Test @MainActor func aNudgeHeldBackWhileNotificationsAreOffComesOnceTheyAreOn() async throws {
+        let marks = Marks()
+        let ledger = NudgeLedger(mark: { marks.stored[$0] }, setMark: { marks.stored[$0] = $1 })
+        let window = 1_762_250_000.0, key = NudgeRules.weeklyKey
+        var posted: [String] = []
+        // notifications off, the weekly at 85%: not posted, not spent (20.6.1)
+        let started = ledger.offer(offer(window: window), ask: {}, stillDue: { _ in true }, post: { false })
+        let off = try #require(started)
+        #expect(await off.value == false)
+        #expect(marks.stored[key] == nil && ledger.isDue(key, window: window))
+        // turned on in the same window: the next check posts, with the figure of that moment, and spends it (20.6.2)
+        let now = offer(window: window, title: "Weekly at 87%")
+        let startedOn = ledger.offer(now, ask: {}, stillDue: { _ in true }, post: { posted.append(now.title); return true })
+        let on = try #require(startedOn)
+        #expect(await on.value)
+        #expect(posted == ["Weekly at 87%"] && marks.stored[key] == window)
+        // every later check in that window posts nothing
+        let again = ledger.offer(now, ask: {}, stillDue: { _ in true }, post: { posted.append("again"); return true })
+        #expect(again == nil)
+        #expect(posted.count == 1)
+        // the next window has its own nudge; a mark from an earlier version counts as given (20.6.4)
+        #expect(ledger.isDue(key, window: window + 7 * 24 * 3600))
+        marks.stored[NudgeRules.fiveHourKey] = 42
+        #expect(!ledger.isDue(NudgeRules.fiveHourKey, window: 42))
+    }
+
+    @Test @MainActor func aSecondCheckWhileAPostIsOnItsWayDoesNotPostAgain() async throws {
+        let marks = Marks()
+        let ledger = NudgeLedger(mark: { marks.stored[$0] }, setMark: { marks.stored[$0] = $1 })
+        let key = NudgeRules.fiveHourKey
+        var answer: CheckedContinuation<Bool, Never>?
+        var calls = 0
+        let started = ledger.offer(offer(key, window: 1), ask: {}, stillDue: { _ in true }, post: {
+            calls += 1
+            return await withCheckedContinuation { answer = $0 }
+        })
+        let first = try #require(started)
+        for _ in 0..<1000 where answer == nil { await Task.yield() }
+        // the post is on its way: the next feed pass checks again (20.6.3); the mark is already set (20.6.6)
+        let second = ledger.offer(offer(key, window: 1), ask: {}, stillDue: { _ in true }, post: { calls += 1; return true })
+        #expect(second == nil)
+        #expect(!ledger.isDue(key, window: 1) && marks.stored[key] == 1)
+        // the next window is not blocked by the pending one (20.6.5)
+        #expect(ledger.isDue(key, window: 2))
+        try #require(answer).resume(returning: false)   // the centre refused it: the mark is taken back
+        #expect(await first.value == false)
+        #expect(calls == 1 && marks.stored[key] == nil && ledger.isDue(key, window: 1))
+    }
+
+    @Test @MainActor func aPromptAnsweredAfterTheWindowEndedPostsNothing() async throws {
+        // spec 20.6.5: the first prompt left up past the 5h window's end, then answered
+        let marks = Marks()
+        let ledger = NudgeLedger(mark: { marks.stored[$0] }, setMark: { marks.stored[$0] = $1 })
+        let key = NudgeRules.fiveHourKey
+        var prompt: CheckedContinuation<Void, Never>?
+        @MainActor final class Clock { var windowOver = false }
+        let clock = Clock()
+        var posted = 0
+        let started = ledger.offer(offer(key, window: 10, title: "5h window ends in 15 min"),
+                                   ask: { await withCheckedContinuation { prompt = $0 } },
+                                   stillDue: { _ in !clock.windowOver }, post: { posted += 1; return true })
+        let task = try #require(started)
+        for _ in 0..<1000 where prompt == nil { await Task.yield() }
+        clock.windowOver = true
+        try #require(prompt).resume()
+        #expect(await task.value == false)
+        #expect(posted == 0 && marks.stored[key] == nil)
+    }
+
+    @Test func theNudgeRuleAsTheSpecHasIt() throws {
+        // spec 20.6.8, on a fixed clock
+        let now = Date(timeIntervalSince1970: 1_762_000_000)
+        func limits(weekly: Double, weeklyReset: TimeInterval = 86_400, five: Double = 30, fiveReset: TimeInterval = 600,
+                    asOf: TimeInterval = -2) -> Limits {
+            var l = Limits(asOf: now.addingTimeInterval(asOf))
+            l.windows = ["seven_day": .init(used: weekly, resetsAt: now.addingTimeInterval(weeklyReset)),
+                         "five_hour": .init(used: five, resetsAt: now.addingTimeInterval(fiveReset))]
+            return l
+        }
+        let both = NudgeRules.due(limits: limits(weekly: 85), now: now, enabled: true)
+        #expect(both.map(\.key) == [NudgeRules.weeklyKey, NudgeRules.fiveHourKey])
+        #expect(both.first?.title == "Weekly at 85%" && both.last?.title == "5h window ends in 15 min" && both.last?.body == "30% used.")
+        #expect(both.first?.window == now.addingTimeInterval(86_400).timeIntervalSince1970)
+        #expect(NudgeRules.due(limits: limits(weekly: 85), now: now, enabled: false).isEmpty)                    // Nudge off
+        #expect(NudgeRules.due(limits: nil, now: now, enabled: true).isEmpty)
+        #expect(NudgeRules.due(limits: limits(weekly: 85, asOf: -3601), now: now, enabled: true).isEmpty)       // stale feed
+        #expect(NudgeRules.due(limits: limits(weekly: 85, asOf: -3600), now: now, enabled: true).count == 2)    // an hour old is fresh
+        #expect(NudgeRules.due(limits: limits(weekly: 79.9), now: now, enabled: true).map(\.key) == [NudgeRules.fiveHourKey])
+        #expect(NudgeRules.due(limits: limits(weekly: 80), now: now, enabled: true).first?.key == NudgeRules.weeklyKey)
+        // the 5h nudge only inside its last 15 minutes, never after the reset
+        #expect(NudgeRules.due(limits: limits(weekly: 10, fiveReset: 15 * 60 + 1), now: now, enabled: true).isEmpty)
+        #expect(NudgeRules.due(limits: limits(weekly: 10, fiveReset: 15 * 60), now: now, enabled: true).count == 1)
+        #expect(NudgeRules.due(limits: limits(weekly: 10, fiveReset: 0), now: now, enabled: true).isEmpty)
+        // the weekly only before its reset; a hidden or retired window never
+        #expect(NudgeRules.due(limits: limits(weekly: 90, weeklyReset: 0, fiveReset: 3600), now: now, enabled: true).isEmpty)
+        var hidden = limits(weekly: 90, fiveReset: 3600); hidden.hidden = ["seven_day"]
+        #expect(NudgeRules.due(limits: hidden, now: now, enabled: true).isEmpty)
+        var retired = limits(weekly: 90, fiveReset: 3600); retired.windows["seven_day"]?.retired = true
+        #expect(NudgeRules.due(limits: retired, now: now, enabled: true).isEmpty)
+    }
+
+    @Test @MainActor func whileOffThePermissionIsReadAtMostOnceAMinute() async {
+        // spec 20.6.7: feed passes every few seconds must not read System Settings each time while it is off
+        let t0 = Date(timeIntervalSince1970: 1_762_000_000)
+        let reader = PermissionReader(read: { .denied }, ask: { false })
+        #expect(reader.mayRead(now: t0))                            // never read yet
+        await reader.authorize(now: t0)
+        #expect(reader.state == .denied)
+        #expect(!reader.mayRead(now: t0.addingTimeInterval(5)))
+        #expect(!reader.mayRead(now: t0.addingTimeInterval(59)))
+        #expect(reader.mayRead(now: t0.addingTimeInterval(60)))
+        // an open of the panel reads anyway, and counts as the last read
+        await reader.refresh(now: t0.addingTimeInterval(70))
+        #expect(!reader.mayRead(now: t0.addingTimeInterval(100)))
+        // allowed or undecided: every pass may read
+        let on = PermissionReader(state: .allowed, read: { .allowed }, ask: { true })
+        await on.refresh(now: t0)
+        #expect(on.mayRead(now: t0.addingTimeInterval(1)))
+    }
+
+    @Test func theEarlyProjectionIsSpokenWithItsStatus() throws {
+        // spec 20.7.1: VoiceOver says "On pace, too early to project"
+        let start = Date(timeIntervalSince1970: 1_762_000_000)
+        let r = try #require(PaceModel.reading(used: 2, start: start, reset: start.addingTimeInterval(168 * 3600), now: start.addingTimeInterval(30)))
+        let p = PaceLines(reset: r.resetText, countdown: r.countdown, status: r.status.rawValue, projection: r.projection,
+                          allowance: r.allowance, over: false, elapsed: r.elapsedShare)
+        let label = Grammar.windowLabel(WindowView(title: "Weekly (all models)", used: 2, mode: .live(p)))
+        #expect(label.contains("On pace, too early to project"))
+        let drawn = Grammar.windowSection(WindowView(title: "Weekly (all models)", used: 2, mode: .live(p))).map(\.plain)
+        #expect(drawn.contains { $0.contains("On pace  too early to project") })
+    }
+
+    // MARK: VoiceOver in a capped panel (0.1.15, audit F-5)
+
+    @Test @MainActor func aLineVoiceOverFocusesScrollsIntoView() throws {
+        let v = LineView()
+        v.lines = Grammar.popover(try screen("settings"))
+        v.frame = NSRect(x: 0, y: 0, width: LineView.width, height: v.contentHeight)
+        let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: LineView.width, height: 200))
+        scroll.documentView = v
+        scroll.contentView.scroll(to: .zero)
+        #expect(v.contentHeight > 400)
+        let texts = ((v.accessibilityChildren() as? [PanelElement]) ?? []).filter { $0.control == nil && $0.accessibilityRole() == .staticText }
+        let far = try #require(texts.last)
+        let near = try #require(texts.first { $0.rect.maxY < 150 })
+        #expect(far.rect.minY > 200)
+        // every element lets VoiceOver set its focus, text lines too
+        #expect(far.isAccessibilitySelectorAllowed(#selector(NSAccessibilityElement.setAccessibilityFocused(_:))))
+        // a line in view does not move the panel (20.5.2)
+        near.setAccessibilityFocused(true)
+        #expect(scroll.contentView.bounds.origin.y == 0)
+        // a line below the visible part is scrolled into view, with no keyboard focus moved (20.5.1)
+        far.setAccessibilityFocused(true)
+        #expect(scroll.contentView.bounds.origin.y > 0)
+        #expect(scroll.contentView.bounds.contains(far.rect))
+        #expect(v.focus == nil && !v.focusVisible)
+        // a control far down takes the keyboard focus and its ring, scrolled into view, as before
+        scroll.contentView.scroll(to: .zero)
+        let control = try #require(v.controls.indices.last)
+        let e = try #require(v.accessibilityElement(forControl: control))
+        e.setAccessibilityFocused(true)
+        #expect(v.focus == control && v.focusVisible)
+        #expect(scroll.contentView.bounds.contains(v.controlRect(v.controls[control])))
     }
 }

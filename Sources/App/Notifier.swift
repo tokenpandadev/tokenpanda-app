@@ -10,8 +10,12 @@ import UI
 @MainActor
 final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     typealias State = NotificationPermission
-    private(set) var state: State = .undecided
+    var state: State { available ? reader.state : .unavailable }
     private let available: Bool
+    /// The order of reads and answers (PermissionReader, tested); the centre is asked only while available.
+    private let reader = PermissionReader(
+        read: { NotificationPermission.from(await UNUserNotificationCenter.current().notificationSettings().authorizationStatus) },
+        ask: { (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert])) ?? false })
     nonisolated static let reopenCategory = "reopen"
     nonisolated static let reopenAction = "reopen"
     nonisolated static let endedCategory = "ended"
@@ -23,7 +27,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     override init() {
         available = Bundle.main.bundleURL.pathExtension == "app" && Bundle.main.bundleIdentifier != nil
         super.init()
-        if !available { state = .unavailable; return }
+        if !available { return }
         let center = UNUserNotificationCenter.current()
         center.delegate = self
         let reopen = UNNotificationAction(identifier: Self.reopenAction, title: "Reopen", options: [])
@@ -44,20 +48,11 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// onChange runs when the state moved, for the Settings note.
     func refreshState(onChange: (() -> Void)? = nil) {
         guard available else { return }
-        reads += 1
-        let mine = reads
         Task { @MainActor in
-            let status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
-            // a reply that started before a newer read or a prompt's answer is stale: it must not write over them
-            guard mine == reads else { return }
-            let before = state
-            state = NotificationPermission.from(status)
-            if state != before { onChange?() }
+            // a reply that started before a newer read or a prompt's answer is stale: the reader drops it
+            if await reader.refresh() { onChange?() }
         }
     }
-
-    /// Counts reads and answers, so only the newest one sets the state.
-    private var reads = 0
 
     /// Posts, asking for permission first when the user was never asked: the prompt comes with the first notification
     /// that is due, not at launch.
@@ -68,6 +63,17 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    /// Posts without asking and says whether the notification centre took it: false while notifications are off,
+    /// outside the bundle, or when the centre refused it. A nudge is spent only on true (NudgeLedger).
+    func deliver(title: String, body: String, id: String) async -> Bool {
+        guard available, state == .allowed else { return false }
+        do { try await UNUserNotificationCenter.current().add(request(title: title, body: body, id: id, category: nil)) } catch { return false }
+        return true
+    }
+
+    /// Whether a feed pass may read the permission now: once a minute while it is off (PermissionReader.mayRead).
+    func mayRead(now: Date) -> Bool { available && reader.mayRead(now: now) }
+
     func requestIfNeeded() {
         Task { @MainActor in await authorize() }
     }
@@ -76,23 +82,20 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     /// user turned notifications back on is posted.
     func authorize() async {
         guard available else { return }
-        let center = UNUserNotificationCenter.current()
-        reads += 1
-        state = NotificationPermission.from(await center.notificationSettings().authorizationStatus)
-        guard state == .undecided else { return }
-        let ok = (try? await center.requestAuthorization(options: [.alert])) ?? false
-        reads += 1   // the answer is newer than any read that started while the prompt was up
-        state = ok ? .allowed : .denied
+        await reader.authorize()
     }
 
     func post(title: String, body: String, id: String, category: String? = nil) {
         guard available, state == .allowed else { return }
+        UNUserNotificationCenter.current().add(request(title: title, body: body, id: id, category: category))
+    }
+
+    func request(title: String, body: String, id: String, category: String?) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
         if let category { content.categoryIdentifier = category }
-        let req = UNNotificationRequest(identifier: id, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(req)
+        return UNNotificationRequest(identifier: id, content: content, trigger: nil)
     }
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,

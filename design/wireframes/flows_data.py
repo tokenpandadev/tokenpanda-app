@@ -3,7 +3,7 @@ app does now (works, friction, broken, by hand) with the evidence.
 
 FLOWS: brought to the code of 0.1.14 on 4.11.2026 (working tree after v0.1.13), from flow-test-0.1.13.md
 and the 0.1.14 changes; "by hand" is a step that needs a person (Gatekeeper, System Settings clicks, a
-banner on screen, VoiceOver by ear) and never counts as works. The screens still draw 0.1.7 to 0.1.9.
+banner on screen, VoiceOver by ear) and never counts as works. The screens draw 0.1.14 (main at 2bc3011).
 GAPS, PAPPLE and LEFT_OUT below are still the record of the first flow test:
 Walked on 31.10.2026 against main at 4ca4160 (0.1.7), debug build with the Command Line Tools.
 Four kinds of evidence, named in each step:
@@ -34,7 +34,7 @@ FLOWS = [
   S('The warning comes back once; Open Anyway starts the app.', 'gk-confirm', 'Click Open Anyway.', 'by hand', 'README.md, Install.'),
   S('No notification prompt at launch: the app asks when the first nudge is due, or when Nudge or Reopen sessions is ticked.', 'desk-nofeed', 'Nothing.', 'works', 'Notifier.swift, refreshState and authorize; Controller.swift, applicationDidFinishLaunching.'),
   S('The menu bar shows the panda alone at half strength: no figures yet. No window, no Dock icon.', 'desk-nofeed', 'Click the panda.', 'works', 'ScreenBuilder.itemFigures; LSUIElement in scripts/build-app.sh.'),
-  S('If the icon is not on screen five seconds after the first launch, one window: "tokenpanda is running". From macOS 26 the icon "may be switched off in System Settings, Menu Bar, or hidden behind the notch", with "Open Menu Bar Settings" and "OK"; before macOS 26 the menu bar is full and the icon is behind the notch, quitting another menu bar app makes room, with "OK" only. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once.', ['desk-hidden', 'sys-menubar'], 'Click Open Menu Bar Settings.', 'works', 'Grammar.hiddenIconHint and Controller.checkItemShows (0.1.14: the switch offered only from macOS 26, no verdict while locked, away or asleep); test theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne. The real macOS 26 switch and the notch were not reproduced.'),
+  S('If the icon is not on screen five seconds after the first launch, one window: "tokenpanda is running". From macOS 26 the icon "may be switched off in System Settings, Menu Bar, or hidden behind the notch", with "Open Menu Bar Settings" and "OK"; before macOS 26 the menu bar is full and the icon is behind the notch, quitting another menu bar app makes room, with "OK" only. While the screen is locked, the session is switched away or the display sleeps, it waits and asks again. It shows once.', ['desk-hidden', 'dlg-hidden-26', 'dlg-hidden-15'], 'Click Open Menu Bar Settings.', 'works', 'Grammar.hiddenIconHint and Controller.checkItemShows (0.1.14: the switch offered only from macOS 26, no verdict while locked, away or asleep); test theHiddenIconHintOffersTheSwitchOnlyWhereThereIsOne. The real macOS 26 switch and the notch were not reproduced.'),
   S('Switching the item on in System Settings, Menu Bar, is the user\'s click.', 'sys-menubar', 'Switch tokenpanda on.', 'by hand', 'testing.html, section 5.'),
  ]),
  dict(id='02', name='Set up the feed', steps=[
@@ -46,9 +46,9 @@ FLOWS = [
   S('After the first reply: "Live from Claude Code", the windows with pace, each session with its bar.', 'pop-live', 'Read the figures.', 'works', 'flow-test-0.1.13 02.6.'),
   S('A settings.json that is not valid JSON, or valid JSON that is not an object: Install says why under the button, wrapped, on the Claude tab and in Settings.', ['editor-broken', 'pop-install-failed', 'pop-settings-error'], 'Fix the file, click Install again.', 'works', 'Hook.unreadable; flow-test-0.1.13 02.7 and 02.12.'),
   S('Both places name the button "Install the status line entry", and no line runs past the panel edge.', 'pop-settings-nohook', 'Click it.', 'works', 'Grammar.hookRow and dimLines; flow-test-0.1.13 02.8.'),
-  S('Several settings folders each get their own script and backup; a folder with only transcripts is left alone; a lost script offers Install again.', 'pop-settings-nohook', 'Click Install.', 'works', 'HookSet; flow-test-0.1.13 02.9.'),
+  S('Several settings folders each get their own script and backup; a folder with only transcripts is left alone; a lost script offers Install again.', 'pop-settings-folders', 'Click Install.', 'works', 'HookSet; flow-test-0.1.13 02.9.'),
   S('A settings.json that is a link stays a link, and the file it names keeps its mode; a created settings.json is 0600.', 'editor-after', 'Nothing.', 'works', 'SettingsFile; flow-test-0.1.13 02.10.'),
-  S('disableAllHooks on: "disableAllHooks is on in settings.json  so Claude Code runs no status line".', 'pop-nohook', 'Turn it off, or not.', 'works', 'Grammar.limits .hooksDisabled; flow-test-0.1.13 02.11.'),
+  S('disableAllHooks on: "disableAllHooks is on in settings.json  so Claude Code runs no status line".', 'pop-hooks-disabled', 'Turn it off, or not.', 'works', 'Grammar.limits .hooksDisabled; flow-test-0.1.13 02.11.'),
   S('An entry installed by an earlier version gets the current script at the next launch, its chained command kept.', 'editor-after', 'Nothing.', 'works', 'HookSet.refreshScripts; flow-test-0.1.13 02.13.'),
  ]),
  dict(id='03', name='Read the panel', steps=[
@@ -62,27 +62,27 @@ FLOWS = [
   S('Esc closes, Tab and Shift Tab switch tabs, Command Q quits.', 'pop-live', 'Press Tab.', 'works', 'Controller.handleKey.'),
   S('The header says where the figures come from: "Live from Claude Code", "As of 22:02, last Claude Code session", or "Waiting for a Claude Code session".', ['pop-live', 'pop-asof'], 'Read the header.', 'works', 'ScreenBuilder.headerLine; flow-test-0.1.13 03.9 to 03.11.'),
   S('After midnight the token rows stay: the first pass of a new day sums every record, not only new ones.', 'pop-live', 'Open the panel after midnight.', 'works', 'TokenRefresh.needsAllRecords in Controller.refreshTranscripts (0.1.14); test theTokenRowsSurviveMidnightWithoutANewTranscriptLine. Until 0.1.13 the rows read "nothing in the last 7 days" until the next reply (flow-test-0.1.13 03.13).'),
-  S('On a short or scaled screen the panel stops 60 points short of the screen\'s visible height and scrolls with an overlay scroller and no rubber band, from the top on every open and tab click; the keyboard focus scrolls into view, and a tooltip with no room above opens below its line.', 'pop-live', 'Scroll, or press Down.', 'works', 'PanelSize and Controller.fitPanel (0.1.14); test thePanelIsNeverTallerThanTheScreen. The real scroll on a small screen is by hand (testing.html, section 5).'),
+  S('On a short or scaled screen the panel stops 60 points short of the screen\'s visible height and scrolls with an overlay scroller and no rubber band, from the top on every open and tab click; the keyboard focus scrolls into view, and a tooltip with no room above opens below its line.', 'pop-small', 'Scroll, or press Down.', 'works', 'PanelSize and Controller.fitPanel (0.1.14); test thePanelIsNeverTallerThanTheScreen. The real scroll on a small screen is by hand (testing.html, section 5).'),
  ]),
  dict(id='04', name='Nudges', steps=[
   S('Permission is asked when the first nudge is due or Nudge is ticked, not at launch.', 'pop-settings', 'Allow.', 'works', 'Notifier.postAsking and requestIfNeeded.'),
   S('The weekly passes 80% while a session feeds: "Weekly at 80%" (the percentage when it fires) with the countdown and the landing time, once per weekly window.', 'notif-weekly', 'Read the banner.', 'by hand', 'Controller.checkNudges; PaceModel.nudgeBody. Not posted by the debug binary (flow-test-0.1.13 04.2).'),
   S('15 minutes before the 5h reset: "5h window ends in 15 min" with the percentage, once per window.', 'notif-five', 'Read the banner.', 'by hand', 'Controller.checkNudges.'),
-  S('No 5h nudge from a window the plan no longer has.', 'pop-ultra-fixed', 'Nothing.', 'works', 'Limits.active; flow-test-0.1.13 04.4.'),
+  S('No 5h nudge from a window the plan no longer has.', 'pop-ultra-today', 'Nothing.', 'works', 'Limits.active; flow-test-0.1.13 04.4.'),
   S('Notifications denied: "Notifications are off in System Settings" under Nudge, and under Reopen while it is on, in the accent, a link the keyboard and VoiceOver reach, said once.', 'pop-settings-denied', 'Click it.', 'works', 'Grammar.cbRow (0.1.14: accent, not also the checkbox\'s help); AccessTests; flow-test-0.1.13 04.5 and 04.7.'),
-  S('The click opens System Settings, Notifications, at tokenpanda.', 'pop-settings-denied', 'Turn notifications on.', 'by hand', 'Controller.perform .openNotificationSettings.'),
+  S('The click opens System Settings, Notifications, at tokenpanda.', 'sys-notifications', 'Turn notifications on.', 'by hand', 'Controller.perform .openNotificationSettings.'),
   S('Notifications turned on in System Settings count at once: the note goes at the next open of the popover, and the next nudge is posted, no restart.', 'pop-settings', 'Open the popover.', 'works', 'Notifier.refreshState on every popover open and authorize before each post, from any state (0.1.14). Until 0.1.13 a denial held until a restart. No test covers the Notifier; a banner on screen is by hand.'),
   S('No nudge comes from stale figures: an hour without a session and the nudges wait.', 'pop-stale', 'Nothing.', 'works', 'Controller.checkNudges.'),
  ]),
  dict(id='05', name='The 5 hour window removed for Ultra (30 Oct 2026)', steps=[
-  S('The feed stops carrying five_hour while the stored 5h window still runs: the last percent dim, "not in the last feed", no countdown or pace.', 'pop-ultra-fixed', 'Nothing.', 'works', 'Limits.apply retired; ScreenBuilder .quiet; flow-test-0.1.13 05.1 and 05.2.'),
+  S('The feed stops carrying five_hour while the stored 5h window still runs: the last percent dim, "not in the last feed", no countdown or pace.', 'pop-ultra-evening', 'Nothing.', 'works', 'Limits.apply retired; ScreenBuilder .quiet; flow-test-0.1.13 05.1 and 05.2.'),
   S('A retired 5h window at 100% gives normal eyes and no "5h limit reached".', 'desk-ultra', 'Nothing.', 'works', 'ScreenBuilder.eyes uses Limits.active; flow-test-0.1.13 05.3.'),
-  S('No false "5h window ends in 15 min".', 'pop-ultra-fixed', 'Nothing.', 'works', 'See 04.4.'),
-  S('After the old reset the 5h row goes for good: a reply without five_hour hides it.', 'pop-ultra-fixed', 'Nothing.', 'works', 'Limits.apply hidden; flow-test-0.1.13 05.5.'),
-  S('A new Ultra user sees the weekly alone after the first reply.', 'pop-ultra-fixed', 'Nothing.', 'works', 'flow-test-0.1.13 05.6.'),
+  S('No false "5h window ends in 15 min".', 'pop-ultra-evening', 'Nothing.', 'works', 'See 04.4.'),
+  S('After the old reset the 5h row goes for good: a reply without five_hour hides it.', 'pop-ultra-today', 'Nothing.', 'works', 'Limits.apply hidden; flow-test-0.1.13 05.5.'),
+  S('A new Ultra user sees the weekly alone after the first reply.', 'pop-ultra-today', 'Nothing.', 'works', 'flow-test-0.1.13 05.6.'),
   S('Max and Pro keep both windows.', 'pop-live-max', 'Nothing.', 'works', 'flow-test-0.1.13 05.7.'),
   S('Before the first reply a new Ultra user still sees a "5h window" row, and the Install text is titled "Weekly and 5h window".', ['pop-nosession', 'pop-firstcall'], 'Wait for the first reply.', 'friction', 'Grammar.limits .noSession, .firstReply, .noHook; still open in 0.1.14 (flow-test-0.1.13 05.8).'),
-  S('On Ultra the nudge row reads "Nudge at 80%".', 'pop-settings', 'Nothing.', 'works', 'ScreenBuilder.screen, fiveHour.'),
+  S('On Ultra the nudge row reads "Nudge at 80%".', 'pop-settings-ultra', 'Nothing.', 'works', 'ScreenBuilder.screen, fiveHour.'),
  ]),
  dict(id='06', name='Weekly reset', steps=[
   S('Before the reset the countdown reads in days and hours, then hours and minutes.', 'pop-week-near', 'Plan the last hour.', 'works', 'PaceModel.countdown.'),
@@ -115,7 +115,7 @@ FLOWS = [
   S('Quit and Command Q end the app; the item goes.', 'desk-quit', 'Click Quit.', 'works', 'Controller.handleKey; flow-test-0.1.13 09.4.'),
   S('The version line says what runs: "tokenpanda 0.1.14".', 'pop-settings', 'Read it.', 'works', 'ScreenBuilder.screen, CFBundleShortVersionString.'),
   S('Light mode: the same layout on a light glass, switching with the Mac\'s appearance.', 'pop-settings', 'Change the appearance.', 'works', 'Ground in Controller.swift; Tokens.light; flow-test-0.1.13 09.6. The live switch is by hand.'),
-  S('A tall Settings tab on a short screen scrolls inside the panel, so Quit stays reachable.', 'pop-settings', 'Scroll to Quit.', 'works', 'PanelSize (0.1.14); see 03.11.'),
+  S('A tall Settings tab on a short screen scrolls inside the panel, so Quit stays reachable.', 'pop-small-settings', 'Scroll to Quit.', 'works', 'PanelSize (0.1.14); see 03.11.'),
  ]),
  dict(id='10', name='Keep the Mac awake', steps=[
   S('Keep the Mac awake while Claude works: while a session\'s figures move, "awake  1 session working" and one power assertion.', 'pop-settings-awake', 'Tick it.', 'works', 'Controller.updateAwake; FeedTests keep awake.'),
@@ -129,7 +129,7 @@ FLOWS = [
   S('With notifications off the Reopen row says so, as the same link as under Nudge; turned on again, the offer and the end notices come without a restart.', 'pop-settings-denied', 'Click the link.', 'works', 'Grammar.settingsTab; Notifier.refreshState and authorize (0.1.14).'),
   S('Turning it off deletes restore.json.', 'pop-settings', 'Untick it.', 'works', 'Controller.perform .toggle.'),
   S('A print run is never reopened; a start prompt is not sent again.', 'term-reopen', 'Nothing.', 'works', 'LaunchOptions; flow-test-0.1.13 11.6.'),
-  S('The end notice also comes after a deliberate /exit in a window you keep.', 'notif-reopen', 'Dismiss it.', 'friction', 'Controller.watchEnds has no working check; still open in 0.1.14 (flow-test-0.1.13 11.8).'),
+  S('The end notice also comes after a deliberate /exit in a window you keep.', 'notif-ended', 'Dismiss it.', 'friction', 'Controller.watchEnds has no working check; still open in 0.1.14 (flow-test-0.1.13 11.8).'),
  ]),
  dict(id='12', name='Update', steps=[
   S('The app never checks for updates (no network); a new version is found on the releases page or with brew outdated.', 'browser-release', 'Look on GitHub.', 'friction', 'By design (spec 16).'),
@@ -139,7 +139,7 @@ FLOWS = [
  ]),
  dict(id='13', name='Uninstall', steps=[
   S('Settings, Remove the status line entry puts the previous statusLine back exactly, or removes the key.', 'editor-restored', 'Click it.', 'works', 'Hook.uninstall; flow-test-0.1.13 13.1.'),
-  S('A settings.json Install created is deleted on Remove; when it is a link whose file Install created, the file goes and the link stays.', 'editor-restored', 'Nothing.', 'works', 'Hook.uninstall resolves the link (0.1.14); test aDanglingLinkStaysALinkAfterRemoveInTheAppAndInTheScript. Until 0.1.13 the link went and the entry stayed in the file.'),
+  S('A settings.json Install created is deleted on Remove; when it is a link whose file Install created, the file goes and the link stays.', 'term-settings-gone', 'Nothing.', 'works', 'Hook.uninstall resolves the link (0.1.14); test aDanglingLinkStaysALinkAfterRemoveInTheAppAndInTheScript. Until 0.1.13 the link went and the entry stayed in the file.'),
   S('Quit and move the app to the Bin.', 'finder-bin', 'Drag to the Bin.', 'works', 'privacy 9.'),
   S('Moved to the Bin without Remove: the script deletes its folder\'s session files that stopped changing over a minute ago, so the leftover stays small.', 'term-leftover', 'Nothing.', 'works', 'hook/statusline.sh cleanup line (0.1.13); flow-test-0.1.13 13.4 and 13.7.'),
   S('brew uninstall --zap runs remove.sh, which puts the previous status line back, the same way through a link (readlink -f), before the data folder goes.', 'term-zap', 'Run it.', 'works', 'HookSet remove script (0.1.14 for the link); flow-test-0.1.13 13.5. brew itself is by hand.'),
@@ -152,8 +152,8 @@ FLOWS = [
   S('The keyboard reaches every control: Down and Up, Left and Right, Space or Return; a thin accent ring shows where.', 'pop-keyboard', 'Press Down, then Space.', 'works', 'LineView.moveFocus; flow-test-0.1.13 14.4.'),
   S('The key hints read clearly over white, at 4.5 to 1 or more.', 'pop-keyboard', 'Read them.', 'works', 'Tokens.quiet; AccessTests.'),
   S('Reduce motion: the popover opens without animation.', 'pop-live', 'Nothing.', 'works', 'Controller.swift, popover.animates.'),
-  S('Down also stops on the key figures, and in a panel shorter than its lines the focused one is scrolled into view.', 'pop-keyboard', 'Press Down to the end.', 'works', 'LineView.focus scrollToVisible (0.1.14); flow-test-0.1.13 14.7.'),
-  S('In a panel capped by a small screen VoiceOver reads every line, but before macOS 26 its outline is not shown on a line outside the visible part, since VoiceOver cannot ask the app to scroll there.', 'pop-voiceover', 'Use the keyboard ring to scroll.', 'friction', 'Known limit of 0.1.14 (spec 1, testing.html section 5).'),
+  S('Down also stops on the key figures, and in a panel shorter than its lines the focused one is scrolled into view.', 'pop-small-settings', 'Press Down to the end.', 'works', 'LineView.focus scrollToVisible (0.1.14); flow-test-0.1.13 14.7.'),
+  S('In a panel capped by a small screen VoiceOver reads every line, but before macOS 26 its outline is not shown on a line outside the visible part, since VoiceOver cannot ask the app to scroll there.', 'pop-small', 'Use the keyboard ring to scroll.', 'friction', 'Known limit of 0.1.14 (spec 1, testing.html section 5).'),
  ]),
 ]
 
@@ -259,8 +259,8 @@ section li a{{color:var(--ink)}} section li span{{color:var(--marker);font-size:
 .cols{{columns:2 360px;column-gap:28px}} section{{break-inside:avoid}}
 </style></head><body><main>
 <h1>tokenpanda wireframes</h1>
-<p>tokenpanda as it is built (main at 4ca4160, release 0.1.7), every screen and state the user flows touch, on a 1280 by 800 desktop with the menu bar and the popover. {len(SC)} screens, {len(flows)} flows, {nsteps} steps tested against the real app: {cnt["works"]} work, {cnt["friction"]} with friction, {cnt["broken"]} broken.
-Controls that lead somewhere are links; the popover keys work too (Esc, Tab, Shift Tab, m, p, s). Other outcomes and other starts are dashed targets: press h on any screen to show them and outline every link. Coral notes name what is wrong on a screen. The findings, the gap list and the fixes are in flow-test.md; the flows as text and diagrams in flows/.</p>
+<p>tokenpanda as it is built (main at 2bc3011, tag v0.1.14), every screen and state the user flows touch, on a 1280 by 800 desktop with the menu bar and the popover. {len(SC)} screens, {len(flows)} flows, {nsteps} steps tested against the real app: {cnt["works"]} work, {cnt["friction"]} with friction, {cnt["broken"]} broken.
+Controls that lead somewhere are links; the popover keys work too (Esc, Tab, Shift Tab, m, p, s). Other outcomes and other starts are dashed targets: press h on any screen to show them and outline every link. Coral notes name friction on a screen, grey notes say how it works and where in the code. flow-test.md keeps the first flow test (0.1.7) with its gap list, under the steps as of 0.1.14; the flows as text and diagrams in flows/.</p>
 <h2>Flows</h2><ul class="flows">{cards}</ul>
 <h2>Every screen</h2><div class="cols">{secs}</div>
 </main></body></html>
@@ -325,7 +325,7 @@ body{padding:16px}.wrap{display:flex;gap:16px;align-items:flex-start}
     for old in fd.glob('*.mmd'):
         old.unlink()
     md = ['# tokenpanda user flows, as built', '',
-          'Brought to 0.1.14 (4.11.2026, after v0.1.13; the screens still draw 0.1.7 to 0.1.9). Each flow as numbered steps; the screens are in ../screens, the walk in ../walk.html, the results in ../flow-test.md. One Mermaid diagram per flow sits next to this file.', '']
+          'Brought to 0.1.14 (4.11.2026, main at 2bc3011, tag v0.1.14; the screens draw 0.1.14 too). Each flow as numbered steps; the screens are in ../screens, the walk in ../walk.html, the results in ../flow-test.md. One Mermaid diagram per flow sits next to this file.', '']
     for f in flows:
         slug = re.sub(r'[^a-z0-9]+', '-', f['name'].lower()).strip('-')
         name = f'{f["id"]}-{slug}.mmd'

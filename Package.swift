@@ -23,6 +23,6 @@ let package = Package(
                           linkerSettings: [.linkedFramework("AppKit"), .linkedFramework("IOKit"), .linkedFramework("ServiceManagement"),
                                            .linkedFramework("UserNotifications")]),
         .testTarget(name: "tokenpandaTests", dependencies: ["Text", "Pace", "Prices", "Feed", "Transcripts", "MacStats", "UI"],
-                    resources: [.copy("Fixtures")], swiftSettings: swift6),
+                    exclude: ["Snapshots"], resources: [.copy("Fixtures")], swiftSettings: swift6),
     ]
 )

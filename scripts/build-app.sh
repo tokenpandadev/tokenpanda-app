@@ -2,11 +2,11 @@
 # SPDX-FileCopyrightText: 2026 tokenpanda
 # SPDX-License-Identifier: MIT
 # Builds the .app bundle from the release binary: Info.plist with LSUIElement, the app icon and the privacy manifest as resources,
-# an ad hoc signature, then a zip with its SHA-256. No Xcode, no network.
+# an ad hoc signature, then a zip with its SHA-256 and the CycloneDX SBOM (scripts/sbom.sh). No Xcode, no network.
 #   scripts/build-app.sh [version]
 set -eu
 cd "$(dirname "$0")/.."
-VERSION="${1:-0.1.14}"
+VERSION="${1:-0.1.15}"
 NAME="tokenpanda"
 BUNDLE_ID="dev.tokenpanda.app"
 BUILD="build"
@@ -51,3 +51,6 @@ rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"
 ( cd "$BUILD" && shasum -a 256 "$(basename "$ZIP")" ) | tee "$ZIP.sha256"
 echo "built $APP and $ZIP"
+
+# the software bill of materials of this release, next to the zip: build/tokenpanda-<version>.cdx.json
+scripts/sbom.sh "$VERSION"

@@ -18,6 +18,17 @@ const BL = L('');
 const sp = (s, cls) => '<span class="' + cls + '">' + s + '</span>';
 const col = (s, w) => s.length > w ? s.slice(0, w - 1) + '…' : s.padEnd(w);
 const rcol = (s, w) => s.padStart(w);
+/* Format.wrap: at spaces to w cells, never cut; a word longer than w is split */
+function wrap(s, w) {
+  if (s.length <= w) return [s];
+  const out = []; let line = '';
+  for (let word of s.split(' ')) {
+    while (word.length > w) { if (line) { out.push(line); line = ''; } out.push(word.slice(0, w)); word = word.slice(w); }
+    if (!line) line = word; else if (line.length + 1 + word.length <= w) line += ' ' + word; else { out.push(line.trim()); line = word; }
+  }
+  line = line.trim(); if (line) out.push(line);
+  return out;
+}
 const POP = 47;   /* content cells in the 380 px popover at SF Mono 12 */
 const POPBAR = 36;
 
@@ -136,12 +147,14 @@ function subTabs(sel, hover) {
 
 /* weeks */
 function week(date, used, o = {}) {
+  if (used == null) return L(' ' + col(date, 6) + '  ' + bar(20, 0, null) + '  ' + (o.note ? sp('  ' + o.note, 'd') : ''));
   const mark = o.hit ? sp('⚠', 'w g') : ' ';
   const b = bar(20, used, o.E == null ? null : o.E, {over:o.over, plain:false, anim:o.anim});
   return L(' ' + col(date, 6) + '  ' + b + mark + ' ' + rcol(used + '%', 4) + (o.note ? sp('  ' + o.note, 'd') : ''));
 }
 
-/* the Mac memory grid in the context grammar */
+/* the Mac memory grid in the context grammar; the free cells are Tokens.dimmer, #949494 since 0.1.14 */
+const FREE = '<span class="gc dd" style="color:#949494">⛶</span>';
 function memGrid() {
   const total = 200, used = Math.round(25.5 / 36 * total), swap = Math.round(0.9 / 36 * total);
   let s = '';
@@ -149,21 +162,27 @@ function memGrid() {
     let line = ' ';
     for (let c = 0; c < 20; c++) {
       const i = r * 20 + c;
-      line += i < used ? sp('⛁', 'gc a') : i >= total - swap ? sp('⛝', 'gc w') : sp('⛶', 'gc dd');
+      line += i < used ? sp('⛁', 'gc a') : i >= total - swap ? sp('⛝', 'gc w') : FREE;
     }
     s += L(line);
   }
   s += L(' ' + sp('⛁', 'gc a') + 'Used ' + sp('25.5 of 36 GB (71%)', 'd'));
-  s += L(' ' + sp('⛶', 'gc dd') + 'Free ' + sp('10.5 GB', 'd'));
+  s += L(' ' + FREE + 'Free ' + sp('10.5 GB', 'd'));
   s += L(' ' + sp('⛝', 'gc w') + 'Swap ' + sp('0.9 GB', 'd') + '   ' + sp('Pressure normal', 'd'));
   return s;
 }
 
 /* checkbox rows */
+/* the dim lines under a row wrap at the indent to the rule's width (Grammar.dimLines); "Notifications are off in
+   System Settings" is a link of its own in the accent (Grammar.cbRow, 0.1.14) */
+const NOTIF_OFF = 'Notifications are off in System Settings';
 function cbRow(label, on, sub, o = {}) {
-  const ind = o.indent || ' ';
+  const ind = o.indent ? o.indent : ' ', pad = ind + '    ';
   let s = L(ind + '<button type="button" class="cb" role="checkbox" aria-checked="' + on + '">[' + (on ? 'x' : ' ') + ']</button> ' + label, 'srow' + (o.hover ? ' is-hover' : ''));
-  if (sub) s += L(ind + '    ' + sp(sub, 'd'));
+  for (const t of [sub].concat(o.more ? o.more : []).filter(Boolean)) {
+    if (t === NOTIF_OFF) s += L(pad + '<button type="button" class="a">' + t + '</button>', 'srow');
+    else wrap(t, POP + 1 - pad.length).forEach(x => { s += L(pad + sp(x, 'd')); });
+  }
   return s;
 }
 
@@ -181,18 +200,22 @@ function item(used, E, o = {}) {
 }
 const strip = (html, light) => '<span class="strip' + (light ? ' light' : '') + '">' + html + '</span>';
 
-/* open sessions (added 2026-10-13): one feed per running session; title line is project, model and the context figure, then the context bar in the window grammar without a tick */
-const OPEN = [['workspace', 'Fable 5.1', 405.6, 41, 'USD 38.20 list price equivalent  112 added  9 removed'], ['tooling', 'Opus 5.5', 88.4, 9, 'USD 6.10 list price equivalent  0 added  0 removed']];
-function openSession(name, model, k, used, tip, o = {}) {
-  const figure = k + 'k of 1M';
-  const left = ' ' + sp(col(name, 14), 'b') + '  ' + sp(model, 'd');
-  const fig = '<span class="fig" tabindex="0">' + sp(figure, 'd') + '<span class="tip">' + esc(tip) + '</span></span>';
-  return L(left + rcol('', POP - 1 - 14 - 2 - model.length - figure.length) + fig)
-    + L(' ' + bar(POPBAR, used, null, {anim:o.anim}) + ' ' + used + '% used');
+/* open sessions, as Grammar.sessionRows draws them: two lines per session. Line one the session's name (set with -n or
+   /rename, else its folder) in default text, cut with … so the model fits, two spaces, the model dim. Line two the 24 cell
+   plain bar of the context in the model family's hue, two spaces, the figure and the percent; the tooltip breaks over two
+   lines inside the panel (LineView.tipLines) */
+const OPEN = [['workspace', 'Fable 5.1', '#bd7bcd', '405.6k of 1M', 41, 'USD 38.20 list price equivalent  112 added\n9 removed  effort high'],
+              ['tooling', 'Opus 5.5', '#c4ac62', '88.4k of 1M', 9, 'USD 6.10 list price equivalent  0 added\n0 removed  effort high']];
+function openSession(name, model, hue, figure, used, tip, o = {}) {
+  const room = Math.max(8, POP - 2 - model.length);
+  const nm = name.length > room ? name.slice(0, room - 1) + '…' : name;
+  const fig = '<span class="fig" tabindex="0">' + figure + '  ' + rcol(used + '%', 3) + '<span class="tip">' + esc(tip) + '</span></span>';
+  return L(' ' + nm + '  ' + sp(model, 'd'))
+    + L(' ' + bar(24, used, null, {col:hue, plain:true, anim:o.anim}) + '  ' + fig, 'row');
 }
 function openSessions(o = {}) {
   let s = L(' ' + sp('Open sessions', 'b'));
-  OPEN.forEach((r, i) => { s += openSession(r[0], r[1], r[2], r[3], r[4], o); });
+  OPEN.forEach(r => { s += openSession(r[0], r[1], r[2], r[3], r[4], r[5], o); });
   return s;
 }
 
@@ -232,24 +255,24 @@ function macTab(anim) {
 function settingsTab(st) {
   return cbRow('Open at login', !!st.login)
     + cbRow('Mac figures in the bar', st.mac)
-    + cbRow('Nudge at 80% and before the 5h end', st.nudge)
+    + cbRow(st.five === false ? 'Nudge at 80%' : 'Nudge at 80% and before the 5h end', st.nudge, st.notifOff ? NOTIF_OFF : null)
     + cbRow('List price equivalent', st.price, 'tokens at list prices, not the plan price')
     + cbRow('Keep the Mac awake while Claude works', !!st.awake, 'a closed lid on battery still sleeps')
-    + (st.awake ? cbRow('also while a session waits for you', !!st.awakeOpen, null, {indent: '     '}) : '')
-    + cbRow('Reopen sessions after a restart', !!st.restore, 'asks first, then opens each as it was started, and says when one ends on its own')
+    + (st.awake ? cbRow('also while a session waits for you', !!st.awakeOpen, st.awakeNote ? st.awakeNote : null, {indent: '     '}) : '')
+    + cbRow('Reopen sessions after a restart', !!st.restore, 'asks first, then opens each as it was started, and says when one ends on its own', {more: st.restore && st.notifOff ? [NOTIF_OFF] : []})
     + BL
     + hookRow(st.hook !== false)
     + BL
     + L(' ' + sp('This app makes no network calls. Usage comes', 'd'))
     + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd'))
-    + L(' ' + sp('tokenpanda 0.1.9', 'd'))
+    + L(' ' + sp('tokenpanda 0.1.14', 'd'))
     + BL
     + L(' Quit' + rcol('⌘Q', POP - 5));
 }
 /* the status line entry row: install or remove, one click each */
 function hookRow(installed) {
   return L(' <button type="button" class="tab hk">' + (installed ? 'Remove the status line entry' : 'Install the status line entry') + '</button>', 'srow')
-    + L('     ' + sp(installed ? 'puts back what statusLine held before' : 'one entry in ~/.claude/settings.json', 'd'));
+    + wrap(installed ? 'puts back what statusLine held before' : 'one entry in ~/.claude/settings.json', POP + 1 - 5).map(x => L('     ' + sp(x, 'd'))).join('');
 }
 /* the key hints: m p s work on the Claude tab only, so only that tab names them */
 const foot = (tab) => BL + L(' ' + sp(tab === 0 ? 'Esc closes  Tab switches  m p s sections' : 'Esc closes  Tab switches', 'q'));
@@ -260,7 +283,7 @@ function popover(tab, st, o = {}) {
   return '<div class="popover" role="dialog" aria-label="Usage"><div class="arrow"></div>' + body + '</div>';
 }
 
-return {PANDA_X, PANDA_DASH, EIGHTHS, NOW, WIN, STATES, L, BL, sp, col, rcol, esc, POP, POPBAR, probe, pace, bar, pct, windowSection, paceLines, header, row, rows, MODELS, PROJECTS, SESSIONS, PROCS, OPEN, openSession, openSessions, subTabs, week, memGrid, cbRow, item, strip, claudeTab, macTab, settingsTab, hookRow, foot, popover};
+return {PANDA_X, PANDA_DASH, EIGHTHS, NOW, WIN, STATES, L, BL, sp, col, rcol, wrap, esc, NOTIF_OFF, POP, POPBAR, probe, pace, bar, pct, windowSection, paceLines, header, row, rows, MODELS, PROJECTS, SESSIONS, PROCS, OPEN, openSession, openSessions, subTabs, week, memGrid, cbRow, item, strip, claudeTab, macTab, settingsTab, hookRow, foot, popover};
 })();
 
 /* documentation chrome: a box wider than its column scrolls inside itself and shows its edge (.xs in docs.css) */
