@@ -37,7 +37,7 @@
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
 <h2 id="short">1  The short version</h2>
 <p>This is our own audit, run with AI agents against OWASP ASVS 5.0.0 Level 2. It is not an outside audit, and no outside firm has reviewed tokenpanda.</p>
-<p>The newest audit is a release audit of version 0.1.15 (commit <code>0d04c06</code>), finished on 4 November 2026. It has 2 open findings and 12 fixed or accepted. Each requirement below shows its result from the newest audit that checked it.</p>
+<p>The newest audit is a release audit of version 0.1.15 (commit <code>0d04c06</code>), finished on 4 November 2026. It has 1 open finding and 13 fixed or accepted. Each requirement below shows its result from the newest audit that checked it.</p>
 <table><tr><th>Checked against</th><th class="n">pass</th><th class="n">fail</th><th class="n">does not apply</th></tr>
 <tr><td>OWASP ASVS 5.0.0</td><td class="n">51</td><td class="n">1</td><td class="n">201</td></tr>
 <tr><td>Our checks, ISO/IEC 25010:2023 characteristics</td><td class="n">22</td><td class="n">1</td><td class="n">0</td></tr>
@@ -52,13 +52,6 @@
 <p>What was found: Re-checked: git diff v0.1.14..0d04c06 -- Resources is empty, so C617.1 and DDA9.1 still do not describe the stat of transcripts and settings.json outside the app&#x27;s folder. The new resolver uses lstat and readlink, no new required reason API. Applies to App Store builds only. Carried from the 2026-11-04-release audit R-1.</p>
 <p>The fix: As in the last report: before any App Store build check Apple&#x27;s reason list or drop the timestamp use; correct the comment.</p>
 <p>The verifier: confirmed. git diff v0.1.14..0d04c06 -- Resources is empty; the gap stands.</p>
-<h3 id="r-11">R-11  <span class="d">Carried from the last release audit (F-5): on a capped panel VoiceOver reached lines outside the visible part without the panel scrolling; changed in 0.1.15, not verified with VoiceOver</span></h3>
-<p class="d">low  open  users may notice it</p>
-<p>Requirements: P-APPLE-3</p>
-<p>Where: <code>Sources/UI/LineView.swift:61-72, 318-320</code></p>
-<p>What was found: Re-audited at 0d04c06: every PanelElement now allows setAccessibilityFocused, and for a text line or group it scrolls the line into view with a line of room (LineView.swift:61-72, 318-320); test aLineVoiceOverFocusesScrollsIntoView calls that setter and passes. Whether VoiceOver calls it on a text line is the open part: docs/spec.html 20.5.3 marks it &#x27;to be verified&#x27;, it depends on &#x27;Keyboard focus follows the VoiceOver cursor&#x27; in VoiceOver Utility (docs/testing.html:95), and no public scroll to visible action is used. The VoiceOver step was not run in this audit, so the fix is not proven; low and possible stay until docs/testing.html section 5 step 95 is run on a capped panel.</p>
-<p>The fix: Run the testing page step with VoiceOver on a capped panel on macOS 14 or 15 and on 26; if a text line stays outside the visible part, look for another hook. Then mark fixed.</p>
-<p>The verifier: confirmed. LineView.swift:61-72 allows and handles setAccessibilityFocused and reveal scrolls (318-320); whether VoiceOver calls it on a text line is not proven. Stays open until the testing page step is run.</p>
 <h2 id="closed">3  Fixed and accepted</h2>
 <h3 id="f-6">F-6  <span class="d">With a linked settings.json whose target folder does not exist, Install makes that folder and Remove leaves it behind</span></h3>
 <p class="d">low  fixed  users may notice it</p>
@@ -116,6 +109,13 @@
 <p>What was found: Re-audited at 0d04c06: the read order moved into PermissionReader with the read and the prompt as closures (Sources/UI/NotificationPermission.swift); tests aStaleNotificationReadNeverWritesOverANewerOne and aReadDuringThePromptIsDroppedOnceTheAnswerLands play the orders and pass. docs/testing.html section 5 has the off and on step (testing.html:112, 115) and section 6 now says the stale read rule is tested with reads played out by hand (testing.html:120); docs/spec.html no longer lists the Notifier&#x27;s rereads as not tested. authorize still sets the state from its first read without checking its ticket (NotificationPermission.swift, authorize), as noted at 0.1.14: both reads ask the same settings within milliseconds.</p>
 <p>The fix: None.</p>
 <p>The verifier: confirmed. PermissionReader (NotificationPermission.swift:27-75) orders reads by ticket; authorize still writes its first read without a ticket check (line 69), as noted.</p>
+<h3 id="r-11">R-11  <span class="d">Carried from the last release audit (F-5): on a capped panel VoiceOver reached lines outside the visible part without the panel scrolling; changed in 0.1.15, not verified with VoiceOver</span></h3>
+<p class="d">low  fixed  users may notice it</p>
+<p>Requirements: P-APPLE-3</p>
+<p>Where: <code>Sources/UI/LineView.swift:61-72, 318-320</code></p>
+<p>What was found: Re-audited at 0d04c06: every PanelElement now allows setAccessibilityFocused, and for a text line or group it scrolls the line into view with a line of room (LineView.swift:61-72, 318-320); test aLineVoiceOverFocusesScrollsIntoView calls that setter and passes. Whether VoiceOver calls it on a text line is the open part: docs/spec.html 20.5.3 marks it &#x27;to be verified&#x27;, it depends on &#x27;Keyboard focus follows the VoiceOver cursor&#x27; in VoiceOver Utility (docs/testing.html:95), and no public scroll to visible action is used. The VoiceOver step was not run in this audit, so the fix is not proven; low and possible stay until docs/testing.html section 5 step 95 is run on a capped panel. Verified by ear on 2026-11-04 by the maintainer on the 0.1.15 build (build/tokenpanda.app, VoiceOver on a capped panel): his words &#x27;i tested it and it worked&#x27;.</p>
+<p>The fix: Run the testing page step with VoiceOver on a capped panel on macOS 14 or 15 and on 26; if a text line stays outside the visible part, look for another hook. Then mark fixed.</p>
+<p>The verifier: confirmed. LineView.swift:61-72 allows and handles setAccessibilityFocused and reveal scrolls (318-320); whether VoiceOver calls it on a text line is not proven. Stays open until the testing page step is run.</p>
 <h3 id="c-1">C-1  <span class="d">Carried from the last report (F-3): the app is ad hoc signed, not notarised and without the hardened runtime; Gatekeeper blocks the first launch on every install</span></h3>
 <p class="d">medium  accepted, a written decision  users notice it</p>
 <p>Requirements: P-MAC-1, P-MAC-2, P-MAC-3</p>
