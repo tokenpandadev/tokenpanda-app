@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.16, unreleased
+
+- Far less CPU while many Claude Code sessions run: a burst of status line writes is read at once and once more a second later, a session file is parsed again only when it changed, and Claude Code's own session files the same way. With 22 sessions each writing about every 0.3 s, the app used 76.6% of one core in 0.1.15 and uses 2.2% now, at most 47 MB of memory where 0.1.15 took up to 50 MB. Every figure still follows a write within a second.
+
 ## 0.1.15, 2026-11-04
 
 - Install and Remove find the file a linked settings.json names the way macOS does, also when ~/.claude is itself a link into a dotfiles folder and the file is not made yet. From 0.1.11 such a relative link could name another file, which Install then wrote over with only the status line entry while Claude Code kept reading the missing one. A file written at the wrong place by those versions is left as it is.

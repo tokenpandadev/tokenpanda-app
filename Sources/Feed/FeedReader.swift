@@ -154,8 +154,15 @@ public actor FeedReader {
     let limitsFile: URL
     var limits: Limits?
     var figuresSeen: [String: ReplyFigures] = [:]   // session id to the figures of its file in the last scan, to tell a reply
+    var parsed: [String: Parsed] = [:]              // file name to its last parse, kept while the file does not change
+    public private(set) var parseCount = 0          // files parsed since launch, for the tests
 
     struct ReplyFigures: Equatable { var tokens: Int?; var cost: Double? }
+
+    /// What tells a rewrite: the hook moves a new file over the old one, so the file number changes with every write,
+    /// and the time and size change with nearly every one.
+    struct Stamp: Equatable { var modified: Date; var size: Int; var fileNumber: Int }
+    struct Parsed { var stamp: Stamp; var snapshot: Snapshot? }   // nil: the file did not read as a snapshot
 
     public init(dataDir: URL) {
         sessionsDir = dataDir.appendingPathComponent("sessions", isDirectory: true)
@@ -185,6 +192,7 @@ public actor FeedReader {
             if let mtime = (try? fm.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date,
                OpenSessionsRule.shouldDelete(writtenAt: mtime, now: now) { try? fm.removeItem(at: url) }
         }
+        var nextParsed: [String: Parsed] = [:]
         for name in names where name.hasSuffix(".json") {
             let url = sessionsDir.appendingPathComponent(name)
             guard let attrs = try? fm.attributesOfItem(atPath: url.path), let mtime = attrs[.modificationDate] as? Date else { continue }
@@ -192,7 +200,20 @@ public actor FeedReader {
                 try? fm.removeItem(at: url)
                 continue
             }
-            guard let data = SafeFile.read(url), let snap = SnapshotParser.parse(data, writtenAt: mtime) else { continue }
+            // a file is read and parsed again only when it changed since the last scan; an unchanged one gives the same
+            // snapshot, so the reply check, the merge and the open and expiry rules below see what a fresh parse gives
+            let stamp = Stamp(modified: mtime, size: (attrs[.size] as? NSNumber)?.intValue ?? -1,
+                              fileNumber: (attrs[.systemFileNumber] as? NSNumber)?.intValue ?? -1)
+            let entry: Parsed
+            // only a regular file is kept: the stamp of a link says nothing about the file it names
+            if let p = parsed[name], p.stamp == stamp, attrs[.type] as? FileAttributeType == .typeRegular {
+                entry = p
+            } else {
+                parseCount += 1
+                entry = Parsed(stamp: stamp, snapshot: SafeFile.read(url).flatMap { SnapshotParser.parse($0, writtenAt: mtime) })
+            }
+            nextParsed[name] = entry
+            guard let snap = entry.snapshot else { continue }
             if mtime > (lastWrite ?? .distantPast) { lastWrite = mtime }
             let figures = ReplyFigures(tokens: snap.currentUsageTokens, cost: snap.totalCostUSD)
             // a reply: a session seen before whose figures moved; the first sight of a file after launch is not one
@@ -210,6 +231,7 @@ public actor FeedReader {
             if OpenSessionsRule.isOpen(writtenAt: mtime, now: now) { sessions.append(OpenSession(snapshot: snap)) }
         }
         figuresSeen = nextFigures
+        parsed = nextParsed   // a deleted or vanished file leaves the cache with its scan
         if let t = newestLimits, t > (limits?.asOf ?? .distantPast) {
             var l = limits ?? Limits(asOf: t)
             l.apply(Limits.merge(feeds, now: now), at: t, repliedAt: repliedAt, carriedWindows: carriedWindows)
@@ -232,5 +254,34 @@ public actor FeedReader {
         } catch {
             FileLog.failed("limits.json", error)
         }
+    }
+}
+
+/// When a write event in the sessions folder scans the feed. Every session's status line run writes a file, and with
+/// many sessions open the events come in bursts. The first event after a quiet second scans at once; the events that
+/// follow within `gap` of a scan are folded into one trailing scan at the end of the gap, so the last write is always
+/// read, at most `gap` late. The 5 s timer scans as before and counts as a scan here.
+public struct FeedPacer: Sendable, Equatable {
+    public static let gap: TimeInterval = 1
+    public enum Step: Sendable, Equatable { case scanNow, scanAt(Date), wait }
+
+    var lastScan: Date?
+    var trailing: Date?      // the trailing scan already set, which will read every write before it
+
+    public init() {}
+
+    /// A write event at `now`: scan now, set the trailing scan for a time, or wait for the one already set.
+    public mutating func event(now: Date) -> Step {
+        if trailing != nil { return .wait }
+        guard let last = lastScan, now.timeIntervalSince(last) < Self.gap, now >= last else { return .scanNow }
+        let at = last.addingTimeInterval(Self.gap)
+        trailing = at
+        return .scanAt(at)
+    }
+
+    /// A scan starts at `now`, from an event, the timer or the trailing scan (`trailing: true`, which clears it).
+    public mutating func scanned(at now: Date, trailing isTrailing: Bool = false) {
+        lastScan = now
+        if isTrailing { trailing = nil }
     }
 }
