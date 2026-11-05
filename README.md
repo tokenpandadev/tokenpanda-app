@@ -51,7 +51,7 @@ With Homebrew. Homebrew loads casks from taps outside its own only after you tru
 
 ```sh
 brew trust --cask tokenpandadev/tap/tokenpanda
-brew install tokenpandadev/tap/tokenpanda
+brew install --cask tokenpandadev/tap/tokenpanda
 ```
 
 The Open Anyway step applies after a Homebrew install too.

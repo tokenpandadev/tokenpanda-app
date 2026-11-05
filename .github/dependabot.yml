@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 tokenpanda
+# SPDX-License-Identifier: MIT
+# Weekly update offers for the pinned GitHub Actions and for Swift packages (there are none today; the entry
+# makes a new one get offers from its first day).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: swift
+    directory: /
+    schedule:
+      interval: weekly
