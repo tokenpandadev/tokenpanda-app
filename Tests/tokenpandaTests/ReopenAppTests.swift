@@ -111,4 +111,79 @@ struct ReopenAppTests {
         let folders = try #require(Fixtures.all().first { $0.0 == "settings-folders" }?.1)
         #expect(ScreenBuilder.screen(folders).settings.reopenApp == .ghostty)
     }
+
+    @Test func theAppIsFoundByItsExecutablePath() {
+        #expect(TerminalApp(executablePath: "/System/Applications/Utilities/Terminal.app/Contents/MacOS/Terminal") == .terminal)
+        #expect(TerminalApp(executablePath: "/Applications/iTerm.app/Contents/MacOS/iTerm2") == .iterm)
+        #expect(TerminalApp(executablePath: "/Users/someone/Library/Application Support/iTerm2/iTermServer-3.6.6") == .iterm)
+        #expect(TerminalApp(executablePath: "/Applications/Ghostty.app/Contents/MacOS/ghostty") == .ghostty)
+        #expect(TerminalApp(executablePath: "/usr/bin/login") == nil)
+        #expect(TerminalApp(executablePath: "/bin/zsh") == nil)
+        #expect(TerminalApp(executablePath: "/Users/someone/Terminal.app/notes.txt") == nil)
+    }
+
+    /// iTerm's shells hang under login under iTermServer, whose parent is launchd and which is no app: found by its path.
+    @Test func theEndedNoticeFindsITermThroughItsSessionServer() {
+        let parents: [Int32: Int32] = [500: 400, 400: 300, 300: 1, 700: 600, 600: 1]
+        let paths: [Int32: String] = [500: "/bin/zsh", 400: "/usr/bin/login",
+                                      300: "/Users/someone/Library/Application Support/iTerm2/iTermServer-3.6.6",
+                                      700: "/bin/zsh", 600: "/usr/sbin/sshd"]
+        let apps: [Int32: String] = [:]
+        func find(_ pid: Int32, bundles: [Int32: String] = apps) -> TerminalApp? {
+            TerminalApp.window(of: pid, parent: { parents[$0] }, bundleId: { bundles[$0] }, executablePath: { paths[$0] })
+        }
+        #expect(find(500) == .iterm)
+        #expect(find(700) == nil)                      // a shell under sshd: no window app
+        #expect(find(500, bundles: [400: "com.mitchellh.ghostty"]) == .ghostty)   // the bundle id is asked first
+        // a chain longer than the steps ends with nil
+        #expect(TerminalApp.window(of: 50, steps: 3, parent: { $0 + 1 }, bundleId: { _ in nil },
+                                   executablePath: { $0 == 60 ? "/Applications/Ghostty.app/Contents/MacOS/ghostty" : nil }) == nil)
+    }
+
+    @Test @MainActor func aLaunchServicesAnswerInTheTrashOrGoneIsNotInstalled() {
+        let all: (String) -> Bool = { _ in true }
+        #expect(ReopenOpener.usable(URL(fileURLWithPath: "/Applications/iTerm.app"), exists: all)?.path == "/Applications/iTerm.app")
+        #expect(ReopenOpener.usable(URL(fileURLWithPath: "/Users/someone/.Trash/iTerm.app"), exists: all) == nil)
+        #expect(ReopenOpener.usable(URL(fileURLWithPath: "/Volumes/Disk/.Trashes/501/Ghostty.app"), exists: all) == nil)
+        #expect(ReopenOpener.usable(URL(fileURLWithPath: "/Applications/iTerm.app"), exists: { _ in false }) == nil)
+        #expect(ReopenOpener.usable(nil, exists: all) == nil)
+    }
+
+    /// A recording fake for the system: what was started and opened, in order. No app is started by the tests.
+    @MainActor final class FakeSystem: ReopenSystem {
+        var running: Set<String>
+        var launches: Bool
+        var calls: [String] = []
+        init(running: Set<String>, launches: Bool = true) { self.running = running; self.launches = launches }
+        func isRunning(bundleId: String) -> Bool { running.contains(bundleId) }
+        func launch(appAt url: URL) async -> Bool {
+            calls.append("launch \(url.lastPathComponent)")
+            if launches { running.insert("com.googlecode.iterm2") }
+            return launches
+        }
+        func open(_ files: [URL], withAppAt url: URL) {
+            calls.append("open \(files.map(\.lastPathComponent).joined(separator: ",")) in \(url.lastPathComponent)")
+        }
+    }
+
+    @Test @MainActor func iTermIsStartedFirstWhenItIsNotRunning() async {
+        let files = [URL(fileURLWithPath: "/tmp/x/a.command"), URL(fileURLWithPath: "/tmp/x/b.command")]
+        let iterm = URL(fileURLWithPath: "/Applications/iTerm.app")
+        let cold = FakeSystem(running: [])
+        await ReopenOpener.open(files, app: .iterm, at: iterm, system: cold)
+        #expect(cold.calls == ["launch iTerm.app", "open a.command,b.command in iTerm.app"])
+        let warm = FakeSystem(running: ["com.googlecode.iterm2"])
+        await ReopenOpener.open(files, app: .iterm, at: iterm, system: warm)
+        #expect(warm.calls == ["open a.command,b.command in iTerm.app"])
+        // a start that fails still hands the files to Launch Services
+        let failed = FakeSystem(running: [], launches: false)
+        await ReopenOpener.open(files, app: .iterm, at: iterm, system: failed)
+        #expect(failed.calls == ["launch iTerm.app", "open a.command,b.command in iTerm.app"])
+        // Terminal and Ghostty get the files at once
+        for (app, path) in [(TerminalApp.terminal, "/System/Applications/Utilities/Terminal.app"), (.ghostty, "/Applications/Ghostty.app")] {
+            let s = FakeSystem(running: [])
+            await ReopenOpener.open(files, app: app, at: URL(fileURLWithPath: path), system: s)
+            #expect(s.calls == ["open a.command,b.command in \(URL(fileURLWithPath: path).lastPathComponent)"])
+        }
+    }
 }

@@ -15,8 +15,9 @@ public struct LiveSession: Sendable, Equatable {
     public var sessionId: String
     public var folder: String?
     public var name: String?          // set by the user with -n or /rename; nil for an unnamed session
-    public init(pid: Int32, sessionId: String, folder: String?, name: String?) {
-        self.pid = pid; self.sessionId = sessionId; self.folder = folder; self.name = name
+    public var procStart: Date?       // when the process started, as Claude Code wrote it; nil in older files
+    public init(pid: Int32, sessionId: String, folder: String?, name: String?, procStart: Date? = nil) {
+        self.pid = pid; self.sessionId = sessionId; self.folder = folder; self.name = name; self.procStart = procStart
     }
 
     /// Parses one <pid>.json. Only an interactive session started from the command line counts: print runs, the SDK
@@ -30,7 +31,40 @@ public struct LiveSession: Sendable, Equatable {
         var name = d["name"] as? String
         if let source = d["nameSource"] as? String, source != "user" { name = nil }
         if let n = name, n.trimmingCharacters(in: .whitespaces).isEmpty { name = nil }
-        return LiveSession(pid: pid, sessionId: sid, folder: d["cwd"] as? String, name: name)
+        return LiveSession(pid: pid, sessionId: sid, folder: d["cwd"] as? String, name: name,
+                           procStart: (d["procStart"] as? String).flatMap(parseProcStart))
+    }
+
+    /// procStart as Claude Code writes it: the process start as `ps -o lstart` prints it in UTC with the C locale,
+    /// "Thu Nov  5 10:12:33 2026", to the second. Read 05.11.2026 from Claude Code 2.1's session files.
+    public static func parseProcStart(_ text: String) -> Date? {
+        let parts = text.split(whereSeparator: { $0 == " " })
+        guard parts.count == 5 else { return nil }
+        let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        let clock = parts[3].split(separator: ":")
+        guard let month = months.firstIndex(of: String(parts[1])), let day = Int(parts[2]), let year = Int(parts[4]),
+              clock.count == 3, let h = Int(clock[0]), let m = Int(clock[1]), let sec = Int(clock[2]) else { return nil }
+        var cal = Calendar(identifier: .gregorian)
+        guard let utc = TimeZone(identifier: "UTC") else { return nil }
+        cal.timeZone = utc
+        let c = DateComponents(year: year, month: month + 1, day: day, hour: h, minute: m, second: sec)
+        guard c.isValidDate(in: cal) else { return nil }
+        return cal.date(from: c)
+    }
+
+    /// Whether the process with this pid is the one the file was written by: it runs, and when the file says when it
+    /// started, it started then. A pid the system gave to another process after the session ended is not the session.
+    public func isRunning(startTime: (Int32) -> Date? = ProcessTable.startTime(of:),
+                          running: (Int32) -> Bool = ProcessTable.isRunning) -> Bool {
+        guard running(pid) else { return false }
+        return Self.sameStart(procStart, startTime(pid))
+    }
+
+    /// procStart is cut to the second, the system's time has microseconds: within two seconds is the same start.
+    /// Either one missing counts as the same, as before procStart was read.
+    public static func sameStart(_ written: Date?, _ actual: Date?) -> Bool {
+        guard let w = written, let a = actual else { return true }
+        return abs(a.timeIntervalSince(w)) < 2
     }
 
     /// The sessions whose process is still running, from the sessions folder of each settings folder.
@@ -44,7 +78,7 @@ public struct LiveSession: Sendable, Equatable {
             for n in names where n.hasSuffix(".json") {
                 // the size is checked before the read: a session file is a few hundred bytes
                 guard let d = SafeFile.read(dir.appendingPathComponent(n), maxBytes: 64 * 1024 - 1),
-                      let s = parse(d), !seen.contains(s.pid), ProcessTable.isRunning(s.pid) else { continue }
+                      let s = parse(d), !seen.contains(s.pid), s.isRunning() else { continue }
                 seen.insert(s.pid)
                 out.append(s)
             }
@@ -89,7 +123,7 @@ public struct LiveSessionCache: Sendable {
                     parseCount += 1
                     session = SafeFile.read(url, maxBytes: 64 * 1024 - 1).flatMap(LiveSession.parse)
                 }
-                guard let s = session, !seen.contains(s.pid), ProcessTable.isRunning(s.pid) else { continue }
+                guard let s = session, !seen.contains(s.pid), s.isRunning() else { continue }
                 seen.insert(s.pid)
                 out.append(s)
             }
@@ -112,6 +146,23 @@ public enum ProcessTable {
         guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0 else { return nil }
         let p = info.kp_eproc.e_ppid
         return p > 0 ? p : nil
+    }
+
+    /// When the process started (p_starttime), or nil when it is gone.
+    public static func startTime(of pid: Int32) -> Date? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0, size > 0, info.kp_proc.p_pid == pid else { return nil }
+        let t = info.kp_proc.p_un.__p_starttime
+        return Date(timeIntervalSince1970: TimeInterval(t.tv_sec) + TimeInterval(t.tv_usec) / 1_000_000)
+    }
+
+    /// The path of the process's executable, from libproc.
+    public static func executablePath(of pid: Int32) -> String? {
+        var buf = [CChar](repeating: 0, count: Int(MAXPATHLEN) * 4)   // PROC_PIDPATHINFO_MAXSIZE
+        guard proc_pidpath(pid, &buf, UInt32(buf.count)) > 0 else { return nil }
+        return String(decoding: buf.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
     }
 
     /// The arguments a process was started with (argv, without the environment), from KERN_PROCARGS2.
@@ -216,6 +267,29 @@ public enum LaunchOptions {
 }
 
 extension Reopen {
+    /// The folders Reopen writes its scripts into, one per click, in the app's own temporary folder.
+    public static let folderPrefix = "tokenpanda-reopen-"
+    /// A folder older than this is left over: a script that never ran (a cancelled Ghostty prompt, an app that did not open).
+    public static let leftoverAge: TimeInterval = 10 * 60
+
+    /// Deletes the Reopen folders in `temp` last changed more than `age` ago. Only folders whose name has the prefix,
+    /// only real folders (a link is left alone), only directly in `temp`. Returns the names it deleted.
+    @discardableResult
+    public static func removeLeftovers(in temp: URL, now: Date, olderThan age: TimeInterval = leftoverAge) -> [String] {
+        let fm = FileManager.default
+        guard let names = try? fm.contentsOfDirectory(atPath: temp.path) else { return [] }
+        var removed: [String] = []
+        for n in names.sorted() where n.hasPrefix(folderPrefix) {
+            let url = temp.appendingPathComponent(n, isDirectory: true)
+            var st = stat()
+            guard lstat(url.path, &st) == 0, (st.st_mode & S_IFMT) == S_IFDIR else { continue }
+            let changed = Date(timeIntervalSince1970: TimeInterval(st.st_mtimespec.tv_sec))
+            guard now.timeIntervalSince(changed) > age else { continue }
+            do { try fm.removeItem(at: url); removed.append(n) } catch { FileLog.failed("a Reopen folder (delete)", error) }
+        }
+        return removed
+    }
+
     /// How long a failed start may take for the script to try the next, plainer one. A session that ran longer and then
     /// ended with an error is not started again.
     public static let fallbackWithin = 20
@@ -234,7 +308,8 @@ extension Reopen {
         if remoteControl { tries.append(full + ["--remote-control"]) }
         tries.append(full)
         if full != plain { tries.append(plain) }
-        var s = "#!/bin/zsh -l\nrm -f -- \"$0\"\ncd " + quote(folder) + " || exit 1\n"
+        // the file deletes itself, and the last one its folder too (rmdir leaves a folder that still holds a file)
+        var s = "#!/bin/zsh -l\nrm -f -- \"$0\"\nrmdir -- \"${0:h}\" 2>/dev/null\ncd " + quote(folder) + " || exit 1\n"
         var depth = 0
         for (k, t) in tries.enumerated() {
             let pad = String(repeating: "  ", count: depth)

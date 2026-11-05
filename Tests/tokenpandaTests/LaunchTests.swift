@@ -80,4 +80,66 @@ struct LaunchTests {
         let eleven = ["Backend", "Release notes", "Mobile app", "Web app", "Billing", "Docs", "Website", "Infra", "Support", "Design", "Misc"]
         #expect(SessionNames.list(eleven, named: Set(eleven)) == "Backend, Release notes, Mobile app, Web app and 7 more")
     }
+
+    /// procStart is `ps -o lstart` in UTC with the C locale; a day under 10 is padded with a space.
+    @Test func procStartIsReadAsUTC() throws {
+        let d = try #require(LiveSession.parseProcStart("Thu Nov  5 10:12:33 2026"))
+        #expect(d == Date(timeIntervalSince1970: 1_793_873_553))
+        #expect(LiveSession.parseProcStart("Sat Oct 31 23:59:59 2026") == Date(timeIntervalSince1970: 1_793_491_199))
+        #expect(LiveSession.parseProcStart("Mon Nov 31 10:12:33 2026") == nil)
+        #expect(LiveSession.parseProcStart("1793873553") == nil)
+        #expect(LiveSession.parseProcStart("") == nil)
+        let file = Data(#"{"pid":4006,"sessionId":"\#(id)","kind":"interactive","entrypoint":"cli","procStart":"Thu Nov  5 10:12:33 2026"}"#.utf8)
+        #expect(LiveSession.parse(file)?.procStart == d)
+    }
+
+    /// A session file whose pid now belongs to another process (the pid was given out again) is not a running session.
+    @Test func aReusedPidIsNotTheSession() {
+        let started = Date(timeIntervalSince1970: 1_793_873_553)
+        let s = LiveSession(pid: 4006, sessionId: id, folder: nil, name: nil, procStart: started)
+        #expect(s.isRunning(startTime: { _ in started.addingTimeInterval(0.4) }, running: { _ in true }))
+        #expect(!s.isRunning(startTime: { _ in started.addingTimeInterval(3600) }, running: { _ in true }))
+        #expect(!s.isRunning(startTime: { _ in started }, running: { _ in false }))
+        // an older file without procStart, or a process whose start cannot be read: as before, it runs
+        let old = LiveSession(pid: 4006, sessionId: id, folder: nil, name: nil)
+        #expect(old.isRunning(startTime: { _ in started.addingTimeInterval(3600) }, running: { _ in true }))
+        #expect(s.isRunning(startTime: { _ in nil }, running: { _ in true }))
+    }
+
+    /// The real process table: this test process with its own start time is read, with a start an hour off it is not.
+    @Test func theSessionFilesAreCheckedAgainstTheProcessStart() throws {
+        let me = getpid()
+        let start = try #require(ProcessTable.startTime(of: me))
+        #expect(abs(start.timeIntervalSinceNow) < 24 * 3600)
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX"); f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "EEE MMM d HH:mm:ss yyyy"
+        func lstart(_ d: Date) -> String {
+            // ps pads the day to two places with a space
+            let parts = f.string(from: d).split(separator: " ").map(String.init)
+            return [parts[0], parts[1], parts[2].count == 1 ? " " + parts[2] : parts[2], parts[3], parts[4]].joined(separator: " ")
+        }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("tokenpanda-live-\(UUID().uuidString)", isDirectory: true)
+        let dir = folder.appendingPathComponent("sessions", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        func put(_ procStart: String) throws {
+            let d: [String: Any] = ["pid": Int(me), "sessionId": id, "cwd": "/tmp", "kind": "interactive", "entrypoint": "cli",
+                                    "procStart": procStart]
+            try JSONSerialization.data(withJSONObject: d).write(to: dir.appendingPathComponent("\(me).json"))
+        }
+        try put(lstart(start))
+        #expect(LiveSession.read(settingsFolders: [folder]).map(\.pid) == [me])
+        var cache = LiveSessionCache()
+        #expect(cache.read(settingsFolders: [folder]).map(\.pid) == [me])
+        try put(lstart(start.addingTimeInterval(-3600)))
+        #expect(LiveSession.read(settingsFolders: [folder]).isEmpty)
+        #expect(cache.read(settingsFolders: [folder]).isEmpty)
+    }
+
+    @Test func theExecutablePathOfThisProcessIsRead() throws {
+        let path = try #require(ProcessTable.executablePath(of: getpid()))
+        #expect(path.hasPrefix("/"))
+        #expect(ProcessTable.executablePath(of: -5) == nil)
+    }
 }

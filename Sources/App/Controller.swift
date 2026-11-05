@@ -79,8 +79,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var feedTimer: DispatchSourceTimer?
     var macTimer: DispatchSourceTimer?
     var transcriptTimer: DispatchSourceTimer?
-    var dirSource: DispatchSourceFileSystemObject?
-    var dirFD: Int32 = -1
+    var feedWatch: FolderWatch?                 // write events in the sessions folder, kept through a delete of the folder
     var pacer = FeedPacer()                     // folds a burst of folder events into one scan now and one trailing scan
     var liveSessions = LiveSessionCache()       // Claude Code's session files, parsed again only when one changes
     let queue = DispatchQueue(label: "dev.tokenpanda.timers", qos: .utility)
@@ -151,6 +150,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         hook.refreshScripts()   // an entry installed by an earlier version gets the current script, its chained command kept
         notifier.onReopen = { [weak self] in self?.reopen() }
         notifier.onReopenEnded = { [weak self] id in self?.reopenEnded(id) }
+        Reopen.removeLeftovers(in: FileManager.default.temporaryDirectory, now: Date())   // scripts a cancelled prompt left
         offerRestore(now: Date())   // before the first scan, which writes this boot's record over the last one
         notifier.refreshState()   // no prompt at launch: the first nudge that is due asks
         startFeedWatch()
@@ -193,7 +193,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        feedTimer?.cancel(); macTimer?.cancel(); transcriptTimer?.cancel(); dirSource?.cancel()
+        feedTimer?.cancel(); macTimer?.cancel(); transcriptTimer?.cancel(); feedWatch?.stop()
         releaseAwake()
     }
 
@@ -214,22 +214,15 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         transcriptTimer = timer(open ? 10 : 300) { Task { @MainActor in await self.refreshTranscripts() } }
     }
 
-    func stopFeedWatch() {
-        dirSource?.cancel()   // the cancel handler closes its descriptor
-        dirSource = nil
-        dirFD = -1
-    }
-
     func startFeedWatch() {
-        stopFeedWatch()
-        dirFD = open(feed.sessionsDir.path, O_EVTONLY)
-        guard dirFD >= 0 else { return }
-        let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: dirFD, eventMask: [.write], queue: queue)
-        // a burst of writes from many sessions is one scan now and one trailing scan, at most FeedPacer.gap apart (0.1.16)
-        src.setEventHandler { @Sendable [weak self] in Task { @MainActor in self?.feedEvent() } }
-        src.setCancelHandler { [fd = dirFD] in close(fd) }
-        src.resume()
-        dirSource = src
+        feedWatch?.stop()
+        // a burst of writes from many sessions is one scan now and one trailing scan, at most FeedPacer.gap apart (0.1.16).
+        // The handler runs on the timer queue and only hands the event to the main actor.
+        let w = FolderWatch(path: feed.sessionsDir.path, queue: queue) { @Sendable [weak self] in
+            Task { @MainActor in self?.feedEvent() }
+        }
+        w.start()
+        feedWatch = w
     }
 
     // MARK: readers
@@ -495,7 +488,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// Reopen: one .command file per session in a private folder, opened in the picked app (Terminal, iTerm or Ghostty)
-    /// through Launch Services so no Automation permission is needed. Each file deletes itself when it runs.
+    /// through Launch Services so no Automation permission is needed. Each file deletes itself when it runs, the last
+    /// one its folder; a folder left over is deleted after ten minutes, at the next Reopen or launch.
     func reopen() {
         // a session already open again, from a terminal window or an earlier click, is not opened a second time
         let openNow = Set(feedState.sessions.map(\.snapshot.sessionId)).union(LiveSession.read(settingsFolders: folders).map(\.sessionId))
@@ -509,7 +503,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// One .command file per session, each starting the session with its name and options, opened in the picked app.
     func openSessions(_ entries: [RestoreRecord.Entry]) {
         let fm = FileManager.default
-        let dir = fm.temporaryDirectory.appendingPathComponent("tokenpanda-reopen-" + UUID().uuidString, isDirectory: true)
+        Reopen.removeLeftovers(in: fm.temporaryDirectory, now: Date())
+        let dir = fm.temporaryDirectory.appendingPathComponent(Reopen.folderPrefix + UUID().uuidString, isDirectory: true)
         guard (try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])) != nil else { return }
         var files: [URL] = []
         for e in entries {
@@ -524,7 +519,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         Task { @MainActor in
             // Remote Control connects once, when a session starts, so the sessions wait for the network; without one they still open
             await Self.waitForNetwork(timeout: Rules.restoreNetworkWait)
-            ReopenApp.open(files)
+            await ReopenApp.open(files)
         }
     }
 
@@ -673,7 +668,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             do {
                 try Self.removeEverywhere(hook)
                 hookError = nil
-                stopFeedWatch()
+                feedWatch?.stop()   // nothing watches until Install; the watch never makes the folder again
             } catch {
                 hookFailed("remove", error)
             }

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: MIT
 import AppKit
 import Feed
+import os
 import Text
+import UI
 
 /// The app Reopen opens the session files in: Terminal, iTerm or Ghostty, as picked in Settings. All three take the same
 /// .command files through Launch Services, as a double click would, so no Apple events and no Automation permission.
@@ -13,9 +15,10 @@ import Text
 enum ReopenApp {
     static let terminalPath = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
 
-    /// Where Launch Services has the app, or nil when it is not installed.
+    /// Where Launch Services has the app, or nil when it is not installed. A copy in the Trash, or one Launch Services
+    /// still lists after it was deleted, counts as not installed.
     static func location(_ app: TerminalApp) -> URL? {
-        NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleId)
+        ReopenOpener.usable(NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleId))
     }
 
     static func isInstalled(_ app: TerminalApp) -> Bool { app == .terminal || location(app) != nil }
@@ -27,23 +30,22 @@ enum ReopenApp {
         TerminalApp.resolve(setting: Settings.defaults.string(forKey: Settings.reopenApp), installed: isInstalled)
     }
 
+    static let system = WorkspaceReopenSystem()
+
     /// Opens the files in the current app.
-    static func open(_ files: [URL]) {
+    static func open(_ files: [URL]) async {
         let app = current
         let url = location(app) ?? terminalPath
-        NSWorkspace.shared.open(files, withApplicationAt: url, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+        await ReopenOpener.open(files, app: app, at: url, system: system)
     }
 
-    /// The app whose window holds a process: the first of its parents that is Terminal, iTerm or Ghostty. Nil when none
-    /// is found within a few steps (iTerm's session server outlives a restart of iTerm, and then has launchd as parent).
+    /// The app whose window holds a process: the first of its parents that is Terminal, iTerm or Ghostty, by bundle id
+    /// or by executable path. iTerm's shells hang under its session server, iTermServer, which is no app and has
+    /// launchd as parent: its path names it.
     static func windowApp(of pid: Int32) -> TerminalApp? {
-        var p: Int32? = pid
-        for _ in 0..<8 {
-            guard let q = p, q > 1 else { return nil }
-            if let a = TerminalApp(bundleId: NSRunningApplication(processIdentifier: q)?.bundleIdentifier) { return a }
-            p = ProcessTable.parent(of: q)
-        }
-        return nil
+        TerminalApp.window(of: pid, parent: ProcessTable.parent(of:),
+                           bundleId: { NSRunningApplication(processIdentifier: $0)?.bundleIdentifier },
+                           executablePath: ProcessTable.executablePath(of:))
     }
 
     /// The pop-up's menu: the three apps, the current one checked, one that is not installed shown but off.
@@ -61,6 +63,41 @@ enum ReopenApp {
             menu.addItem(item)
         }
         return menu
+    }
+}
+
+/// ReopenSystem on NSWorkspace: the real starts and opens. A failed start or open goes to the unified log, the reason private.
+@MainActor
+final class WorkspaceReopenSystem: ReopenSystem {
+    nonisolated static let log = Logger(subsystem: Paths.bundleId, category: "restore")
+    static let launchWait: Duration = .seconds(20)
+
+    func isRunning(bundleId: String) -> Bool {
+        !NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).isEmpty
+    }
+
+    func launch(appAt url: URL) async -> Bool {
+        let config = NSWorkspace.OpenConfiguration()
+        do {
+            let app = try await NSWorkspace.shared.openApplication(at: url, configuration: config)
+            let end = ContinuousClock.now + Self.launchWait
+            while !app.isFinishedLaunching, ContinuousClock.now < end { try? await Task.sleep(for: .milliseconds(100)) }
+            if !app.isFinishedLaunching { Self.log.error("reopen: the app did not finish launching in time") }
+            return app.isFinishedLaunching
+        } catch {
+            Self.log.error("reopen: could not start the app: \(error.localizedDescription, privacy: .private)")
+            return false
+        }
+    }
+
+    func open(_ files: [URL], withAppAt url: URL) {
+        let n = files.count
+        // the handler runs on a queue of NSWorkspace's: nonisolated and Sendable, it only logs
+        NSWorkspace.shared.open(files, withApplicationAt: url, configuration: NSWorkspace.OpenConfiguration()) { @Sendable _, error in
+            if let error {
+                Self.log.error("reopen: could not open \(n, privacy: .public) scripts: \(error.localizedDescription, privacy: .private)")
+            }
+        }
     }
 }
 

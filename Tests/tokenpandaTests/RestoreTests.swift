@@ -59,8 +59,62 @@ struct RestoreTests {
         #expect(Reopen.script(id: "not-a-uuid; rm -rf ~", folder: "/tmp", name: nil, options: nil, remoteControl: false) == nil)
         #expect(Reopen.script(id: id, folder: "/no/such/folder", name: nil, options: nil, remoteControl: false) == nil)
         let s = Reopen.script(id: id, folder: "/tmp", name: nil, options: nil, remoteControl: false)
-        #expect(s == "#!/bin/zsh -l\nrm -f -- \"$0\"\ncd '/tmp' || exit 1\n'claude' '--resume' '\(id)'\nexec \"${SHELL:-/bin/zsh}\" -l\n")
+        #expect(s == "#!/bin/zsh -l\nrm -f -- \"$0\"\nrmdir -- \"${0:h}\" 2>/dev/null\ncd '/tmp' || exit 1\n'claude' '--resume' '\(id)'\nexec \"${SHELL:-/bin/zsh}\" -l\n")
         #expect(Reopen.quote("it's") == "'it'\\''s'")
+    }
+
+    /// The scripts' first lines up to the cd, run by zsh: each file deletes itself, and the last one the folder (0.1.16).
+    @Test func theLastScriptDeletesItsFolder() throws {
+        let s = try #require(Reopen.script(id: id, folder: "/tmp", name: nil, options: nil, remoteControl: false))
+        let head = s.split(separator: "\n", omittingEmptySubsequences: false).prefix(4).joined(separator: "\n") + "\n"
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(Reopen.folderPrefix + "test-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let a = dir.appendingPathComponent("a.command"), b = dir.appendingPathComponent("b.command")
+        for f in [a, b] { try Data(head.utf8).write(to: f) }
+        func run(_ f: URL) throws -> Int32 {
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: "/bin/zsh")
+            p.arguments = ["-f", f.path]    // -f: no startup files, the login shell's own setup is not under test
+            try p.run(); p.waitUntilExit()
+            return p.terminationStatus
+        }
+        #expect(try run(a) == 0)
+        #expect(!FileManager.default.fileExists(atPath: a.path))
+        #expect(FileManager.default.fileExists(atPath: dir.path))     // b is still there
+        #expect(try run(b) == 0)
+        #expect(!FileManager.default.fileExists(atPath: dir.path))
+    }
+
+    /// At launch and before each Reopen: Reopen folders older than ten minutes go, nothing else in the temporary folder.
+    @Test func leftoverReopenFoldersOlderThanTenMinutesAreDeleted() throws {
+        let fm = FileManager.default
+        let temp = fm.temporaryDirectory.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: temp, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: temp) }
+        let now = Date()
+        func folder(_ name: String, age: TimeInterval) throws -> URL {
+            let u = temp.appendingPathComponent(name, isDirectory: true)
+            try fm.createDirectory(at: u, withIntermediateDirectories: true)
+            try Data("x".utf8).write(to: u.appendingPathComponent("s.command"))
+            try fm.setAttributes([.modificationDate: now.addingTimeInterval(-age)], ofItemAtPath: u.path)
+            return u
+        }
+        let old = try folder(Reopen.folderPrefix + "old", age: 11 * 60)
+        let fresh = try folder(Reopen.folderPrefix + "fresh", age: 9 * 60)
+        let other = try folder("someone-else", age: 3600)
+        // a link with the name, to an old folder elsewhere: left alone, and what it points at too
+        let target = try folder("target", age: 3600)
+        let link = temp.appendingPathComponent(Reopen.folderPrefix + "link")
+        try fm.createSymbolicLink(at: link, withDestinationURL: target)
+        let file = temp.appendingPathComponent(Reopen.folderPrefix + "file")
+        try Data().write(to: file)
+        try fm.setAttributes([.modificationDate: now.addingTimeInterval(-3600)], ofItemAtPath: file.path)
+        #expect(Reopen.removeLeftovers(in: temp, now: now) == [Reopen.folderPrefix + "old"])
+        #expect(!fm.fileExists(atPath: old.path))
+        for u in [fresh, other, target, file] { #expect(fm.fileExists(atPath: u.path)) }
+        #expect((try? fm.destinationOfSymbolicLink(atPath: link.path)) != nil)
+        #expect(Reopen.leftoverAge == 600)
     }
 
     @Test func scriptStartsTheSessionAsItWasStarted() throws {
