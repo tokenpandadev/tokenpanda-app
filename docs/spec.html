@@ -41,6 +41,7 @@
 <div class="l d"><a href="#licence">18  Licence</a></div>
 <div class="l d"><a href="#tests">19  Test plan</a></div>
 <div class="l d"><a href="#changes">20  Changes in 0.1.15</a></div>
+<div class="l d"><a href="#changes-0116">21  Changes in 0.1.16</a></div>
 </div></nav>
 
 <main class="main">
@@ -438,7 +439,7 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <li>"[ ] Keep the Mac awake while Claude works", second line "a closed lid on battery still sleeps"; while it is on, the indented row "[ ] also while a session waits for you" under it; while the power assertion is held, "awake  2 sessions working" or "awake  1 session open" dim under that (section 4).</li>
 <li>"[ ] Reopen sessions after a restart", second line "asks first, then opens each as it was started, and says when one ends on its own" over two lines; while it is on and notifications are denied, the same link under it too. While it is on, the indented pop-up row "Open sessions in Terminal ▾" under it (iTerm or Ghostty when picked), and with Ghostty the dim line "Ghostty asks before it runs each one" under that, with iTerm "iTerm asks until you tick Suppress" (iTerm 3.7.7 asks "OK to run ...?" for each file until its "Suppress this message permanently" box is ticked, seen in a clean virtual Mac on 5 November 2026).</li>
 <li>Blank. "Install the status line entry" with "one entry in ~/.claude/settings.json" dim under it (with several settings folders "one entry in each of" and the folders), or, once installed, "Remove the status line entry" with "puts back what statusLine held before". Installed in some folders and not others, both rows. A missing script adds "the hook script is gone, Install puts it back". An error from either click follows in dim lines, wrapped.</li>
-<li>Blank. The privacy lines, "This app makes no network calls. Usage comes" and "from Claude Code's own status feed on this Mac." dim, then "tokenpanda 0.1.14", the version from the bundle, dim.</li>
+<li>Blank. The privacy lines, "This app makes no network calls. Usage comes" and "from Claude Code's own status feed on this Mac." dim, then "tokenpanda 0.1.16", the version from the bundle, dim.</li>
 <li>Blank. "Quit" with "⌘Q" right aligned.</li>
 <li>Blank, key hints: "Esc closes  Tab switches".</li>
 </ol>
@@ -498,9 +499,9 @@ from Claude Code's own status feed on this Mac.</pre>
 
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
-<pre>scripts/build-app.sh 0.1.15  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
+<pre>scripts/build-app.sh 0.1.16  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
                              # Contents/Resources (AppIcon.icns, PrivacyInfo.xcprivacy), Info.plist (LSUIElement true,
-                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.15.zip and its SHA-256</pre>
+                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.16.zip and its SHA-256</pre>
 <p>The binary is built for the host, so a release built on Apple silicon is arm64 only. The cask says so with <code>depends_on arch: :arm64</code> next to <code>depends_on macos: :sonoma</code> (from 0.1.14), and the README's Install section opens with "It runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later."</p>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>
@@ -627,6 +628,15 @@ from Claude Code's own status feed on this Mac.</pre>
 <li>20.7.3 Over pace keeps today's text in every phase: 10% ten minutes into a 5h window still reads "Over pace  limit 15:50 at this rate".</li>
 </ol>
 <div class="foot">Overview  Style guide  Spec  Privacy</div>
+<h2 id="changes-0116">21  Changes in 0.1.16</h2>
+<p>Each change is written into its own section above; this list points to them. Checked before the tag by an independent code review (ten findings, all fixed), the release audit of 5 November 2026 (audits, F-10 to F-14, fixed), the flow test and a run in a clean macOS 26.6.2 virtual Mac with Terminal, iTerm 3.7.7 and Ghostty 1.4.0.</p>
+<ol>
+<li>Reopen in Terminal, iTerm or Ghostty, the "Open sessions in" row under the Reopen switch (Settings, Reopen). iTerm is started first when it is not running. iTerm asks before it runs each file until its "Suppress this message permanently" box is ticked, Ghostty asks every time; the row says so for both. The ended notice names the app the window is in, found from the parents of the session's process, by bundle id or executable path.</li>
+<li>Reopen files: each script removes itself and its folder; folders older than 10 minutes are removed at launch and before each Reopen; a failed open is logged. A session that ended before its first status line write keeps its start options from the last scan's process read.</li>
+<li>Feed reading (the feed section): a burst of folder events is one scan and one trailing scan at most a second later; a session file is parsed again only when its time, size or file number changed; Claude Code's session files the same way, each checked against its process start time (<code>procStart</code>). With 22 sessions each writing about every 0.37 s the app used 76.6% of one core in 0.1.15 and 2.2% in 0.1.16.</li>
+<li>The folder watch and its handlers run on their queue and never as main actor code; a deleted sessions folder is watched again when it comes back, tried after 1 s and then at twice the gap, at most a minute apart.</li>
+<li>Releases are built, tested and attested on GitHub (release.yml): the zip, its SHA-256, the SBOM and the provenance bundle go into a draft release, published by hand after a run on a clean Mac.</li>
+</ol>
 </main>
 </div>
 </div>

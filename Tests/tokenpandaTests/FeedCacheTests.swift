@@ -159,6 +159,14 @@ struct FeedCacheTests {
 
     /// The feed watch: a write is an event; after the folder is deleted and made again (the hook script makes it), a write
     /// in the new folder is still one. The watch never makes the folder itself (0.1.16).
+    /// Audit F-14: with no folder for good (before Install, after Remove) the tries thin out to one a minute.
+    @Test func aMissingFolderIsTriedLessAndLessOften() {
+        let gaps = (0..<9).map { FolderWatch.delay(misses: $0, retry: 1, maxRetry: 60) }
+        #expect(gaps == [1, 2, 4, 8, 16, 32, 60, 60, 60])
+        #expect(FolderWatch.delay(misses: 1000, retry: 1, maxRetry: 60) == 60)
+        #expect(FolderWatch.delay(misses: -1, retry: 1, maxRetry: 60) == 1)
+    }
+
     @Test func theFolderWatchSurvivesTheFolderBeingDeletedAndMadeAgain() async throws {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("tokenpanda-watch-\(UUID().uuidString)", isDirectory: true)
