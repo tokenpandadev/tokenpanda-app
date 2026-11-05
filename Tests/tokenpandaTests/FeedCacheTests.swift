@@ -111,6 +111,17 @@ struct FeedCacheTests {
         #expect(p.event(now: t.addingTimeInterval(5)) == .scanNow)
     }
 
+    /// Events that come before the scan task of the first one runs: one scans now, the rest fold into the trailing scan.
+    @Test func eventsBeforeTheFirstScanRunsScanOnlyOnce() {
+        var p = FeedPacer()
+        let t = Date(timeIntervalSince1970: 1_000_000)
+        #expect(p.event(now: t) == .scanNow)
+        #expect(p.event(now: t.addingTimeInterval(0.01)) == .scanAt(t.addingTimeInterval(FeedPacer.gap)))
+        #expect(p.event(now: t.addingTimeInterval(0.02)) == .wait)
+        p.scanned(at: t.addingTimeInterval(0.03))   // the task of the first event runs now
+        #expect(p.event(now: t.addingTimeInterval(0.04)) == .wait)
+    }
+
     @Test func pacerTreatsAClockStepBackAsQuiet() {
         var p = FeedPacer()
         let t = Date(timeIntervalSince1970: 1_000_000)
@@ -145,4 +156,43 @@ struct FeedCacheTests {
         try FileManager.default.removeItem(at: dir.appendingPathComponent("\(me).json"))
         #expect(cache.read(settingsFolders: [folder]).isEmpty)
     }
+
+    /// The feed watch: a write is an event; after the folder is deleted and made again (the hook script makes it), a write
+    /// in the new folder is still one. The watch never makes the folder itself (0.1.16).
+    @Test func theFolderWatchSurvivesTheFolderBeingDeletedAndMadeAgain() async throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("tokenpanda-watch-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+        let count = Counter()
+        let w = FolderWatch(path: dir.path, queue: DispatchQueue(label: "test.watch"), retry: 0.05) { count.add() }
+        w.start()
+        defer { w.stop() }
+        func until(_ ok: () -> Bool) async -> Bool {
+            for _ in 0..<100 where !ok() { try? await Task.sleep(for: .milliseconds(20)) }
+            return ok()
+        }
+        #expect(await until { w.state.watching })
+        try Data("1".utf8).write(to: dir.appendingPathComponent("a.json"))
+        #expect(await until { count.value > 0 })
+        try fm.removeItem(at: dir)
+        try? await Task.sleep(for: .milliseconds(200))
+        #expect(!fm.fileExists(atPath: dir.path))     // not made by the watch
+        #expect(!w.state.watching)
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        #expect(await until { w.state.watching && w.state.restarts == 1 })
+        let before = count.value
+        try Data("2".utf8).write(to: dir.appendingPathComponent("b.json"))
+        #expect(await until { count.value > before })
+        // a rename takes the folder away as well
+        #expect(FolderWatch.restarts(on: .rename) && FolderWatch.restarts(on: [.write, .delete]) && !FolderWatch.restarts(on: .write))
+    }
+}
+
+/// A thread safe count for the watch test.
+final class Counter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var n = 0
+    func add() { lock.lock(); n += 1; lock.unlock() }
+    var value: Int { lock.lock(); defer { lock.unlock() }; return n }
 }

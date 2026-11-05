@@ -273,7 +273,12 @@ public struct FeedPacer: Sendable, Equatable {
     /// A write event at `now`: scan now, set the trailing scan for a time, or wait for the one already set.
     public mutating func event(now: Date) -> Step {
         if trailing != nil { return .wait }
-        guard let last = lastScan, now.timeIntervalSince(last) < Self.gap, now >= last else { return .scanNow }
+        guard let last = lastScan, now.timeIntervalSince(last) < Self.gap, now >= last else {
+            // counted as a scan here: the scan itself runs in a task a moment later, and the events before it starts
+            // fold into the trailing scan instead of each scanning now
+            lastScan = now
+            return .scanNow
+        }
         let at = last.addingTimeInterval(Self.gap)
         trailing = at
         return .scanAt(at)
