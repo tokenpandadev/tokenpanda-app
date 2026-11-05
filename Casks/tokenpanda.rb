@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: 2026 tokenpanda
 # SPDX-License-Identifier: MIT
 # The cask for the tap repository tokenpandadev/homebrew-tap, copied there as Casks/tokenpanda.rb.
-# RELEASE_VERSION and RELEASE_SHA256 are set by the release: the version of scripts/build-app.sh
-# and the SHA-256 it prints for build/tokenpanda-<version>.zip.
+# RELEASE_VERSION and RELEASE_SHA256 are set by the release: the version of the tag, and the SHA-256 in the
+# tokenpanda-<version>.zip.sha256 that .github/workflows/release.yml attaches to the draft (the zip CI built).
 cask "tokenpanda" do
   version "RELEASE_VERSION"
   sha256 "RELEASE_SHA256"

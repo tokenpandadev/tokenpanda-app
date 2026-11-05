@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2026 tokenpanda
 # SPDX-License-Identifier: MIT
-# A pushed version tag builds the release on GitHub's machines with scripts/build-app.sh, records a signed build
-# provenance for the zip (GitHub artifact attestation, checkable with `gh attestation verify`), and opens a draft release
-# with the zip, its SHA-256, the SBOM and the provenance bundle. The draft is published by hand after the zip has been
-# tried on a clean Mac. Every action is pinned by commit.
+# A pushed version tag runs the tests, builds the release on GitHub's machines with scripts/build-app.sh, records a signed
+# build provenance for the zip (GitHub artifact attestation, checkable with `gh attestation verify`), and opens a draft
+# release with the zip, its SHA-256, the SBOM and the provenance bundle. A re-run replaces the draft's files; a release
+# already published is never touched. The draft is published by hand after the zip has been tried on a clean Mac.
+# Every action is pinned by commit.
 name: release
 
 on:
@@ -23,12 +24,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Build
+      - name: Version and notes
         run: |
           V="${GITHUB_REF_NAME#v}"
           echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "tag $GITHUB_REF_NAME is not a version"; exit 1; }
-          sh scripts/build-app.sh "$V"
+          # the notes are the version's own section of CHANGELOG.md; its heading must carry the release date
+          heading=$(grep -F "## $V," CHANGELOG.md | head -1)
+          [ -n "$heading" ] || { echo "CHANGELOG.md has no section for $V"; exit 1; }
+          case "$heading" in *unreleased*) echo "CHANGELOG.md still says: $heading"; exit 1;; esac
+          awk -v h="## $V," 'index($0, h) == 1 {on=1; next} /^## / {on=0} on' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md" || { echo "the CHANGELOG.md section for $V is empty"; exit 1; }
           echo "V=$V" >> "$GITHUB_ENV"
+      - name: Test
+        run: |
+          # the same as build.yml: with only the Command Line Tools selected, swift-testing needs its macro plugin path
+          PLUGINS=/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
+          if xcode-select -p | grep -q CommandLineTools && [ -d "$PLUGINS" ]; then
+            swift test -Xswiftc -plugin-path -Xswiftc "$PLUGINS"
+          else
+            swift test
+          fi
+      - name: Build
+        run: sh scripts/build-app.sh "$V"
       - name: Provenance
         id: attest
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -40,7 +57,12 @@ jobs:
           BUNDLE: ${{ steps.attest.outputs.bundle-path }}
         run: |
           cp "$BUNDLE" "build/tokenpanda-$V.zip.intoto.jsonl"
-          # the notes are the version's own section of CHANGELOG.md
-          awk -v v="$V" '$0 ~ "^## "v"," {on=1; next} /^## / {on=0} on' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
-          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "tokenpanda $V" --notes-file "$RUNNER_TEMP/notes.md" \
-            "build/tokenpanda-$V.zip" "build/tokenpanda-$V.zip.sha256" "build/tokenpanda-$V.cdx.json" "build/tokenpanda-$V.zip.intoto.jsonl"
+          set -- "build/tokenpanda-$V.zip" "build/tokenpanda-$V.zip.sha256" "build/tokenpanda-$V.cdx.json" "build/tokenpanda-$V.zip.intoto.jsonl"
+          # a re-run of the workflow: the draft exists, its files and notes are replaced; a published release stops it
+          if draft=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>/dev/null); then
+            [ "$draft" = true ] || { echo "$GITHUB_REF_NAME is published already; nothing is replaced"; exit 1; }
+            gh release upload "$GITHUB_REF_NAME" --clobber "$@"
+            gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+          else
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "tokenpanda $V" --notes-file "$RUNNER_TEMP/notes.md" "$@"
+          fi
