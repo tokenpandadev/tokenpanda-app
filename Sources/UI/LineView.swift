@@ -76,7 +76,7 @@ final class PanelElement: NSAccessibilityElement {
 /// row hover and the tooltip. Cells, not pixels: every piece advances by its cell count.
 ///
 /// VoiceOver and the keyboard: every action is a control (Controls.extract), exposed as a button, a checkbox with its
-/// state, or a tab with its selected state, each with a press action. The keyboard focus moves through the controls of
+/// state, a pop-up with its value, or a tab with its selected state, each with a press action. The keyboard focus moves through the controls of
 /// the tab in reading order with the up and down arrows, along a line (the tab strip, the section switch) with left and
 /// right; Space and Return press the focused one. The focus ring is the style guide's: a 1 pt accent outline, 1 pt out.
 @MainActor
@@ -264,6 +264,10 @@ public final class LineView: NSView {
                     e.setAccessibilityRole(.button)
                     e.setAccessibilitySubrole(nil)
                     e.setAccessibilityValue(nil)
+                case .popUp:
+                    e.setAccessibilityRole(.popUpButton)
+                    e.setAccessibilitySubrole(nil)
+                    e.setAccessibilityValue(c.value)
                 }
                 e.setAccessibilityLabel(c.label)
                 e.setAccessibilityHelp(c.help?.isEmpty == true ? nil : c.help)
@@ -317,6 +321,11 @@ public final class LineView: NSView {
     /// already in view does not move the panel.
     func reveal(_ r: NSRect) {
         scrollToVisible(r.insetBy(dx: 0, dy: -LineView.lineHeight))
+    }
+
+    /// Where the control that runs this action is drawn, in the view's coordinates: the pop-up's menu opens there.
+    public func rect(of action: Action) -> NSRect? {
+        controls.first { $0.action == action }.map(controlRect)
     }
 
     /// Puts the focus on the control that runs this action (the selected tab after Tab, for one).

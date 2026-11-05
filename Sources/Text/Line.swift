@@ -10,6 +10,7 @@ public enum Action: Sendable, Hashable {
     case uninstall
     case quit
     case openNotificationSettings   // the "Notifications are off" note: opens System Settings, Notifications
+    case pickReopenApp              // the "Open sessions in" pop-up: a menu of Terminal, iTerm and Ghostty
 }
 
 public struct BarCell: Sendable, Hashable {
@@ -40,10 +41,12 @@ public struct Piece: Sendable {
     public var bar: BarRender?
     public var checked: Bool?      // a tab or a checkbox: its selected or checked state; nil for a plain button
     public var label: String?      // the spoken name of the control this piece belongs to, when it differs from its text
+    public var value: String?      // a pop-up's chosen item, said as its value
 
     public init(_ text: String, _ style: Style = .text, cells: Int? = nil, wide: Bool = false,
                 action: Action? = nil, tip: String? = nil, tipLeft: Bool = false, bar: BarRender? = nil,
-                checked: Bool? = nil, label: String? = nil) {
+                checked: Bool? = nil, label: String? = nil, value: String? = nil) {
+        self.value = value
         self.text = text; self.style = style; self.wide = wide; self.action = action
         self.tip = tip; self.tipLeft = tipLeft; self.bar = bar; self.checked = checked; self.label = label
         self.cells = cells ?? (wide ? text.count * 2 : text.count)
@@ -79,6 +82,7 @@ public enum ControlKind: Sendable, Equatable {
     case checkbox   // a setting, with its checked state
     case button     // Install, Remove, Quit, the Login Items note
     case figure     // a figure with a readout: focusable, shows its tooltip, does nothing on Space
+    case popUp      // a pop-up menu, with its value: the "Open sessions in" row
 }
 
 /// One control of the panel: the pieces of a line that share an action, or a figure with a tooltip.
@@ -88,6 +92,7 @@ public struct Control: Sendable, Equatable {
     public var action: Action?
     public var label: String
     public var checked: Bool?
+    public var value: String? = nil   // a pop-up's chosen item
     public var help: String?
     public var line: Int
     public var startCell: Int
@@ -96,7 +101,7 @@ public struct Control: Sendable, Equatable {
     public var key: String
 
     public static func == (a: Control, b: Control) -> Bool {
-        a.kind == b.kind && a.action == b.action && a.label == b.label && a.checked == b.checked && a.help == b.help
+        a.kind == b.kind && a.action == b.action && a.label == b.label && a.checked == b.checked && a.value == b.value && a.help == b.help
             && a.line == b.line && a.startCell == b.startCell && a.cells == b.cells && a.key == b.key
     }
 }
@@ -134,10 +139,13 @@ public enum Controls {
                     case .tab, .section: kind = .tab
                     case .toggle: kind = p.checked == nil ? .button : .checkbox
                     case .install, .uninstall, .quit, .openNotificationSettings: kind = .button
+                    case .pickReopenApp: kind = .popUp
                     }
                     let label = p.label ?? line.label ?? text.trimmingCharacters(in: .whitespaces)
-                    out.append(Control(kind: kind, action: a, label: label, checked: p.checked, help: p.tip ?? line.help,
-                                       line: li, startCell: cell, cells: cells, key: key("\(a)")))
+                    var c = Control(kind: kind, action: a, label: label, checked: p.checked, help: p.tip ?? line.help,
+                                    line: li, startCell: cell, cells: cells, key: key("\(a)"))
+                    c.value = p.value
+                    out.append(c)
                     cell += cells
                     i = j
                     continue

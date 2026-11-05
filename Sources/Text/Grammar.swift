@@ -469,6 +469,7 @@ public enum Grammar {
         }
         out += cbRow("restoreSessions", "Reopen sessions after a restart", s.restoreSessions, "asks first, then opens each as it was started, and says when one ends on its own",
                      more: s.restoreSessions ? [s.nudgeNote].compactMap { $0 } : [])
+        if s.restoreSessions { out += reopenAppRow(s.reopenApp) }
         out.append(blank)
         out += hookRow(installed: s.hookInstalled, someInstalled: s.hookSomeInstalled, error: s.hookError, slowerRefresh: s.hookSlowerRefresh,
                        targets: s.hookTargets, scriptMissing: s.hookScriptMissing, removeScriptError: s.removeScriptError)
@@ -480,6 +481,19 @@ public enum Grammar {
                         hover: true, label: "Quit, command Q"))
         return out
     }
+
+    /// The app Reopen opens the sessions in: one pop-up row under the Reopen switch, a menu of Terminal, iTerm and Ghostty
+    /// on a click, Space or Return. Ghostty asks before it runs each file it is handed, so its row says so.
+    public static func reopenAppRow(_ app: TerminalApp) -> [Line] {
+        let label = "Open sessions in"
+        var out = [Line([sp("     "), Piece(label + " " + app.title + " \u{25BE}", .text, action: .pickReopenApp, label: label, value: app.title)],
+                        hover: true, label: label, help: app == .ghostty ? ghosttyAsks : nil)]
+        if app == .ghostty { out += dimLines(ghosttyAsks, indent: 9).map(\.silent) }
+        return out
+    }
+
+    /// Said under the pop-up while Ghostty is picked: Ghostty 1.2 and later confirm every script opened in them.
+    public static let ghosttyAsks = "Ghostty asks before it runs each one"
 
     /// Open at login: the box shows what the system says. While the system waits for the user's OK, the box stays empty and
     /// the note under it opens System Settings, Login Items, on a click, like the row. An error from a click follows as a dim line.
