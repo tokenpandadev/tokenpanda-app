@@ -24,6 +24,9 @@ for zone in "" UTC America/Los_Angeles; do
   step "tests ${zone:-Mac zone}";   TZ="${zone:-$(readlink /etc/localtime | sed 's#.*/zoneinfo/##')}" swift test --scratch-path "$SCRATCH" 2>&1 | tail -1
                                     [ "${pipestatus[1]}" = 0 ] || exit 1
 done
+# the app under many sessions: CPU and isolation failures no unit test sees (0.1.16)
+step "load test, 22 sessions";      swift build -c release --scratch-path "$SCRATCH-release" 2>&1 | tail -1
+                                    scripts/load-test.sh "$SCRATCH-release/release/tokenpanda" 60 5
 step "REUSE";                       reuse lint --quiet || { reuse lint | tail -20; exit 1; }
 # no trace of the tools that wrote the code in commit messages; the product name Claude Code is fine
 TRACES='co-authored-by:.*claude|claude-session|claude\.ai/code|generated with'
