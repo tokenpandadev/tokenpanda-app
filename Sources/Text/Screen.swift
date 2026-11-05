@@ -158,6 +158,7 @@ public struct SettingsTab: Sendable, Equatable {
     public var keepAwakeWhileOpen: Bool   // the indented second row, shown only while keepAwake is on
     public var awakeNote: String?   // "awake  2 sessions working" or "awake  1 session open", only while the power assertion is held
     public var restoreSessions: Bool
+    public var reopenApp: TerminalApp = .terminal          // the "Open sessions in" pop-up, shown while restoreSessions is on
     public var hookSlowerRefresh: Bool   // Install would set the user's longer refreshInterval to 5 s: one line says so
     public var hookSomeInstalled: Bool   // installed in some settings folders, not all: both rows show
     public var hookTargets: [String]     // the settings folders, "~/.claude"

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 tokenpanda
 // SPDX-License-Identifier: MIT
 import Foundation
+import Text
 import UI
 
 /// The UserDefaults keys of the spec, section 10. Nothing else is stored in preferences.
@@ -14,6 +15,7 @@ enum Settings {
     static let keepAwake = "keepAwake"
     static let keepAwakeWhileOpen = "keepAwakeWhileOpen"
     static let restoreSessions = "restoreSessions"
+    static let reopenApp = TerminalApp.settingKey               // "reopenApp": terminal, iterm or ghostty
     static let hookPreviousCommand = "hookPreviousCommand"
     static let hookPreviousRefresh = "hookPreviousRefresh"   // the user's refreshInterval Install lowered, for Remove without the backup
     static let nudgedWeeklyWindow = NudgeRules.weeklyKey       // "nudgedWeeklyWindow", as every version wrote it
@@ -24,7 +26,8 @@ enum Settings {
     static func previousRefreshKey(_ id: String?) -> String { id.map { hookPreviousRefresh + "." + $0 } ?? hookPreviousRefresh }
 
     static func register() {
-        defaults.register(defaults: [macFiguresInBar: false, nudges: true, listPriceEquivalent: true, keepAwake: false, keepAwakeWhileOpen: false, restoreSessions: false])
+        defaults.register(defaults: [macFiguresInBar: false, nudges: true, listPriceEquivalent: true, keepAwake: false, keepAwakeWhileOpen: false, restoreSessions: false,
+                                     reopenApp: TerminalApp.settingDefault])
     }
 
     static func bool(_ key: String) -> Bool { defaults.bool(forKey: key) }

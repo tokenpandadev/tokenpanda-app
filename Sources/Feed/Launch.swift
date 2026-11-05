@@ -20,7 +20,7 @@ public struct LiveSession: Sendable, Equatable {
     }
 
     /// Parses one <pid>.json. Only an interactive session started from the command line counts: print runs, the SDK
-    /// and the desktop app have nothing to reopen in Terminal.
+    /// and the desktop app have nothing to reopen in a terminal.
     public static func parse(_ data: Data) -> LiveSession? {
         guard let d = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let sid = d["sessionId"] as? String, Reopen.isSessionId(sid),
@@ -127,7 +127,7 @@ public enum LaunchOptions {
         "--include-hook-events": .flag, "--include-partial-messages": .flag, "--replay-user-messages": .flag,
         "--forward-subagent-text": .flag,
     ]
-    /// A session started with one of these is not reopened from its options at all: there is no Terminal session to resume.
+    /// A session started with one of these is not reopened from its options at all: there is no terminal session to resume.
     static let notResumable: Set<String> = ["-p", "--print", "--no-session-persistence", "--cloud", "--teleport", "--environment",
                                             "-h", "--help", "-v", "--version"]
 
@@ -203,7 +203,7 @@ extension Reopen {
 }
 
 /// Watches the running sessions by process, to tell when one ends. A session that ends while the process that started
-/// it (the Terminal window's shell, or a script) still runs ended on its own or was quit in a window that stays open;
+/// it (the window's shell in Terminal, iTerm or Ghostty, or a script) still runs ended on its own or was quit in a window that stays open;
 /// one whose window closed too, or that ends during a shutdown, is not reported.
 public struct SessionWatch: Sendable, Equatable {
     public struct Watched: Sendable, Equatable {

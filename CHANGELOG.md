@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.16, unreleased
+
+- Reopen opens the sessions in Terminal, iTerm or Ghostty, picked under "Open sessions in" below the Reopen switch. An app that is not installed is shown but cannot be picked, and a pick whose app is gone opens in Terminal. Ghostty asks before it runs each session, and the row says so.
+
 ## 0.1.15, 2026-11-04
 
 - Install and Remove find the file a linked settings.json names the way macOS does, also when ~/.claude is itself a link into a dotfiles folder and the file is not made yet. From 0.1.11 such a relative link could name another file, which Install then wrote over with only the status line entry while Claude Code kept reading the missing one. A file written at the wrong place by those versions is left as it is.

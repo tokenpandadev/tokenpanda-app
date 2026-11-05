@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import Foundation
 
-// Session restore: which Claude Code sessions were open when the Mac last went down, and the Terminal file that resumes one.
+// Session restore: which Claude Code sessions were open when the Mac last went down, and the .command file that resumes one in Terminal, iTerm or Ghostty.
 // The record holds the session id, the folder, the transcript path, the session's name and the options it was started with,
 // nothing of what was written. It lives only on this Mac.
 
@@ -83,7 +83,7 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
     }
 }
 
-/// The Terminal file that resumes one session. Only a session id of the UUID shape and an existing folder get one,
+/// The .command file that resumes one session, in whichever of Terminal, iTerm or Ghostty is picked. Only a session id of the UUID shape and an existing folder get one,
 /// both single quoted for the shell.
 public enum Reopen {
     public static func isSessionId(_ s: String) -> Bool {

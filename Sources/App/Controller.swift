@@ -389,8 +389,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             await Self.waitForNetwork(timeout: Rules.restoreNetworkWait)
             await notifier.authorize()
             restoreLog.info("restore: posting the offer")
+            let app = ReopenApp.current.title
             notifier.post(title: "\(n) Claude Code session\(n == 1 ? " was" : "s were") open before the restart",
-                          body: "\(names). Reopen opens \(n == 1 ? "it" : "each") in Terminal as \(n == 1 ? "it was" : "they were") started.", id: "reopen-\(Int(boot.timeIntervalSince1970))",
+                          body: "\(names). Reopen opens \(n == 1 ? "it" : "each") in \(app) as \(n == 1 ? "it was" : "they were") started.", id: "reopen-\(Int(boot.timeIntervalSince1970))",
                           category: Notifier.reopenCategory)
         }
     }
@@ -474,7 +475,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 endedEntries[id] = e
                 restoreLog.info("restore: a session ended while its window stays open")
                 let at = now.formatted(date: .omitted, time: .shortened)
-                notifier.postAsking(title: "\(e.label) ended", body: "At \(at). Its Terminal window is still open. Reopen starts it again as it was started.",
+                // the app the window is in, found from the shell's parents: it need not be the one Reopen opens in
+                let window = ReopenApp.windowApp(of: parent).map { "Its \($0.title) window" } ?? "Its window"
+                notifier.postAsking(title: "\(e.label) ended", body: "At \(at). \(window) is still open. Reopen starts it again as it was started.",
                                     id: id, category: Notifier.endedCategory)
             }
         }
@@ -484,23 +487,23 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func reopenEnded(_ notificationId: String) {
         guard let e = endedEntries.removeValue(forKey: notificationId) else { return }
         guard !LiveSession.read(settingsFolders: folders).contains(where: { $0.sessionId == e.id }) else { return }
-        openInTerminal([e])
+        openSessions([e])
     }
 
-    /// Reopen: one Terminal file per session in a private folder, opened through Launch Services so no Automation
-    /// permission is needed. Each file deletes itself when Terminal runs it.
+    /// Reopen: one .command file per session in a private folder, opened in the picked app (Terminal, iTerm or Ghostty)
+    /// through Launch Services so no Automation permission is needed. Each file deletes itself when it runs.
     func reopen() {
-        // a session already open again, from a Terminal window or an earlier click, is not opened a second time
+        // a session already open again, from a terminal window or an earlier click, is not opened a second time
         let openNow = Set(feedState.sessions.map(\.snapshot.sessionId)).union(LiveSession.read(settingsFolders: folders).map(\.sessionId))
         let entries = pendingReopen.filter { !openNow.contains($0.id) }
         pendingReopen = []
         restoreLog.info("reopen: \(entries.count, privacy: .public) of the offered sessions, the others are open already")
         guard !entries.isEmpty else { return }
-        openInTerminal(entries)
+        openSessions(entries)
     }
 
-    /// One Terminal file per session, each starting the session with its name and options.
-    func openInTerminal(_ entries: [RestoreRecord.Entry]) {
+    /// One .command file per session, each starting the session with its name and options, opened in the picked app.
+    func openSessions(_ entries: [RestoreRecord.Entry]) {
         let fm = FileManager.default
         let dir = fm.temporaryDirectory.appendingPathComponent("tokenpanda-reopen-" + UUID().uuidString, isDirectory: true)
         guard (try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])) != nil else { return }
@@ -513,12 +516,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
             files.append(url)
         }
-        let terminal = URL(fileURLWithPath: "/System/Applications/Utilities/Terminal.app")
         guard !files.isEmpty else { return }
         Task { @MainActor in
             // Remote Control connects once, when a session starts, so the sessions wait for the network; without one they still open
             await Self.waitForNetwork(timeout: Rules.restoreNetworkWait)
-            NSWorkspace.shared.open(files, withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+            ReopenApp.open(files)
         }
     }
 
@@ -553,6 +555,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                   version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
         i.sessionNames = sessionNames
         i.removeScriptError = removeScriptError
+        // looked up in Launch Services only while Settings shows, where the row is
+        if i.restoreSessions, tab == 2 { i.reopenApp = ReopenApp.current }
         return i
     }
 
@@ -672,6 +676,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             removeScriptError = hook.writeRemoveScript()
             readHookStatus()
         case .quit: NSApp.terminate(nil)
+        case .pickReopenApp:
+            showReopenAppMenu()
         case .openNotificationSettings:
             popover.performClose(nil)
             let id = Paths.bundleId
