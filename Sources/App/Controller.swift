@@ -81,6 +81,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var transcriptTimer: DispatchSourceTimer?
     var dirSource: DispatchSourceFileSystemObject?
     var dirFD: Int32 = -1
+    var pacer = FeedPacer()                     // folds a burst of folder events into one scan now and one trailing scan
+    var liveSessions = LiveSessionCache()       // Claude Code's session files, parsed again only when one changes
     let queue = DispatchQueue(label: "dev.tokenpanda.timers", qos: .utility)
     var transcriptsBusy = false
 
@@ -223,7 +225,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         dirFD = open(feed.sessionsDir.path, O_EVTONLY)
         guard dirFD >= 0 else { return }
         let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: dirFD, eventMask: [.write], queue: queue)
-        src.setEventHandler { Task { @MainActor in await self.refreshFeed() } }
+        // a burst of writes from many sessions is one scan now and one trailing scan, at most FeedPacer.gap apart (0.1.16)
+        src.setEventHandler { @Sendable [weak self] in Task { @MainActor in self?.feedEvent() } }
         src.setCancelHandler { [fd = dirFD] in close(fd) }
         src.resume()
         dirSource = src
@@ -231,14 +234,15 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     // MARK: readers
 
-    func refreshFeed() async {
+    func refreshFeed(trailing: Bool = false) async {
         let now = Date()
+        pacer.scanned(at: now, trailing: trailing)
         feedState = await feed.scan(now: now)
         working.apply(feedState.sessions)
-        sessionNames = Dictionary(LiveSession.read(settingsFolders: folders).compactMap { s in s.name.map { (s.sessionId, $0) } },
-                                  uniquingKeysWith: { a, _ in a })
+        let live = liveSessions.read(settingsFolders: folders)
+        sessionNames = Dictionary(live.compactMap { s in s.name.map { (s.sessionId, $0) } }, uniquingKeysWith: { a, _ in a })
         updateAwake(now: now)
-        recordSessions(now: now)
+        recordSessions(now: now, live: live)
         refreshFolders()
         if hook.settingsModified() != settingsModified { readHookStatus() }
         if let l = feedState.limits, let w = l.windows["seven_day"] {
@@ -428,9 +432,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// Each scan while the setting is on: the open sessions go into the record, written only when the set of ids changes.
-    func recordSessions(now: Date) {
+    func recordSessions(now: Date, live given: [LiveSession]? = nil) {
         guard Settings.bool(Settings.restoreSessions) else { return }
-        let live = LiveSession.read(settingsFolders: folders)
+        let live = given ?? liveSessions.read(settingsFolders: folders)
         readLaunches(live)
         var byId: [String: RestoreRecord.Launch] = [:]
         for (_, v) in launches { byId[v.id] = v.launch }

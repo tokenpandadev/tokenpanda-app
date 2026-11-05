@@ -2,7 +2,9 @@
 
 ## 0.1.16, unreleased
 
+- Far less CPU while many Claude Code sessions run: a burst of status line writes is read at once and once more a second later, a session file is parsed again only when it changed, and Claude Code's own session files the same way. With 22 sessions each writing about every 0.3 s, the app used 76.6% of one core in 0.1.15 and uses 2.2% now, at most 47 MB of memory where 0.1.15 took up to 50 MB. Every figure still follows a write within a second.
 - Reopen opens the sessions in Terminal, iTerm or Ghostty, picked under "Open sessions in" below the Reopen switch. An app that is not installed is shown but cannot be picked, and a pick whose app is gone opens in Terminal. Ghostty asks before it runs each session, and the row says so.
+- The feed watch handed each status line write to the main thread from a background queue without a hop between them, a data race the thread checker counted thousands of times a minute with many sessions open. It now hops to the main thread first.
 
 ## 0.1.15, 2026-11-04
 

@@ -53,6 +53,52 @@ public struct LiveSession: Sendable, Equatable {
     }
 }
 
+/// LiveSession.read for the feed scan, which asks on every pass: a session file is parsed again only when it changed
+/// (time, size or file number), and whether its process runs is checked every time. The same sessions as a fresh read.
+public struct LiveSessionCache: Sendable {
+    struct Stamp: Equatable { var modified: Date; var size: Int; var fileNumber: Int }
+    var parsed: [String: (stamp: Stamp, session: LiveSession?)] = [:]   // by path
+    public private(set) var parseCount = 0   // files parsed, for the tests
+
+    public init() {}
+
+    public mutating func read(settingsFolders: [URL]) -> [LiveSession] {
+        let fm = FileManager.default
+        var out: [LiveSession] = []
+        var seen = Set<Int32>()
+        var next: [String: (stamp: Stamp, session: LiveSession?)] = [:]
+        for f in settingsFolders {
+            let dir = f.appendingPathComponent("sessions", isDirectory: true)
+            guard let names = try? fm.contentsOfDirectory(atPath: dir.path) else { continue }
+            for n in names where n.hasSuffix(".json") {
+                let url = dir.appendingPathComponent(n)
+                let attrs = try? fm.attributesOfItem(atPath: url.path)
+                let session: LiveSession?
+                if let attrs, attrs[.type] as? FileAttributeType == .typeRegular, let mtime = attrs[.modificationDate] as? Date {
+                    let stamp = Stamp(modified: mtime, size: (attrs[.size] as? NSNumber)?.intValue ?? -1,
+                                      fileNumber: (attrs[.systemFileNumber] as? NSNumber)?.intValue ?? -1)
+                    if let p = parsed[url.path] ?? next[url.path], p.stamp == stamp {
+                        session = p.session
+                    } else {
+                        parseCount += 1
+                        session = SafeFile.read(url, maxBytes: 64 * 1024 - 1).flatMap(LiveSession.parse)
+                    }
+                    next[url.path] = (stamp, session)
+                } else {
+                    // a link or anything else: read as LiveSession.read does, never kept
+                    parseCount += 1
+                    session = SafeFile.read(url, maxBytes: 64 * 1024 - 1).flatMap(LiveSession.parse)
+                }
+                guard let s = session, !seen.contains(s.pid), ProcessTable.isRunning(s.pid) else { continue }
+                seen.insert(s.pid)
+                out.append(s)
+            }
+        }
+        parsed = next
+        return out
+    }
+}
+
 /// The process facts the restore needs, read with sysctl: whether a process runs, its parent, its arguments.
 public enum ProcessTable {
     public static func isRunning(_ pid: Int32) -> Bool {
