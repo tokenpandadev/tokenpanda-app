@@ -428,6 +428,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func recordSessions(now: Date, live given: [LiveSession]? = nil) {
         guard Settings.bool(Settings.restoreSessions) else { return }
         let live = given ?? liveSessions.read(settingsFolders: folders)
+        // the launches of the last scan: a session that is gone now drops out of readLaunches, its options stay here for watchEnds
+        let before = launches
         readLaunches(live)
         var byId: [String: RestoreRecord.Launch] = [:]
         for (_, v) in launches { byId[v.id] = v.launch }
@@ -437,7 +439,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         // written when a session comes or goes, or a name or the options change
         let key = r.entries.map { [$0.id, $0.name ?? "", ($0.options ?? []).joined(separator: "\u{1}")].joined(separator: "\u{2}") }
         if key != restoreSaved { restoreSaved = key; r.save(to: Paths.restoreFile) }
-        watchEnds(live, now: now)
+        watchEnds(live, now: now, launchesBefore: before)
     }
 
     /// Reads the start options of each session process not seen before, once per process; the name is read every time,
@@ -455,13 +457,16 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// A session that ended while its window stays open gets one notification with its name and a Reopen button.
-    func watchEnds(_ live: [LiveSession], now: Date) {
+    func watchEnds(_ live: [LiveSession], now: Date, launchesBefore: [Int32: (id: String, launch: RestoreRecord.Launch)] = [:]) {
         let gone = sessionWatch.apply(live) { ProcessTable.parent(of: $0) }
         for w in gone {
             guard let parent = w.parent else { continue }
             let entry = restore?.entries.first { $0.id == w.sessionId }
                 ?? w.folder.map { RestoreRecord.Entry(id: w.sessionId, folder: $0, transcript: nil, lastSeen: now, name: w.name) }
             guard var e = entry else { continue }
+            // a session that ended before its first status line write is not in the record yet: its start options come
+            // from the process read of the last scan (VM test 05.11: it came back with its name only)
+            if e.options == nil, let l = launchesBefore.values.first(where: { $0.id == w.sessionId }) { e.options = l.launch.options }
             if let n = w.name { e.name = n }
             Task { @MainActor in
                 // a closed window takes its shell with it a moment later; a shutdown closes them all

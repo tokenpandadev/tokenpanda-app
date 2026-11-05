@@ -77,6 +77,17 @@ struct ReopenAppTests {
         #expect(lines[row + 1].hidden)
     }
 
+    /// iTerm 3.7.7 asks "OK to run ...?" for each file until "Suppress this message permanently" is ticked (VM test 05.11).
+    @Test func iTermSaysItAsksUntilSuppressIsTicked() throws {
+        let lines = Grammar.settingsTab(settings(restore: true, app: .iterm))
+        let plain = lines.map(\.plain)
+        let row = try #require(plain.firstIndex(of: "     Open sessions in iTerm \u{25BE}"))
+        #expect(plain[row + 1] == "         iTerm asks until you tick Suppress")
+        let pop = try #require(Controls.extract(lines).first { $0.kind == .popUp })
+        #expect(pop.help == "iTerm asks until you tick Suppress")
+        #expect(lines[row + 1].hidden)
+    }
+
     @Test func thePopUpIsOneControlWithItsValue() throws {
         let controls = Controls.extract(Grammar.settingsTab(settings(restore: true, app: .iterm)))
         let pops = controls.filter { $0.kind == .popUp }

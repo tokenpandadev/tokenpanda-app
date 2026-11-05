@@ -483,17 +483,21 @@ public enum Grammar {
     }
 
     /// The app Reopen opens the sessions in: one pop-up row under the Reopen switch, a menu of Terminal, iTerm and Ghostty
-    /// on a click, Space or Return. Ghostty asks before it runs each file it is handed, so its row says so.
+    /// on a click, Space or Return. Ghostty and iTerm ask before they run each file they are handed, so their row says so.
     public static func reopenAppRow(_ app: TerminalApp) -> [Line] {
         let label = "Open sessions in"
+        let asks: String? = app == .ghostty ? ghosttyAsks : app == .iterm ? itermAsks : nil
         var out = [Line([sp("     "), Piece(label + " " + app.title + " \u{25BE}", .text, action: .pickReopenApp, label: label, value: app.title)],
-                        hover: true, label: label, help: app == .ghostty ? ghosttyAsks : nil)]
-        if app == .ghostty { out += dimLines(ghosttyAsks, indent: 9).map(\.silent) }
+                        hover: true, label: label, help: asks)]
+        if let asks { out += dimLines(asks, indent: 9).map(\.silent) }
         return out
     }
 
     /// Said under the pop-up while Ghostty is picked: Ghostty 1.2 and later confirm every script opened in them.
     public static let ghosttyAsks = "Ghostty asks before it runs each one"
+    /// Said under the pop-up while iTerm is picked: iTerm confirms each script until "Suppress this message permanently"
+    /// is ticked in its prompt (VM test 05.11, iTerm 3.7.7).
+    public static let itermAsks = "iTerm asks until you tick Suppress"
 
     /// Open at login: the box shows what the system says. While the system waits for the user's OK, the box stays empty and
     /// the note under it opens System Settings, Login Items, on a click, like the row. An error from a click follows as a dim line.

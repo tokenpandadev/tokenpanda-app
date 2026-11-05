@@ -8,7 +8,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7        # a new version waits a week before it is offered
   - package-ecosystem: swift
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7        # a new version waits a week before it is offered

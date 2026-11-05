@@ -4,7 +4,8 @@
 # build provenance for the zip (GitHub artifact attestation, checkable with `gh attestation verify`), and opens a draft
 # release with the zip, its SHA-256, the SBOM and the provenance bundle. A re-run replaces the draft's files; a release
 # already published is never touched. The draft is published by hand after the zip has been tried on a clean Mac.
-# Every action is pinned by commit.
+# The tests and the build run without write rights; only the second job, which never runs repository code, holds the
+# rights to sign the provenance and open the draft. Every action is pinned by commit.
 name: release
 
 on:
@@ -17,14 +18,15 @@ jobs:
   build:
     runs-on: macos-latest
     permissions:
-      contents: write        # to open the draft release
-      id-token: write        # to sign the provenance
-      attestations: write    # to store it with GitHub
+      contents: read
+    outputs:
+      version: ${{ steps.v.outputs.version }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Version and notes
+        id: v
         run: |
           V="${GITHUB_REF_NAME#v}"
           echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "tag $GITHUB_REF_NAME is not a version"; exit 1; }
@@ -35,6 +37,8 @@ jobs:
           awk -v h="## $V," 'index($0, h) == 1 {on=1; next} /^## / {on=0} on' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
           grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md" || { echo "the CHANGELOG.md section for $V is empty"; exit 1; }
           echo "V=$V" >> "$GITHUB_ENV"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          cp "$RUNNER_TEMP/notes.md" build-notes.md
       - name: Test
         run: |
           # the same as build.yml: with only the Command Line Tools selected, swift-testing needs its macro plugin path
@@ -46,11 +50,35 @@ jobs:
           fi
       - name: Build
         run: sh scripts/build-app.sh "$V"
+      - name: Keep the files for the next job
+        run: mkdir -p out && mv build-notes.md out/notes.md && cp "build/tokenpanda-$V.zip" "build/tokenpanda-$V.zip.sha256" "build/tokenpanda-$V.cdx.json" out/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release
+          path: out/
+          if-no-files-found: error
+          retention-days: 3
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # to open the draft release
+      id-token: write        # to sign the provenance
+      attestations: write    # to store it with GitHub
+    env:
+      V: ${{ needs.build.outputs.version }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release
+          path: build/
       - name: Provenance
         id: attest
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: build/tokenpanda-${{ env.V }}.zip
+          subject-path: build/tokenpanda-${{ needs.build.outputs.version }}.zip
       - name: Draft release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -62,7 +90,7 @@ jobs:
           if draft=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft 2>/dev/null); then
             [ "$draft" = true ] || { echo "$GITHUB_REF_NAME is published already; nothing is replaced"; exit 1; }
             gh release upload "$GITHUB_REF_NAME" --clobber "$@"
-            gh release edit "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+            gh release edit "$GITHUB_REF_NAME" --notes-file build/notes.md
           else
-            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "tokenpanda $V" --notes-file "$RUNNER_TEMP/notes.md" "$@"
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "tokenpanda $V" --notes-file build/notes.md "$@"
           fi
