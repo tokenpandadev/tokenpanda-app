@@ -8,10 +8,11 @@ import MacStats
 import ServiceManagement
 import Feed
 
-// Entry point of tokenpanda. Debug builds also take four flags that print or render and exit:
+// Entry point of tokenpanda. Debug builds also take five flags that print or render and exit:
 //   tokenpanda --snapshot <dir> [--snapshot-stage white]   every tab and state of the sample data to PNG through the view's bitmap
 //   tokenpanda --read-transcripts       one full pass over the transcripts: counts and seconds
 //   tokenpanda --sample-mac <rounds>    the Mac sampler alone at 2 s, its own CPU time
+//   tokenpanda --transcript-passes <rounds>   the open panel's transcript pass, at 2 s (the app: 10 s), time per pass and CPU
 //   tokenpanda --login-item on|off|status   the Open at login row's own calls, from inside an app bundle; prints the system's status
 // Release builds contain none of them.
 
@@ -95,7 +96,8 @@ if args.contains("--read-transcripts") {
 }
 
 if let i = args.firstIndex(of: "--transcript-passes"), i + 1 < args.count, let rounds = Int(args[i + 1]) {
-    // the open panel's transcript pass, rounds times every 2 s: refresh for changes, sum again when a record came,
+    // the open panel's transcript pass, rounds times every 2 s, five times the app's 10 s so a minute holds 30 passes (its
+    // CPU share is then five times the app's): refresh for changes, sum again when a record came,
     // as Controller.refreshTranscripts does; time per pass and the process' own CPU time, then exit (no UI, reads only)
     let selfCPU: @Sendable () -> Double = { var ru = rusage(); getrusage(RUSAGE_SELF, &ru); return Double(ru.ru_utime.tv_sec) + Double(ru.ru_utime.tv_usec) / 1e6 + Double(ru.ru_stime.tv_sec) + Double(ru.ru_stime.tv_usec) / 1e6 }
     let sem = DispatchSemaphore(value: 0)

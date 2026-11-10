@@ -31,7 +31,9 @@ if "--text" in sys.argv:
     sys.exit(1 if hits(sys.stdin.read()) else 0)
 if "--lines" in sys.argv:
     # the line numbers that hold a private word, one run; the word itself is never printed
-    bad = [n for n, l in enumerate(sys.stdin.read().split("\n"), 1) if hits(l)]
+    # a line alone, and each line with the one before, so a two word name split over a line break is found too
+    ls = sys.stdin.read().split("\n")
+    bad = sorted({n for n, l in enumerate(ls, 1) if hits(l)} | {n for n in range(2, len(ls) + 1) if hits(ls[n - 2] + " " + ls[n - 1])})
     print(" ".join(map(str, bad)))
     sys.exit(1 if bad else 0)
 bad = 0

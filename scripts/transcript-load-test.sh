@@ -1,7 +1,8 @@
 #!/bin/zsh
 # SPDX-FileCopyrightText: 2026 tokenpanda
 # SPDX-License-Identifier: MIT
-# Transcript load test (0.1.18): the open panel's transcript pass every 2 s over a heavy month (863 files, about 150,000
+# Transcript load test (0.1.18): the open panel's transcript pass every 2 s (five times the app's 10 s, so the share of a
+# core it prints is five times the app's) over a heavy month (863 files, about 150,000
 # assistant lines, as measured on 10.11.2026) while 12 sessions each add a line a second, in a throwaway home.
 # The 22-session load test has no transcript history, so it never saw the pass that cost 11% of a core at that size.
 #   scripts/transcript-load-test.sh [passes] [max cpu percent]
