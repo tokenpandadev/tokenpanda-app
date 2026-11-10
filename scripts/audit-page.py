@@ -350,10 +350,23 @@ def main():
             # the context is shown on this terminal only, never written
             print("refused: %s at %d: %s" % (p, at, page[max(0, at - 60):at + 60].replace("\n", " ")), file=sys.stderr)
         sys.exit(1)
+    scan_for_private_words(page)
     scan_for_secrets(page)
     with open(out, "w") as f:
         f.write(page)
     print("wrote %s: %s at %s, %d open, %d checklist items from %d audits" % (out, d, v, len(open_f), len(ids), len(rounds)))
+
+
+def scan_for_private_words(page):
+    """The release check's hashed word list over the page as it would be written: the leak file above missed two words
+    on 10.11.2026 that this list caught, so a hit here refuses the page. Which word stays unsaid; the line number points to it."""
+    checker = os.path.join(os.path.dirname(os.path.abspath(__file__)), "private-words.py")
+    def hit(text):
+        return subprocess.run([sys.executable, "-I", checker, "--text"], input=text, capture_output=True, text=True).returncode != 0
+    if not hit(page):
+        return
+    lines = [n for n, line in enumerate(page.split("\n"), 1) if hit(line)]
+    sys.exit("refused: a private word on line %s of the page (scripts/private-words.py)" % (", ".join(map(str, lines)) or "?"))
 
 
 def scan_for_secrets(page):
