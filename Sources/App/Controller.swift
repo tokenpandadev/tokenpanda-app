@@ -182,10 +182,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 }
                 try? SnapshotWriter.writeItem(ScreenBuilder.item(input), to: dir.appendingPathComponent("live-item.png"))
                 // the open panel itself (scroll view and lines; cacheDisplay draws no blur behind the glass), for the height check
-                let before = tab
+                let before = panelTab   // the copied line too: a snapshot never clears what the user sees
                 tab = 2; render()
                 try? await Task.sleep(for: .seconds(1))
-                defer { tab = before; render() }
+                defer { panelTab = before; render() }
                 if let v = popover.contentViewController?.view, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
                     v.cacheDisplay(in: v.bounds, to: rep)
                     try? rep.representation(using: .png, properties: [:])?.write(to: dir.appendingPathComponent("live-panel.png"))

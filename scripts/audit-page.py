@@ -361,12 +361,12 @@ def scan_for_private_words(page):
     """The release check's hashed word list over the page as it would be written: the leak file above missed two words
     on 10.11.2026 that this list caught, so a hit here refuses the page. Which word stays unsaid; the line number points to it."""
     checker = os.path.join(os.path.dirname(os.path.abspath(__file__)), "private-words.py")
-    def hit(text):
-        return subprocess.run([sys.executable, "-I", checker, "--text"], input=text, capture_output=True, text=True).returncode != 0
-    if not hit(page):
+    r = subprocess.run([sys.executable, "-I", checker, "--lines"], input=page, capture_output=True, text=True)
+    if r.returncode == 0:
         return
-    lines = [n for n, line in enumerate(page.split("\n"), 1) if hit(line)]
-    sys.exit("refused: a private word on line %s of the page (scripts/private-words.py)" % (", ".join(map(str, lines)) or "?"))
+    if r.returncode != 1:
+        sys.exit("refused: the private word check failed (exit %d), so the page cannot be checked" % r.returncode)
+    sys.exit("refused: a private word on line %s of the page (scripts/private-words.py)" % ", ".join(r.stdout.split()))
 
 
 def scan_for_secrets(page):

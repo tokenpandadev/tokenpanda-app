@@ -10,7 +10,8 @@ set -u
 PASSES=${1:-30}; MAX=${2:-6}
 cd "${0:h}/.." || exit 2
 H=$(mktemp -d "${TMPDIR:-/tmp}/tokenpanda-tload.XXXXXX")
-trap 'kill $AP 2>/dev/null; wait 2>/dev/null; rm -rf "$H"' EXIT
+AP=
+trap 'kill ${AP:-} 2>/dev/null; wait 2>/dev/null; rm -rf "$H"' EXIT
 mkdir -p "$H/home" "$H/tmp"
 swift build -Xswiftc -O --scratch-path "$H/build" 2>&1 | tail -1
 python3 -I scripts/transcript-load.py "$H/home" > /dev/null || exit 2

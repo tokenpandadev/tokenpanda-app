@@ -37,7 +37,7 @@ for zone in "" UTC America/Los_Angeles; do
                                     [ "$n" = 0 ] || warn "$n isolation warnings in the test log $SCRATCH.test.log"
 done
 # the app under many sessions: CPU and isolation failures no unit test sees (0.1.16)
-step "tests leave no folders";       left=$(find /tmp/ -maxdepth 1 \( -name 'tokenpanda-test-run-*' -o -name 'tokenpanda-tests-*' \) 2>/dev/null | wc -l | tr -d ' '); [ "$left" = 0 ] || warn "$left test folders left in /tmp: the test temp root did not clean up"
+step "tests leave no folders";       left=$(find /tmp/ "${TMPDIR:-/tmp}/" -maxdepth 1 \( -name 'tokenpanda-test-run-*' -o -name 'tokenpanda-tests-*' -o -name 'tokenpanda-tload.*' \) 2>/dev/null | wc -l | tr -d ' '); [ "$left" = 0 ] || warn "$left test folders left in /tmp: the test temp root did not clean up"
 step "load test, 22 sessions";      swift build -c release --scratch-path "$SCRATCH-release" 2>&1 | tail -1
                                     lt=$(scripts/load-test.sh "$SCRATCH-release/release/tokenpanda" 60 5) && rc=0 || rc=$?
                                     print -r -- "$lt"; [ "$rc" = 0 ] || exit 1

@@ -15,6 +15,16 @@ home = os.path.realpath(sys.argv[1])
 if not (home.startswith("/private/tmp/") or home.startswith("/private/var/folders/")):
     sys.exit(f"refused: {home} is not under a temp folder")
 root = os.path.join(home, ".claude", "projects")
+
+
+def inside_temp(path):
+    r = os.path.realpath(path)
+    return r.startswith("/private/tmp/") or r.startswith("/private/var/folders/")
+
+
+# a .claude or projects link in the temp home could point at a real ~/.claude: check where the folder really is
+if os.path.lexists(os.path.join(home, ".claude")) and not inside_temp(os.path.join(home, ".claude")):
+    sys.exit("refused: .claude in that home leads outside a temp folder")
 MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1", "claude-opus-4-1"]
 rng = random.Random(7)
 
@@ -42,6 +52,8 @@ if "--append" in sys.argv:
     k = sys.argv.index("--append")
     secs = float(sys.argv[k + 1]); live = int(sys.argv[k + 2]) if len(sys.argv) > k + 2 else 12
     files = sessions()[-live:]
+    if not all(inside_temp(f) for f in files):
+        sys.exit("refused: a session file leads outside a temp folder")
     end = time.time() + secs; i = int(time.time() * 1000) * 100   # ids never repeat across runs
     while time.time() < end:
         for f in files:
@@ -59,11 +71,12 @@ per = max(1, nrec // nfiles)
 for n in range(nfiles):
     proj = f"-work-project-{n % 40:02d}"
     os.makedirs(os.path.join(root, proj), exist_ok=True)
+    if not inside_temp(os.path.join(root, proj)):
+        sys.exit("refused: the projects folder leads outside a temp folder")
     session = f"{n:08d}-0000-4000-8000-{n:012d}"
-    start = now - timedelta(days=30 * (n / nfiles))
+    end = now - timedelta(days=30 * (n / nfiles))   # the file's last line; real transcripts hold nothing after now
     with open(os.path.join(root, proj, session + ".jsonl"), "w") as fh:
         for i in range(per):
-            fh.write(line(i, start + timedelta(seconds=20 * i), session, "/work/" + proj))
-    t = (start + timedelta(seconds=20 * per)).timestamp()
-    os.utime(os.path.join(root, proj, session + ".jsonl"), (min(t, now.timestamp()), min(t, now.timestamp())))
+            fh.write(line(i, end - timedelta(seconds=20 * (per - 1 - i)), session, "/work/" + proj))
+    os.utime(os.path.join(root, proj, session + ".jsonl"), (end.timestamp(), end.timestamp()))
 print(f"{nfiles} files, {per * nfiles} assistant lines under {root}")
