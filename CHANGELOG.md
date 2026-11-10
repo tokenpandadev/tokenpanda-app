@@ -1,8 +1,8 @@
 # Changelog
 
-## 0.1.18, unreleased
+## 0.1.18, 2026-11-10
 
-- Lighter with a long Claude Code history: the weekly token figures are added up in one pass and model and project names are compared as plain text, so with the panel open on a heavy month of transcripts tokenpanda uses about a third of the CPU it did. The figures are unchanged.
+- Lighter with a long Claude Code history: while the panel is open and sessions are working, each update of the weekly token figures takes about a quarter of the time it did. The figures are unchanged.
 - Clicking a tab and pressing Tab now clear the "copied" line the same way.
 
 ## 0.1.17, 2026-11-10

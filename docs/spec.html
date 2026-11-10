@@ -47,8 +47,8 @@
 </div></nav>
 
 <main class="main">
-<div class="head"><h1>Spec</h1><span class="d">  tokenpanda  product spec for the Swift build  10 November 2026, at 0.1.17</span></div>
-<div class="head d">facts from the research and the verification run on a Mac, October 2026, brought to the code of 0.1.17 on 10 November 2026  <span class="verify">to be verified</span> marks what no source settles</div>
+<div class="head"><h1>Spec</h1><span class="d">  tokenpanda  product spec for the Swift build  10 November 2026, at 0.1.18</span></div>
+<div class="head d">facts from the research and the verification run on a Mac, October 2026, brought to the code of 0.1.18 on 10 November 2026  <span class="verify">to be verified</span> marks what no source settles</div>
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
 
 <h2 id="rules">0  The rules</h2>
@@ -442,7 +442,7 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <li>"[ ] Reopen sessions after a restart", second line "asks first, then opens each as it was started, and says when one ends on its own" over two lines; while it is on and notifications are denied, the same link under it too. While it is on, the indented pop-up row "Open sessions in Terminal ▾" under it (iTerm or Ghostty when picked), and with Ghostty the dim line "Ghostty asks before it runs each one" under that, with iTerm "iTerm asks until you tick Suppress" (iTerm 3.7.7 asks "OK to run ...?" for each file until its "Suppress this message permanently" box is ticked, seen in a clean virtual Mac on 5 November 2026).</li>
 <li>Blank. "Install the status line entry" with "one entry in ~/.claude/settings.json" dim under it (with several settings folders "one entry in each of" and the folders), or, once installed, "Remove the status line entry" with "puts back what statusLine held before". Installed in some folders and not others, both rows. A missing script adds "the hook script is gone, Install puts it back". An error from either click follows in dim lines, wrapped.</li>
 <li>Blank. "Copy a problem report", a button, with "versions, switches and errors to paste into an issue or a mail, sends nothing" dim under it over two lines, said by VoiceOver once as the button's help. A click puts the report on the clipboard as plain text (section 22.1) and adds the dim line "copied", or "could not copy" when the clipboard refuses; VoiceOver hears the same on every click. The line goes when the panel closes or another tab is picked.</li>
-<li>Blank. The privacy lines, "This app makes no network calls. Usage comes" and "from Claude Code's own status feed on this Mac." dim, then "tokenpanda 0.1.17", the version from the bundle, dim.</li>
+<li>Blank. The privacy lines, "This app makes no network calls. Usage comes" and "from Claude Code's own status feed on this Mac." dim, then "tokenpanda 0.1.18", the version from the bundle, dim.</li>
 <li>Blank. "Quit" with "⌘Q" right aligned.</li>
 <li>Blank, key hints: "Esc closes  Tab switches".</li>
 </ol>
@@ -502,9 +502,9 @@ from Claude Code's own status feed on this Mac.</pre>
 
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
-<pre>scripts/build-app.sh 0.1.17  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
+<pre>scripts/build-app.sh 0.1.18  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
                              # Contents/Resources (AppIcon.icns, PrivacyInfo.xcprivacy), Info.plist (LSUIElement true,
-                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.17.zip and its SHA-256</pre>
+                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.18.zip and its SHA-256</pre>
 <p>The binary is built for the host, so a release built on Apple silicon is arm64 only. The cask says so with <code>depends_on arch: :arm64</code> next to <code>depends_on macos: :sonoma</code> (from 0.1.14), and the README's Install section opens with "It runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later."</p>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>
@@ -650,7 +650,7 @@ from Claude Code's own status feed on this Mac.</pre>
 <ol>
 <li>23.1 The token summary is one pass over the records (<code>Aggregator.summarize</code>): every window, sum, group and the list price at once, and the price row looked up once per model. The figures are the same to the cent: the old three filter way is kept in the tests as the reference and both run on 300 random record sets with records on every window edge (<code>AggregatorOnePassTests</code>).</li>
 <li>23.2 Model, project and session names in a record are plain UTF-8 strings. A project name from a path stayed a bridged path string, and every dictionary lookup of a pass normalised it again (<code>TranscriptParser.native</code>, <code>ParserNativeNamesTests</code>).</li>
-<li>23.3 Measured with <code>scripts/transcript-load-test.sh</code>: a heavy month in a throwaway home (863 files, about 150,000 assistant lines, the size measured on a real Mac on 10 November 2026), the open panel's pass every 2 s while 12 sessions each add a line a second. 0.1.17: 250 ms a pass, 11.0% of one core. 0.1.18: 54 to 65 ms a pass, 2.9 to 3.5%. The preflight runs it with a limit of 6% (warn first). Nothing the panel shows changes.</li>
+<li>23.3 Measured with <code>scripts/transcript-load-test.sh</code>: a heavy month in a throwaway home (863 files, about 150,000 assistant lines, the size measured on a real Mac on 10 November 2026), the open panel's pass every 2 s while 12 sessions each add a line a second. 0.1.17: 250 ms a pass, 11.0% of one core. 0.1.18: 54 to 65 ms a pass, 2.9 to 3.5%. The preflight runs it with a limit of 6% (warn first). Nothing the panel shows changes. On a real Mac on 10 November 2026 (864 files, about 79,000 usage lines after repeats, 12 sessions, mostly quiet): the open panel pass 2.2% before, 1.8% after; panel closed 2.05% with 0.1.17, where the transcript pass runs every 5 minutes only.</li>
 <li>23.4 The tab and the "copied" line live in one value (<code>PanelTab</code>). A click on a tab, Tab and Shift Tab all go through it, so the copied line never follows the user to another tab; it stays while the tab stays (<code>PanelTabTests</code>, audit F-23).</li>
 </ol>
 <div class="foot">Overview  Style guide  Spec  Privacy</div>
