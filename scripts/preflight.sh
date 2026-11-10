@@ -42,6 +42,9 @@ step "load test, 22 sessions";      swift build -c release --scratch-path "$SCRA
                                     lt=$(scripts/load-test.sh "$SCRATCH-release/release/tokenpanda" 60 5) && rc=0 || rc=$?
                                     print -r -- "$lt"; [ "$rc" = 0 ] || exit 1
                                     case "$lt" in *"load test: WARN"*) warn "the load test may have touched the user's real temp folder";; esac
+# the open panel's transcript pass at a heavy user's size, which the 22-session test has no history for (0.1.18; warn first)
+step "transcript load, a heavy month"; tl=$(zsh scripts/transcript-load-test.sh 30 6) || warn "transcript load test failed or over its limit"
+                                    print -r -- "$tl" | tail -1
 step "REUSE";                       reuse lint --quiet || { reuse lint | tail -20; exit 1; }
 # no trace of the tools that wrote the code in commit messages; the product name Claude Code is fine
 TRACES='co-authored-by:.*claude|claude-session|claude\.ai/code|generated with'

@@ -94,6 +94,33 @@ if args.contains("--read-transcripts") {
     exit(0)
 }
 
+if let i = args.firstIndex(of: "--transcript-passes"), i + 1 < args.count, let rounds = Int(args[i + 1]) {
+    // the open panel's transcript pass, rounds times every 2 s: refresh for changes, sum again when a record came,
+    // as Controller.refreshTranscripts does; time per pass and the process' own CPU time, then exit (no UI, reads only)
+    let selfCPU: @Sendable () -> Double = { var ru = rusage(); getrusage(RUSAGE_SELF, &ru); return Double(ru.ru_utime.tv_sec) + Double(ru.ru_utime.tv_usec) / 1e6 + Double(ru.ru_stime.tv_sec) + Double(ru.ru_stime.tv_usec) / 1e6 }
+    let sem = DispatchSemaphore(value: 0)
+    Task.detached {
+        let store = TranscriptStore(roots: TranscriptLocator.roots())
+        let first = await store.refresh()
+        _ = Aggregator.summarize(first.records)
+        var version = first.version, took: [Double] = [], summed = 0
+        let wall0 = Date(), cpu0 = selfCPU()
+        for _ in 0..<rounds {
+            let t = Date()
+            let r = await store.refresh(onlyIfChanged: true)
+            if r.version != version { version = r.version; _ = Aggregator.summarize(r.records); summed += 1 }
+            took.append(Date().timeIntervalSince(t) * 1000)
+            try? await Task.sleep(for: .seconds(2))
+        }
+        let wall = Date().timeIntervalSince(wall0), cpu = selfCPU() - cpu0
+        print(String(format: "files %d records %d: %d passes, %d summed, pass %.1f ms average, %.1f ms longest; CPU %.3f s in %.1f s = %.2f%% of one core",
+                     first.fileCount, first.records.count, rounds, summed, took.reduce(0, +) / Double(max(1, took.count)), took.max() ?? 0, cpu, wall, 100 * cpu / wall))
+        sem.signal()
+    }
+    sem.wait()
+    exit(0)
+}
+
 if let i = args.firstIndex(of: "--sample-mac"), i + 1 < args.count, let rounds = Int(args[i + 1]) {
     // the Mac sampler alone, every 2 s, its own CPU time by getrusage, then exit
     let selfCPU: @Sendable () -> Double = { var ru = rusage(); getrusage(RUSAGE_SELF, &ru); return Double(ru.ru_utime.tv_sec) + Double(ru.ru_utime.tv_usec) / 1e6 + Double(ru.ru_stime.tv_sec) + Double(ru.ru_stime.tv_usec) / 1e6 }

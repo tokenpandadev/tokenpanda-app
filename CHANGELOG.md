@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.18, unreleased
+
+- Lighter with a long Claude Code history: the weekly token figures are added up in one pass and model and project names are compared as plain text, so with the panel open on a heavy month of transcripts tokenpanda uses about a third of the CPU it did. The figures are unchanged.
+- Clicking a tab and pressing Tab now clear the "copied" line the same way.
+
 ## 0.1.17, 2026-11-10
 
 - "Copy a problem report" in Settings puts a short plain text report on the clipboard to paste into an issue or a mail: the app and macOS versions, the Mac model, which switches are on, whether the status line entry is set up in each settings folder, when its data last came, how many sessions run, and the errors the app shows, as fixed phrases with their codes. It never holds prompts, usage figures, session names or ids, or project paths, and the app sends nothing.

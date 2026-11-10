@@ -73,9 +73,17 @@ public enum TranscriptParser {
         let usage = Usage(input: u.input_tokens ?? 0, output: u.output_tokens ?? 0, cacheRead: u.cache_read_input_tokens ?? 0,
                           cacheWrite: u.cache_creation_input_tokens ?? 0,
                           cacheWrite5m: u.cache_creation?.ephemeral_5m_input_tokens, cacheWrite1h: u.cache_creation?.ephemeral_1h_input_tokens)
-        let rec = UsageRecord(timestamp: date, model: model, project: project, session: raw.sessionId ?? file.sessionId,
+        let rec = UsageRecord(timestamp: date, model: native(model), project: native(project), session: native(raw.sessionId ?? file.sessionId),
                               isAgent: file.isAgent || (raw.isSidechain ?? false), usage: usage)
         return Parsed(messageId: id, record: rec)
+    }
+
+    /// The text as a plain Swift string in UTF-8. A name from a path (lastPathComponent) stays a bridged NSString, and every
+    /// dictionary lookup of a summary pass then normalised it again: most of a pass on a month of records (0.1.18).
+    static func native(_ s: String) -> String {
+        var t = s
+        t.makeContiguousUTF8()
+        return t
     }
 
     /// A cheap test before decoding: only assistant lines are worth a decode.

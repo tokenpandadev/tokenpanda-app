@@ -43,6 +43,11 @@ public enum Aggregator {
     public static func groups(_ records: [UsageRecord], key: (UsageRecord) -> String, name: (String) -> String) -> [TokenGroup] {
         var sums: [String: Int] = [:]
         for r in records { sums[key(r), default: 0] = sums[key(r), default: 0].saturatingAdd(r.usage.total) }
+        return groups(sums: sums, name: name)
+    }
+
+    /// The same from sums already made, key to tokens.
+    static func groups(sums: [String: Int], name: (String) -> String) -> [TokenGroup] {
         let total = sums.values.reduce(0) { $0.saturatingAdd($1) }
         guard total > 0 else { return [] }
         var sorted = sums.map { ($0.key, $0.value) }.sorted { $0.1 == $1.1 ? $0.0 < $1.0 : $0.1 > $1.1 }
@@ -61,32 +66,51 @@ public enum Aggregator {
     public static let weekLength: TimeInterval = 7 * 24 * 3600
     public static let monthLength: TimeInterval = 30 * 24 * 3600
 
+    /// One pass over the records (0.1.18): every window, sum, group and the list price at once, the price row looked up
+    /// once per model. Until 0.1.17 the records were filtered three times, grouped three times and priced by a search of
+    /// the table for every record, which on a month of heavy use cost most of a pass. Same results, in the same order
+    /// of addition, so the figures do not move by a cent (Tests: AggregatorOnePassTests against the old way).
     public static func summarize(_ records: [UsageRecord], now: Date = Date(), calendar: Calendar = .current) -> TokenSummary {
         let midnight = calendar.startOfDay(for: now)
         let d7 = now.addingTimeInterval(-weekLength)
         let d30 = now.addingTimeInterval(-monthLength)
-        let today = records.filter { $0.timestamp >= midnight && $0.timestamp <= now }
-        let week = records.filter { $0.timestamp >= d7 && $0.timestamp <= now }
-        let month = records.filter { $0.timestamp >= d30 && $0.timestamp <= now }
-        let total7 = week.reduce(0) { $0.saturatingAdd($1.usage.total) }
-        let agent7 = week.filter(\.isAgent).reduce(0) { $0.saturatingAdd($1.usage.total) }
+        var total7 = 0, agent7 = 0, today = 0, month = 0
         var price = 0.0
         var unpriced: Set<String> = []
-        for r in week {
-            if let c = PriceTable.cost(model: r.model, usage: r.usage) { price += c } else { unpriced.insert(r.model) }
+        var rows: [String: PriceRow?] = [:]
+        var byModel: [String: Int] = [:], byProject: [String: Int] = [:], bySession: [String: Int] = [:]
+        var oldest7: Date?, oldest30: Date?, ahead: Date?
+        for r in records {
+            let t = r.timestamp
+            if t > now { if ahead == nil || t < ahead! { ahead = t }; continue }
+            guard t >= d30 else { continue }
+            let n = r.usage.total
+            month = month.saturatingAdd(n)
+            if oldest30 == nil || t < oldest30! { oldest30 = t }
+            guard t >= d7 else { continue }
+            total7 = total7.saturatingAdd(n)
+            if r.isAgent { agent7 = agent7.saturatingAdd(n) }
+            if oldest7 == nil || t < oldest7! { oldest7 = t }
+            let row: PriceRow?
+            if let known = rows[r.model] { row = known } else { row = PriceTable.row(forModel: r.model); rows[r.model] = row }
+            if let row { price += row.cost(r.usage) } else { unpriced.insert(r.model) }
+            byModel[r.model, default: 0] = byModel[r.model, default: 0].saturatingAdd(n)
+            byProject[r.project, default: 0] = byProject[r.project, default: 0].saturatingAdd(n)
+            if t >= midnight {
+                today = today.saturatingAdd(n)
+                bySession[r.session, default: 0] = bySession[r.session, default: 0].saturatingAdd(n)
+            }
         }
         // the oldest record of each window leaves it at its time plus the window; a record dated after now enters at its time
-        let edges = [week.map(\.timestamp).min().map { $0.addingTimeInterval(Self.weekLength) },
-                     month.map(\.timestamp).min().map { $0.addingTimeInterval(Self.monthLength) },
-                     records.lazy.map(\.timestamp).filter { $0 > now }.min()]
+        let edges = [oldest7.map { $0.addingTimeInterval(Self.weekLength) }, oldest30.map { $0.addingTimeInterval(Self.monthLength) }, ahead]
         return TokenSummary(
-            byModel7d: groups(week, key: \.model, name: { PriceTable.displayName(forModel: $0) }),
-            byProject7d: groups(week, key: \.project, name: { $0 }),
-            bySessionToday: groups(today, key: \.session, name: { String($0.prefix(8)) }),
+            byModel7d: groups(sums: byModel, name: { PriceTable.displayName(forModel: $0) }),
+            byProject7d: groups(sums: byProject, name: { $0 }),
+            bySessionToday: groups(sums: bySession, name: { String($0.prefix(8)) }),
             agentShare7d: total7 > 0 ? Int((Double(agent7) / Double(total7) * 100).rounded()) : 0,
             listPrice7d: price, unpricedModels: unpriced.count,
-            tokensToday: today.reduce(0) { $0.saturatingAdd($1.usage.total) }, tokens7d: total7, tokens30d: month.reduce(0) { $0.saturatingAdd($1.usage.total) },
-            total7d: total7, totalToday: today.reduce(0) { $0.saturatingAdd($1.usage.total) },
+            tokensToday: today, tokens7d: total7, tokens30d: month,
+            total7d: total7, totalToday: today,
             nextEdge: edges.compactMap { $0 }.min())
     }
 }
