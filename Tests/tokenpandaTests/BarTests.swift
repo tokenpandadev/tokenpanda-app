@@ -266,6 +266,25 @@ struct BarTests {
         #expect(chip(1140) == "[list price equivalent  USD 1,140]")
     }
 
+    /// A long chip wraps inside the panel and VoiceOver still reads it once, whole (flow test 0.1.18, step 16.4: "[list
+    /// price equivalent  USD 0.63  one model unpriced]" ran past the panel's edge).
+    @Test func aLongPriceChipWrapsInsideThePanel() {
+        for unpriced in [1, 3] {
+            var input = Fixtures.input(tab: 0)
+            input.tokens?.listPrice7d = 0.63
+            input.tokens?.unpricedModels = unpriced
+            for section in 0..<3 {
+                input.section = section
+                let lines = Grammar.popover(ScreenBuilder.screen(input))
+                for l in lines { #expect(l.plain.count <= Grammar.popCells + 1, "too wide: \(l.plain)") }
+                let chipLines = lines.filter { $0.plain.contains("list price") || $0.plain.contains("unpriced]") }
+                #expect(chipLines.count == 2, "the chip on two lines")
+                let spoken = lines.compactMap(\.label).filter { $0.contains("list price") }
+                #expect(spoken.count == 1 && spoken[0].contains("unpriced"), "read once, whole")
+            }
+        }
+    }
+
     @Test func formats() {
         #expect(Format.tokens(1_020_000_000) == "1.02B")
         #expect(Format.tokens(72_400_000) == "72.4M")

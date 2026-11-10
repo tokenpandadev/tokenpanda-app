@@ -314,8 +314,11 @@ public enum Grammar {
             out.append(L(sp(" "), sp(t.section == 2 ? "no session today" : "nothing in the last 7 days", .dim)))
         }
         for r in list { out.append(row(r)) }
-        if let chip = t.priceChip { out.append(Line([sp(" "), sp(chip, .dim)], label: Spoken.chip(chip))) }
-        if let chip = t.agentChip { out.append(Line([sp(" "), sp(chip, .dim)], label: Spoken.chip(chip))) }
+        // a chip longer than the panel ("[list price equivalent  USD 0.63  one model unpriced]") wraps at its double
+        // spaces and is still read as one line (0.1.18; cut off at the panel's edge since 0.1.17 showed cents)
+        for chip in [t.priceChip, t.agentChip].compactMap({ $0 }) {
+            out += spoken(Format.wrap(chip, popCells - 1).map { L(sp(" "), sp($0, .dim)) }, label: Spoken.chip(chip))
+        }
         return out
     }
 
