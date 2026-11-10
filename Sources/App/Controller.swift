@@ -53,8 +53,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var weeks = WeekRecords()
     var hogPid: Int32? = nil
     var hogSince: Date? = nil
-    var tab = 0
-    var reportCopied: Bool?   // "Copy a problem report" since the panel opened: true copied, false the clipboard refused, nil not clicked
+    var panelTab = PanelTab()   // the tab and "Copy a problem report" since that tab showed: true copied, false refused, nil not clicked
+    var tab: Int { get { panelTab.tab } set { panelTab.select(newValue) } }
+    var reportCopied: Bool? { get { panelTab.reportCopied } set { panelTab.reportCopied = newValue } }
     var section = 0
     var lastItem: ItemState? = nil
     var lastScreen: Screen? = nil
@@ -649,7 +650,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func perform(_ a: Action) {
         switch a {
-        case .tab(let t): tab = t; reportCopied = nil; lineView.scroll(.zero); macTabShown()   // a new tab starts at the top
+        case .tab(let t): panelTab.select(t); lineView.scroll(.zero); macTabShown()   // a new tab starts at the top
         case .section(let s): section = s
         case .toggle(let key) where key == Grammar.loginKey: clickLogin()
         case .toggle(let key):
@@ -754,7 +755,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case KeyCode.escape: popover.performClose(nil); return true
         case KeyCode.tab:
             // Tab switches the tab and puts the focus on it, so the arrows go on from there
-            tab = (tab + (e.modifierFlags.contains(.shift) ? 2 : 1)) % 3; reportCopied = nil; render(); macTabShown()
+            panelTab.step(back: e.modifierFlags.contains(.shift)); render(); macTabShown()
             lineView.focus(on: .tab(tab), visible: true)
             return true
         default: break
