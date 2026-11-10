@@ -3,7 +3,6 @@
 ## 0.1.18, 2026-11-10
 
 - Lighter with a long Claude Code history: while the panel is open and sessions are working, each update of the weekly token figures takes about a quarter of the time it did. The figures are unchanged.
-- Clicking a tab and pressing Tab now clear the "copied" line the same way.
 
 ## 0.1.17, 2026-11-10
 

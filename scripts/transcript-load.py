@@ -22,9 +22,11 @@ def inside_temp(path):
     return r.startswith("/private/tmp/") or r.startswith("/private/var/folders/")
 
 
-# a .claude or projects link in the temp home could point at a real ~/.claude: check where the folder really is
-if os.path.lexists(os.path.join(home, ".claude")) and not inside_temp(os.path.join(home, ".claude")):
-    sys.exit("refused: .claude in that home leads outside a temp folder")
+# a .claude or projects link in the temp home could point at a real ~/.claude: check where each folder really is,
+# before anything is made in it
+for part in (os.path.join(home, ".claude"), root):
+    if os.path.lexists(part) and not inside_temp(part):
+        sys.exit("refused: %s in that home leads outside a temp folder" % os.path.relpath(part, home))
 MODELS = ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1", "claude-opus-4-1"]
 rng = random.Random(7)
 
@@ -70,10 +72,12 @@ now = datetime.now(timezone.utc)
 per = max(1, nrec // nfiles)
 for n in range(nfiles):
     proj = f"-work-project-{n % 40:02d}"
-    os.makedirs(os.path.join(root, proj), exist_ok=True)
-    if not inside_temp(os.path.join(root, proj)):
-        sys.exit("refused: the projects folder leads outside a temp folder")
     session = f"{n:08d}-0000-4000-8000-{n:012d}"
+    if os.path.lexists(os.path.join(root, proj)) and not inside_temp(os.path.join(root, proj)):
+        sys.exit("refused: a project folder leads outside a temp folder")
+    os.makedirs(os.path.join(root, proj), exist_ok=True)
+    if not inside_temp(os.path.join(root, proj)) or (os.path.lexists(os.path.join(root, proj, session + ".jsonl")) and not inside_temp(os.path.join(root, proj, session + ".jsonl"))):
+        sys.exit("refused: a project folder or session file leads outside a temp folder")
     end = now - timedelta(days=30 * (n / nfiles))   # the file's last line; real transcripts hold nothing after now
     with open(os.path.join(root, proj, session + ".jsonl"), "w") as fh:
         for i in range(per):
