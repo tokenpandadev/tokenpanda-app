@@ -3,6 +3,7 @@
 ## 0.1.18, 2026-11-10
 
 - Lighter with a long Claude Code history: while the panel is open and sessions are working, each update of the weekly token figures takes about a quarter of the time it did. The figures are unchanged.
+- The list price line wraps inside the panel instead of running past its edge.
 
 ## 0.1.17, 2026-11-10
 
