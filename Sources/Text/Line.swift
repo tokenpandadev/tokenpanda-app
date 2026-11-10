@@ -11,6 +11,7 @@ public enum Action: Sendable, Hashable {
     case quit
     case openNotificationSettings   // the "Notifications are off" note: opens System Settings, Notifications
     case pickReopenApp              // the "Open sessions in" pop-up: a menu of Terminal, iTerm and Ghostty
+    case copyReport                 // "Copy a problem report": plain text on the clipboard, nothing sent
 }
 
 public struct BarCell: Sendable, Hashable {
@@ -138,7 +139,7 @@ public enum Controls {
                     switch a {
                     case .tab, .section: kind = .tab
                     case .toggle: kind = p.checked == nil ? .button : .checkbox
-                    case .install, .uninstall, .quit, .openNotificationSettings: kind = .button
+                    case .install, .uninstall, .quit, .openNotificationSettings, .copyReport: kind = .button
                     case .pickReopenApp: kind = .popUp
                     }
                     let label = p.label ?? line.label ?? text.trimmingCharacters(in: .whitespaces)

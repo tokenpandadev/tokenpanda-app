@@ -83,8 +83,29 @@ public enum Bar {
 
 public enum Format {
     /// Text broken into lines of at most w cells at spaces, never cut: a word longer than w is split. Text that fits stays
-    /// as it is, double spaces and all; a break eats the spaces at it.
+    /// as it is, double spaces and all; a break eats the spaces at it. Double spaces part the figures of a line, so a break
+    /// falls there first, and a figure stays whole when it fits a line of its own.
     public static func wrap(_ s: String, _ w: Int) -> [String] {
+        guard s.count > w else { return [s] }
+        let parts = s.components(separatedBy: "  ").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+        guard parts.count > 1 else { return wrapWords(s, w) }
+        var out: [String] = []
+        var line = ""
+        for part in parts {
+            if line.isEmpty { line = part }
+            else if line.count + 2 + part.count <= w { line += "  " + part; continue }
+            else { out.append(line.trimmingCharacters(in: .whitespaces)); line = part }
+            if line.count > w {
+                let rows = wrapWords(line, w)
+                out += rows.dropLast()
+                line = rows.last ?? ""
+            }
+        }
+        if !line.isEmpty { out.append(line.trimmingCharacters(in: .whitespaces)) }
+        return out
+    }
+
+    private static func wrapWords(_ s: String, _ w: Int) -> [String] {
         guard s.count > w else { return [s] }
         var out: [String] = []
         var line = ""

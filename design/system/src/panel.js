@@ -262,7 +262,7 @@ export const SAMPLE = {
     { date: '12 Oct', used: 61, elapsed: 54.96, over: true, note: 'so far' },
   ],
   memory: { usedCells: 142, swapCells: 5, usedLine: '25.5 of 36 GB (71%)', freeLine: '10.5 GB', swapLine: '0.9 GB', pressure: 'normal' },
-  mac: { cpu: 9, cpuLine: 'user 5%  system 4%  10 cores', gpu: 11, battery: 75, battery1: 'charging  47.6 W in  94 W adapter', battery2: 'full in 51 min  health 89%  316 cycles' },
+  mac: { cpu: 9, cpuLine: 'user 5%  system 4%  10 cores', gpu: 11, battery: 75, battery1: 'charging  47.6 W in  94 W adapter', battery2: 'full in 51 min  health normal  316 cycles' },
   version: 'tokenpanda 0.1.15',
 };
 
@@ -289,6 +289,9 @@ export function settingsTab(o = {}) {
     ...cbRow('Reopen sessions after a restart', true, ['asks first, then opens each as it was started, and says when one ends on its own']),
     blank,
     ...actionRow('Remove the status line entry', 'puts back what statusLine held before'),
+    blank,
+    L([sp(' '), P('Copy a problem report', 'text', { action: 'Copy a problem report' })], { hover: true }),
+    ...wrap('versions, switches and errors to paste into an issue or a mail, sends nothing', CELLS.popover + 1 - 5).map((x) => L([sp('     '), sp(x, 'dim')])),
     blank,
     L([sp(' '), sp('This app makes no network calls. Usage comes', 'dim')]),
     L([sp(' '), sp("from Claude Code's own status feed on this Mac.", 'dim')]),

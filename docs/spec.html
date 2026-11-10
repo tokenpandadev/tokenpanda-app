@@ -42,11 +42,12 @@
 <div class="l d"><a href="#tests">19  Test plan</a></div>
 <div class="l d"><a href="#changes">20  Changes in 0.1.15</a></div>
 <div class="l d"><a href="#changes-0116">21  Changes in 0.1.16</a></div>
+<div class="l d"><a href="#changes-0117">22  Changes in 0.1.17</a></div>
 </div></nav>
 
 <main class="main">
-<div class="head"><h1>Spec</h1><span class="d">  tokenpanda  product spec for the Swift build  5 November 2026, at 0.1.16</span></div>
-<div class="head d">facts from the research and the verification run on a Mac, October 2026, brought to the code of 0.1.16 on 5 November 2026  <span class="verify">to be verified</span> marks what no source settles</div>
+<div class="head"><h1>Spec</h1><span class="d">  tokenpanda  product spec for the Swift build  10 November 2026, at 0.1.17</span></div>
+<div class="head d">facts from the research and the verification run on a Mac, October 2026, brought to the code of 0.1.17 on 10 November 2026  <span class="verify">to be verified</span> marks what no source settles</div>
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
 
 <h2 id="rules">0  The rules</h2>
@@ -259,7 +260,7 @@ exit 0</pre>
 <tr><td>Haiku 4.5</td><td>claude-haiku-4-5</td><td class="n">1</td><td class="n">1.25</td><td class="n">2</td><td class="n">0.10</td><td class="n">5</td></tr>
 </table>
 <p>Cost of one message: input times input price, plus output times output price, plus cache read times cache read price, plus the 5m cache write share times the 5m price and the 1h share times the 1h price (when the split is absent, all cache write at the 5m price). A model id without a row is counted in tokens and skipped in cost; the chip then says "[list price equivalent  USD 1,140  one model unpriced]". The Haiku 5.5 tier is chosen per message by input tokens.</p>
-<p>The figure is always labelled "list price equivalent": what the tokens would cost at list prices, not money spent; the user is on a flat plan. The word "spent" does not appear in the app.</p>
+<p>The figure is always labelled "list price equivalent": what the tokens would cost at list prices, not money spent; the user is on a flat plan. The word "spent" does not appear in the app. Under USD 1 the chip shows cents, USD 0.32; from USD 1 whole dollars, so a small week never reads USD 0.</p>
 
 <h2 id="pace">7  The pace model</h2>
 <p>Four inputs per window: used percentage U, window start S (resets_at minus the length named by the key), reset R, now T.</p>
@@ -308,7 +309,7 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <p>The two windows show both branches on purpose: weekly reaches the limit before the reset, the 5h window ends under it. These figures are the unit test fixtures.</p>
 
 <h2 id="mac">8  The Mac sampler</h2>
-<p>Every call is a public Mach, sysctl, IOKit or libproc call made in process; no tool is spawned, no root, no entitlement. All of them were run from an unsigned binary on the build Mac on 2026-10-13. Two readings depend on keys Apple does not document: they are shown when present and omitted when absent, never guessed.</p>
+<p>Every call is a public Mach, sysctl, IOKit or libproc call made in process; no root, no entitlement. One tool is spawned, for the battery's health word only (the Health row below); nothing else is. All of them were run from an unsigned binary on the build Mac on 2026-10-13. Two readings depend on keys Apple does not document: they are shown when present and omitted when absent, never guessed.</p>
 <table>
 <tr><th>Figure</th><th>Call</th><th>Status</th></tr>
 <tr><td>CPU per core</td><td><code>host_processor_info(PROCESSOR_CPU_LOAD_INFO)</code>, tick deltas of user, system, nice, idle between two samples</td><td>public; proven, 10 cores</td></tr>
@@ -322,7 +323,7 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <tr><td>Adapter watts</td><td><code>IOPSCopyExternalPowerAdapterDetails</code>, <code>kIOPSPowerAdapterWattsKey</code></td><td>public; proven, 85 W</td></tr>
 <tr><td>Watts in or out</td><td><code>AppleSmartBattery</code> registry entry, <code>Voltage</code> (mV) times <code>Amperage</code> (mA), negative when discharging</td><td>not documented; proven present; best effort</td></tr>
 <tr><td>Cycles</td><td><code>AppleSmartBattery</code> <code>CycleCount</code></td><td>not documented; proven present (315)</td></tr>
-<tr><td>Health</td><td><code>AppleSmartBattery</code> <code>NominalChargeCapacity</code> over <code>DesignCapacity</code>, or <code>AppleRawMaxCapacity</code> where present</td><td>not documented; absent on the Mac it was measured on, so the fallback is "health n/a" and cycles alone</td></tr>
+<tr><td>Health</td><td><code>/usr/sbin/system_profiler SPPowerDataType -json</code>, Apple's own tool, the one key <code>sppower_battery_health</code></td><td>only with an internal battery, only while the Mac tab shows, at most once an hour per launch on the continuous clock (a failed read too), 5 s limit for answer, exit and stop together, no shell, off the sampler so a slow tool never holds the figures, stopped at quit (a SIGTERM sent to the app is no quit; it does not stop a tool that hangs, and the tool ends itself or stays until killed). The word that arrives after the tab opens changes only that word; the figures stay on their tick. Output limited to 1 MB; the serial number it also holds is never kept. "Good" (seen on macOS 27) or "Normal" (as System Settings words it, not seen from the tool) shows as "health normal", any other word as "health: see System Settings", no answer leaves health out. macOS 27 has no registry key for it: NominalChargeCapacity over DesignCapacity read 83% where System Settings said 89% (09.11.2026)</td></tr>
 <tr><td>Processes by CPU and memory</td><td>libproc: <code>proc_listallpids</code>, <code>proc_pid_rusage(pid, RUSAGE_INFO_V6)</code> for <code>ri_user_time + ri_system_time</code> deltas between two samples and <code>ri_phys_footprint</code>; names from <code>proc_name</code>, <code>proc_pidpath</code> and argv[0] (<code>KERN_PROCARGS2</code>); a process whose executable sits in a <code>claude/versions</code> folder or that was started as <code>claude</code> is named "Claude Code", since <code>proc_name</code> gives its version (Claude Code's native install runs <code>~/.local/share/claude/versions/2.1.317</code>)</td><td>in the SDK; proven for 551 of 751 processes, the rest are other users' and protected processes, as expected without root</td></tr>
 </table>
 <p>65535 in a battery time field means unknown and is shown as nothing. Out of scope for the first version: CPU frequency (IOReport, undocumented), temperatures (SMC keys that change per chip), per process GPU (no public API).</p>
@@ -425,7 +426,7 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <li>CPU: 36 cell bar with " 9%", then "user 5%  system 4%  10 cores".</li>
 <li>Blank. GPU: bar with " 11%", then "device utilisation". Omitted when the key is absent.</li>
 <li>Blank. Memory: the 20 by 10 grid, then the three legend lines.</li>
-<li>Blank. Battery: bar with " 75%", then "charging  47.6 W in  94 W adapter", then "full in 51 min  health 89%  316 cycles". On battery: "discharging  12.3 W out", "empty in 4 h 10 min  health 89%  316 cycles". Health absent: "health n/a". Without a battery (a desktop Mac): the section is omitted.</li>
+<li>Blank. Battery: bar with " 75%", then "charging  47.6 W in  94 W adapter", then "full in 51 min  health normal  316 cycles". On battery: "discharging  12.3 W out", "empty in 4 h 10 min  health normal  316 cycles". Any other word from macOS: "health: see System Settings", wrapping when the line runs long. No answer from macOS: health is left out. Without a battery (a desktop Mac): the section is omitted.</li>
 <li>Blank. Processes by CPU: five rows; the figure's tooltip carries CPU and memory. A separate memory list is not drawn.</li>
 <li>Blank, key hints: "Esc closes  Tab switches".</li>
 </ol>
@@ -439,7 +440,8 @@ countdown  = remaining as "in Nd Nh" or "in Nh Nm"</pre>
 <li>"[ ] Keep the Mac awake while Claude works", second line "a closed lid on battery still sleeps"; while it is on, the indented row "[ ] also while a session waits for you" under it; while the power assertion is held, "awake  2 sessions working" or "awake  1 session open" dim under that (section 4).</li>
 <li>"[ ] Reopen sessions after a restart", second line "asks first, then opens each as it was started, and says when one ends on its own" over two lines; while it is on and notifications are denied, the same link under it too. While it is on, the indented pop-up row "Open sessions in Terminal ▾" under it (iTerm or Ghostty when picked), and with Ghostty the dim line "Ghostty asks before it runs each one" under that, with iTerm "iTerm asks until you tick Suppress" (iTerm 3.7.7 asks "OK to run ...?" for each file until its "Suppress this message permanently" box is ticked, seen in a clean virtual Mac on 5 November 2026).</li>
 <li>Blank. "Install the status line entry" with "one entry in ~/.claude/settings.json" dim under it (with several settings folders "one entry in each of" and the folders), or, once installed, "Remove the status line entry" with "puts back what statusLine held before". Installed in some folders and not others, both rows. A missing script adds "the hook script is gone, Install puts it back". An error from either click follows in dim lines, wrapped.</li>
-<li>Blank. The privacy lines, "This app makes no network calls. Usage comes" and "from Claude Code's own status feed on this Mac." dim, then "tokenpanda 0.1.16", the version from the bundle, dim.</li>
+<li>Blank. "Copy a problem report", a button, with "versions, switches and errors to paste into an issue or a mail, sends nothing" dim under it over two lines, said by VoiceOver once as the button's help. A click puts the report on the clipboard as plain text (section 22.1) and adds the dim line "copied", or "could not copy" when the clipboard refuses; VoiceOver hears the same on every click. The line goes when the panel closes or another tab is picked.</li>
+<li>Blank. The privacy lines, "This app makes no network calls. Usage comes" and "from Claude Code's own status feed on this Mac." dim, then "tokenpanda 0.1.17", the version from the bundle, dim.</li>
 <li>Blank. "Quit" with "⌘Q" right aligned.</li>
 <li>Blank, key hints: "Esc closes  Tab switches".</li>
 </ol>
@@ -480,7 +482,7 @@ from Claude Code's own status feed on this Mac.</pre>
 <tr><td>Login item refused</td><td>the Open at login row's second line</td><td>"Could not turn it on: " and the system's message, dim.</td></tr>
 <tr><td>Notifications denied</td><td>under the nudge setting</td><td>"Notifications are off in System Settings" in the accent, a link to System Settings, Notifications, under Reopen sessions too while that is on (section 9). Read again each time the popover opens.</td></tr>
 <tr><td>Session compacted or resumed</td><td>that session's bar line</td><td>"compacted or resumed  next reply updates it" dim, until its next reply carries <code>current_usage</code>.</td></tr>
-<tr><td>GPU, battery or health key missing</td><td>the Mac tab</td><td>the figure is omitted, or "health n/a"; never a dash in its place.</td></tr>
+<tr><td>GPU, battery or health missing</td><td>the Mac tab</td><td>the figure is omitted; never a dash or "n/a" in its place.</td></tr>
 <tr><td>Unpriced model</td><td>the chip</td><td>"[list price equivalent  USD 1,140  one model unpriced]".</td></tr>
 </table>
 
@@ -499,9 +501,9 @@ from Claude Code's own status feed on this Mac.</pre>
 
 <h2 id="packaging">17  Packaging</h2>
 <h3>Build</h3>
-<pre>scripts/build-app.sh 0.1.16  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
+<pre>scripts/build-app.sh 0.1.17  # swift build -c release, then build/tokenpanda.app: Contents/MacOS,
                              # Contents/Resources (AppIcon.icns, PrivacyInfo.xcprivacy), Info.plist (LSUIElement true,
-                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.16.zip and its SHA-256</pre>
+                             # CFBundleIconFile AppIcon), ad hoc codesign; then build/tokenpanda-0.1.17.zip and its SHA-256</pre>
 <p>The binary is built for the host, so a release built on Apple silicon is arm64 only. The cask says so with <code>depends_on arch: :arm64</code> next to <code>depends_on macos: :sonoma</code> (from 0.1.14), and the README's Install section opens with "It runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later."</p>
 <p>Two release paths. Releases are built by path one for now; path two is written here for when the project signs with a Developer ID.</p>
 <h3>Path one: unsigned (ad hoc), own tap</h3>
@@ -548,7 +550,7 @@ from Claude Code's own status feed on this Mac.</pre>
 <li>Start a Claude Code session; confirm "Live from Claude Code" after the first reply and the open session row; quit the session; confirm the row leaves after 60 s and "As of HH:MM, last Claude Code session" appears; set the clock forward an hour and confirm the stale form.</li>
 <li>Open Anyway flow on a clean user account (path one), or a clean Gatekeeper pass (path two).</li>
 <li>Reduce motion on: no animation. VoiceOver: every label of the style guide's table reads as written.</li>
-<li>Light and dark menu bar; a Mac on battery; a desktop Mac without a battery; a Mac without the capacity keys ("health n/a").</li>
+<li>Light and dark menu bar; a Mac on battery; a desktop Mac without a battery; a Mac where macOS gives no health word (health left out).</li>
 <li>macOS 26 and later: System Settings, Menu Bar, the app must be allowed or its item does not show. With the item switched off before the first launch, the hidden icon window comes once and its button opens that pane; before macOS 26 it comes for an icon behind the notch, without a button; on a Mac without a notch it names the full menu bar only; with a menu bar manager (Bartender, Ice) hiding the icon it comes too (testing page, section 5).</li>
 <li>VoiceOver on a capped panel: VO Right onto a line below the visible part scrolls it into view (testing page, section 5).</li>
 <li>A screen under 800 points tall, or a Larger Text resolution: the panel stops short of the bottom of the screen and scrolls, and the keyboard focus scrolls with it (testing page, section 5).</li>
@@ -635,6 +637,13 @@ from Claude Code's own status feed on this Mac.</pre>
 <li>Feed reading (the feed section): a burst of folder events is one scan and one trailing scan at most a second later; a session file is parsed again only when its time, size or file number changed; Claude Code's session files the same way, each checked against its process start time (<code>procStart</code>). With 22 sessions each writing about every 0.37 s the app used 76.6% of one core in 0.1.15 and 2.2% in 0.1.16.</li>
 <li>The folder watch and its handlers run on their queue and never as main actor code; a deleted sessions folder is watched again when it comes back, tried after 1 s and then at twice the gap, at most a minute apart.</li>
 <li>Releases are built, tested and attested on GitHub (release.yml): the zip, its SHA-256, the SBOM and the provenance bundle go into a draft release, published by hand after a run on a clean Mac.</li>
+</ol>
+<h2 id="changes-0117">22  Changes in 0.1.17</h2>
+<ol>
+<li>22.1 "Copy a problem report" in Settings (section 12, Settings tab). Plain text on the clipboard, nothing sent; the user pastes it into an issue or a mail. It holds: the tokenpanda and macOS versions and builds, the Mac model (<code>hw.model</code>); each switch on or off (Open at login, with "waiting for the OK in Login Items"; Mac figures in the bar; Nudges; List price equivalent; Keep the Mac awake and, while it is on, its second switch; Reopen and the picked app); for each settings folder whether the status line entry is set up, with "the hook script is gone" and "disableAllHooks is on" where they apply; the time of the newest status line data the app read, to the minute in the Mac's zone; how many sessions feed; and one line per error the app shows (status line entry install or remove, remove script, Open at login, a changed feed format, the transcripts while no token figures are in, the process list, and the Mac tab's warning; only what is on screen, so the session file scan error, which no screen shows, is left out). Built by <code>ProblemReport</code> in Sources/Text from <code>Fault</code> values made in <code>ReportFaults</code> (Sources/UI), tested in ProblemReportTests.</li>
+<li>22.2 What it never holds: a prompt, a usage or token figure, a session name or id, a project or folder name, the user's name. No text from the system or from an error message reaches it (second review, 05.11.2026: scrubbing such text kept leaking names). Each error is a fixed phrase: an area (Status line entry, Remove script, Open at login, Transcripts, Process list, Feed format, Mac tab), a fixed verb (could not install, remove, write, read, register, unregister), for install and remove the step (could not read or write the settings file, could not write the hook script) and a reason the app itself knows (not valid JSON, not a JSON object, over 1 MB, not a regular file, a link into a folder that does not exist), then the codes in brackets: the NSError domain and code, and the POSIX errno with its name, as in "Status line entry: could not install, could not write the settings file (NSCocoaErrorDomain 513, POSIX 13 EACCES)". A domain that is not a plain identifier prints as "other domain"; an install or remove error wrapped around a plain system error keeps that error's codes. Settings folder rows are fixed names: ~/.claude and ~/.config/claude, any ~/.claude-something as "~/.claude-(name)", any other folder "other folder"; a name met twice is numbered ("other folder 2"); a folder name is trimmed of spaces and line breaks first. The version, macOS and model strings keep letters, digits and a few signs. In those three strings and in the error domain, the account name and each part of the full name, compared in NFC and without case, become "(user)" (a domain then prints as "other domain"); the guard never runs over the fixed words, where a name such as Price or Read would give itself away (third review, 06.11.2026). The clipboard is cleared only to write the report, and a refusal reads "could not copy".</li>
+<li>22.3 Reopen's temp folder follows <code>TMPDIR</code> when it names a writable folder, else the system's (<code>Reopen.tempFolder</code>), so a test run in a throwaway home never cleans the real temp folder. No change in a normal launch.</li>
+<li>22.4 Battery health is a word macOS reports, no longer a percentage from registry keys: "health normal", "health: see System Settings", or left out (section on the Mac tab). "health n/a" is gone. On macOS 27 the old keys were absent or disagreed with System Settings. The word arrives just after the tab opens; a sample never waits for it. Long battery lines break between the figures first, so "System Settings" stays on one row.</li>
 </ol>
 <div class="foot">Overview  Style guide  Spec  Privacy</div>
 </main>

@@ -40,7 +40,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     var feedState = FeedState()
     var hookStatus = HookStatus(installed: false, previousCommand: nil)
-    var hookError: String? = nil
+    var hookError: String? = nil { didSet { if hookError == nil { faults.hook = nil } } }
+    var faults = FaultState()   // the same errors in the problem report's fixed words: codes, never text
     var removeScriptError: String? = nil   // remove.sh could not be written, shown under the status line row
     var settingsModified: [Date?] = []   // the settings.json files are read again only when one of these moves
     let log = Logger(subsystem: Paths.bundleId, category: "hook")
@@ -53,6 +54,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var hogPid: Int32? = nil
     var hogSince: Date? = nil
     var tab = 0
+    var reportCopied: Bool?   // "Copy a problem report" since the panel opened: true copied, false the clipboard refused, nil not clicked
     var section = 0
     var lastItem: ItemState? = nil
     var lastScreen: Screen? = nil
@@ -146,11 +148,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         readHookStatus()
         // an entry installed by an earlier version gets its remove script now, so brew's zap needs no click first
-        removeScriptError = hook.writeRemoveScript()
+        noteRemoveScript(hook.writeRemoveScriptError())
         hook.refreshScripts()   // an entry installed by an earlier version gets the current script, its chained command kept
         notifier.onReopen = { [weak self] in self?.reopen() }
         notifier.onReopenEnded = { [weak self] id in self?.reopenEnded(id) }
-        Reopen.removeLeftovers(in: FileManager.default.temporaryDirectory, now: Date())   // scripts a cancelled prompt left
+        Reopen.removeLeftovers(in: Reopen.tempFolder(), now: Date())   // scripts a cancelled prompt left
         offerRestore(now: Date())   // before the first scan, which writes this boot's record over the last one
         notifier.refreshState()   // no prompt at launch: the first nudge that is due asks
         startFeedWatch()
@@ -259,7 +261,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let result = await store.refresh(now: now, onlyIfChanged: plan.onlyIfChanged)
         transcriptsBusy = false
         transcriptsRootsExist = result.rootsExist
-        transcriptsError = result.error
+        transcriptsError = result.error; faults.transcripts = result.error == nil ? nil : ReportFaults.transcripts(result.cause)
         if TokenRefresh.rebuild(plan: plan, versionMoved: result.version != transcriptsVersion) {
             transcriptsVersion = result.version
             tokensDay = day
@@ -285,7 +287,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func sampleMac(full: Bool) async {
-        let s = await sampler.sample(full: full)
+        let s = await sampler.sample(full: full, readHealth: BatteryHealthReader.mayRead(tab: tab))
         mac = s
         // the hog is timed by the clock, so the rule holds at the 2 s and the 10 s cadence alike
         if let h = s.hogPid {
@@ -339,12 +341,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     static func loginStatus() -> LoginItem { ScreenBuilder.loginItem(SMAppService.mainApp.status) }
 
     /// register() on, unregister() off, through the system's login item service. Returns the error as the row says it.
-    static func setLogin(on: Bool) -> String? {
+    static func setLogin(on: Bool) -> (message: String, fault: Fault)? {
         do {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             return nil
         } catch {
-            return "Could not turn it \(on ? "on" : "off"): " + error.localizedDescription
+            return ("Could not turn it \(on ? "on" : "off"): " + error.localizedDescription, ReportFaults.login(on: on, error))
         }
     }
 
@@ -355,7 +357,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             SMAppService.openSystemSettingsLoginItems()
             return
         }
-        loginError = Self.setLogin(on: login == .off)
+        let failed = Self.setLogin(on: login == .off)
+        loginError = failed?.message; faults.login = failed?.fault
         login = Self.loginStatus()
     }
 
@@ -508,8 +511,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     /// One .command file per session, each starting the session with its name and options, opened in the picked app.
     func openSessions(_ entries: [RestoreRecord.Entry]) {
         let fm = FileManager.default
-        Reopen.removeLeftovers(in: fm.temporaryDirectory, now: Date())
-        let dir = fm.temporaryDirectory.appendingPathComponent(Reopen.folderPrefix + UUID().uuidString, isDirectory: true)
+        let temp = Reopen.tempFolder()
+        Reopen.removeLeftovers(in: temp, now: Date())
+        let dir = temp.appendingPathComponent(Reopen.folderPrefix + UUID().uuidString, isDirectory: true)
         guard (try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])) != nil else { return }
         var files: [URL] = []
         for e in entries {
@@ -559,6 +563,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                   version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
         i.sessionNames = sessionNames
         i.removeScriptError = removeScriptError
+        i.reportCopied = reportCopied
         // looked up in Launch Services only while Settings shows, where the row is
         if i.restoreSessions, tab == 2 { i.reopenApp = ReopenApp.current }
         return i
@@ -644,7 +649,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func perform(_ a: Action) {
         switch a {
-        case .tab(let t): tab = t; lineView.scroll(.zero)   // a new tab starts at the top
+        case .tab(let t): tab = t; reportCopied = nil; lineView.scroll(.zero); macTabShown()   // a new tab starts at the top
         case .section(let s): section = s
         case .toggle(let key) where key == Grammar.loginKey: clickLogin()
         case .toggle(let key):
@@ -667,7 +672,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             } catch {
                 hookFailed("install", error)
             }
-            removeScriptError = hook.writeRemoveScript()
+            noteRemoveScript(hook.writeRemoveScriptError())
             readHookStatus()
         case .uninstall:
             do {
@@ -677,11 +682,13 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             } catch {
                 hookFailed("remove", error)
             }
-            removeScriptError = hook.writeRemoveScript()
+            noteRemoveScript(hook.writeRemoveScriptError())
             readHookStatus()
         case .quit: NSApp.terminate(nil)
         case .pickReopenApp:
             showReopenAppMenu()
+        case .copyReport:
+            copyProblemReport()
         case .openNotificationSettings:
             popover.performClose(nil)
             let id = Paths.bundleId
@@ -705,7 +712,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func hookFailed(_ what: String, _ error: Error) {
         let message = (error as? HookError)?.description ?? error.localizedDescription
-        hookError = "Could not \(what) the entry: " + message
+        hookError = "Could not \(what) the entry: " + message; faults.hook = ReportFaults.hook(install: what == "install", error)
         log.error("status line \(what, privacy: .public) failed: \(message, privacy: .private)")
     }
 
@@ -724,7 +731,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.makeFirstResponder(lineView)
         startTimers(open: true)
-        Task { await sampleMac(full: true); await refreshTranscripts() }
+        Task { await sampleMac(full: true); await refreshTranscripts() }; macTabShown()
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
             guard let self else { return e }
             return self.handleKey(e) ? nil : e
@@ -733,6 +740,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func popoverDidClose(_ notification: Notification) {
         lastScreen = nil
+        reportCopied = nil
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
         startTimers(open: false)
     }
@@ -746,7 +754,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case KeyCode.escape: popover.performClose(nil); return true
         case KeyCode.tab:
             // Tab switches the tab and puts the focus on it, so the arrows go on from there
-            tab = (tab + (e.modifierFlags.contains(.shift) ? 2 : 1)) % 3; render()
+            tab = (tab + (e.modifierFlags.contains(.shift) ? 2 : 1)) % 3; reportCopied = nil; render(); macTabShown()
             lineView.focus(on: .tab(tab), visible: true)
             return true
         default: break

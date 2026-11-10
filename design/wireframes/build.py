@@ -512,7 +512,7 @@ def mac_tab(warn=False, health=True, hdr=LIVE, prefix='pop'):
     body += L(T(' '), G('&#9974;', 2, 'dimmer'), T('Free '), T('10.5 GB', 'dim'))
     body += L(T(' '), G('&#9949;', 2, 'warnc'), T('Swap '), T('0.9 GB', 'dim'), T('   '), T('Pressure ' + ('warn' if warn else 'normal'), 'dim')) + BL
     body += L(T(' '), T('Battery', 'bold')) + L(T(' '), bar(36, 75), T(' 75%')) + L(T(' '), T('charging  47.6 W in  94 W adapter', 'dim'))
-    body += L(T(' '), T('full in 51 min  ' + ('health 89%' if health else 'health n/a') + '  316 cycles', 'dim')) + BL
+    body += L(T(' '), T('full in 51 min  ' + ('health normal  ' if health else '') + '316 cycles', 'dim')) + BL
     body += L(T(' '), T('Processes by CPU', 'bold'))
     for n, share, fig in [(6, 68, '6.1%'), (5, 26, '2.3%'), (12, 16, '1.4%'), (8, 9, '0.8%'), (5, 7, '0.6%')]:
         body += L(T(' '), fb(n, 'k'), T(' ' * (15 - n)), bar(24, share, color=TOK['procWhite'], plain=True), T('  ' + fig.rjust(5)))
@@ -525,7 +525,7 @@ reg('pop-mac', 'Mac tab: CPU, GPU, memory, battery, processes', 'Mac tab', desk(
 reg('pop-mac-ultra', 'Mac tab (Ultra, today)', 'Mac tab', desk(item('28%', on=True, href='desk-ultra'), TODAY, over=pop(mac_tab(prefix='ultra'))), keys(Escape='desk-ultra', Tab='pop-settings-ultra', Shift_Tab='pop-ultra-today'))
 reg('pop-mac-warning', 'Mac tab with the warning: dot on the tab, pressure warn', 'Mac tab', desk(item('61%', over=True, warn=True, on=True, href='desk-warning'), over=pop(mac_tab(warn=True, prefix='warn'))), keys(Escape='desk-warning', Tab='pop-settings', Shift_Tab='pop-live-warn'))
 reg('pop-live-warn', 'Claude tab with the Mac warning dot', 'Mac tab', desk(item('61%', over=True, warn=True, on=True, href='desk-warning'), over=pop(claude(LIVE_LIMITS, tab_prefix='warn', warn=True))), keys(Escape='desk-warning', Tab='pop-mac-warning'))
-reg('pop-mac-health', 'Mac tab, battery health unknown: health n/a', 'Mac tab', desk(item('61%', over=True, on=True, href='desk'), over=pop(mac_tab(health=False))), MK)
+reg('pop-mac-health', 'Mac tab, no battery health from macOS: left out', 'Mac tab', desk(item('61%', over=True, on=True, href='desk'), over=pop(mac_tab(health=False))), MK)
 reg('desk-warning', 'Menu bar with the Mac warning sign', 'Menu bar', desk(item('61%', over=True, warn=True, href='pop-live-warn')))
 reg('desk-mac', 'Menu bar with Mac figures in the bar: CPU 9%', 'Menu bar', desk(item('61%', over=True, mac=' CPU 9%', href='pop-settings')))
 reg('desk-quit', 'Menu bar after Quit: the item is gone', 'Menu bar', desk('<span class="ext"></span>'))
@@ -573,6 +573,7 @@ def settings_tab(login='off', nudge_note=None, awake=False, awake_open=False, aw
         body += L(T(' '), A('editor-after', 'Install the status line entry')) + dim_lines('one entry in ~/.claude/settings.json', 5)
     if hook_err:
         body += dim_lines(hook_err, 5)
+    body += BL + L(T(' '), A('', 'Copy a problem report')) + dim_lines('versions, switches and errors to paste into an issue or a mail, sends nothing', 5)
     body += BL + PRIVACY + L(T(' '), T('tokenpanda 0.1.15', 'dim')) + BL
     body += L(T(' '), A('desk-quit', 'Quit'), T(' ' * 40), A('desk-quit', G('&#8984;Q', 2)))
     return body + foot(2)
@@ -798,7 +799,7 @@ ALT = {
     'pop-live': [('Hover a session figure', 'pop-session-tip'), ('An hour without a session', 'pop-stale'), ('Weekly passes 80%', 'notif-weekly'), ('15 min before the 5h reset', 'notif-five'), ('A small screen', 'pop-small')],
     'pop-ultra-evening': [('The next morning', 'pop-ultra-today')],
     'pop-stale': [('Last session 20 minutes ago', 'pop-asof'), ('No plan limits', 'pop-nolimits'), ('No transcripts folder', 'pop-notranscripts')],
-    'pop-mac': [('Battery health unknown', 'pop-mac-health')],
+    'pop-mac': [('No battery health from macOS', 'pop-mac-health')],
     'pop-settings': [('Notifications denied', 'pop-settings-denied'), ('Two settings folders', 'pop-settings-folders'), ('With VoiceOver', 'pop-voiceover'), ('With the keyboard', 'pop-keyboard'), ('A small screen', 'pop-small-settings')],
     'pop-settings-awake-open': [('pmset', 'term-pmset')],
     'desk-quit': [('Open the app again', 'desk')],
@@ -823,7 +824,7 @@ NEXT = [
     ('pop-nolimits', 'No transcripts folder', 'pop-notranscripts'),
     ('pop-notranscripts', 'statusLine removed by hand', 'pop-nohook'),
     ('pop-mac', 'Memory pressure', 'desk-warning'),
-    ('pop-mac-warning', 'Battery health unknown', 'pop-mac-health'),
+    ('pop-mac-warning', 'No battery health from macOS', 'pop-mac-health'),
     ('pop-mac-health', 'Mac figures in the bar on', 'desk-mac'),
     ('desk-quit', 'Open it again, Settings', 'pop-settings'),
     ('term-reopen', 'A session ends, its window stays', 'notif-ended'),

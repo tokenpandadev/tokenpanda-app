@@ -33,7 +33,7 @@
 </div></nav>
 
 <main class="main">
-<div class="head"><h1>Privacy</h1><span class="d">  tokenpanda  what it reads, what it keeps, what leaves your Mac  14 October 2026</span></div>
+<div class="head"><h1>Privacy</h1><span class="d">  tokenpanda  what it reads, what it keeps, what leaves your Mac  10 November 2026</span></div>
 <div class="head d">the statement a user reads; the same facts the spec is built on</div>
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
 
@@ -54,7 +54,7 @@
 <p>Claude Code keeps a transcript of each session on your Mac, in plain text, under <code>~/.claude/projects</code>, for 30 days by default. The app reads those files to count tokens. From each line it takes only: the line type, the time, the message id, the request id, whether the line came from a subagent, the session id, the working directory (<code>cwd</code>), the model id, and the five token counts. It does not read what you wrote, what Claude answered, which files were opened or what the tools returned. Those parts of each line are dropped before anything is kept.</p>
 <p>The project name you see is the last folder of that working directory; when a line carries none, it is the last part of the project folder's name, which Claude Code builds from the same path. Only that last folder name is kept, in memory. The session you see is the file's name, which is an id.</p>
 <h3>Your Mac</h3>
-<p>The second tab shows CPU, GPU, memory, battery and the busiest processes. These come from the same public system calls Activity Monitor uses. They are sampled every 2 seconds while the popover is open and every 10 seconds while it is closed, kept in memory, and never written to disk.</p>
+<p>The second tab shows CPU, GPU, memory, battery and the busiest processes. These come from the same public system calls Activity Monitor uses, except the battery health word (section 5). They are sampled every 2 seconds while the popover is open and every 10 seconds while it is closed, kept in memory, and never written to disk.</p>
 
 <h2 id="never">3  What it never reads</h2>
 <p>The folder that holds the transcripts also holds things that are not transcripts. The app never opens them. This is a rule in the code and a test in the test suite, not a promise:</p>
@@ -92,6 +92,8 @@
 
 <h2 id="network">5  What leaves your Mac</h2>
 <p>Nothing. The app has no network code. It does not check for updates, does not fetch prices, does not send crash reports, does not send usage statistics, and does not call any Anthropic endpoint. The prices it uses for the "list price equivalent" figure are a table inside the app, updated with releases.</p>
+<p>"Copy a problem report" in Settings puts plain text on your clipboard and nothing else: the app and macOS versions, the Mac model, which switches are on, whether the status line entry is set up, when its data last came, how many sessions run, and each error the app shows, as a fixed phrase with its codes. No prompts, usage figures, session names or ids, or project paths; your home folder reads as ~ and your name as (user). You decide whether to paste it anywhere.</p>
+<p>For the "health normal" word in the Battery section, the app reads your battery's condition from Apple's own <code>system_profiler</code>, at most once an hour while it runs, and only while the Mac tab shows. It keeps that one word; nothing else from the answer is kept, and nothing leaves your Mac.</p>
 <p>Updates come from the project's GitHub releases or from Homebrew when you ask for them.</p>
 <p>The app carries a privacy manifest (<code>PrivacyInfo.xcprivacy</code> in the app's Resources folder), as Apple asks of apps: no tracking, no data collected, and why it calls the system for file dates, the boot time and its own preferences.</p>
 

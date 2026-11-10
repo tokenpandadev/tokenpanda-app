@@ -39,6 +39,7 @@ public struct LiveInput: Sendable {
     public var sessionNames: [String: String] = [:]   // session id to the name set with -n or /rename, from Claude Code's sessions files
     public var removeScriptError: String? = nil       // why remove.sh could not be written, shown under the status line row
     public var reopenApp: TerminalApp = .terminal     // the app Reopen opens the sessions in: the pick, or Terminal when it is gone
+    public var reportCopied: Bool?                    // "Copy a problem report": true copied, false refused, nil not clicked
 
     public init(feed: FeedState, hook: HookStatus, tokens: TokenSummary?, transcriptsRootsExist: Bool, transcriptsError: String?,
                 mac: MacSample?, weeks: WeekRecords, macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String?, hookError: String? = nil,
@@ -153,7 +154,7 @@ public enum ScreenBuilder {
         let sessions = rows(t.bySessionToday, hue: { _ in Tokens.blue2 }, unit: "today")
         var price: String? = nil
         if i.listPrice, t.tokens7d > 0 {
-            var chip = "[list price equivalent  " + Format.usd(t.listPrice7d, cents: false)
+            var chip = "[list price equivalent  " + Format.usd(t.listPrice7d, cents: t.listPrice7d < 1)
             if t.unpricedModels == 1 { chip += "  one model unpriced" } else if t.unpricedModels > 1 { chip += "  \(t.unpricedModels) models unpriced" }
             price = chip + "]"
         }
@@ -243,7 +244,7 @@ public enum ScreenBuilder {
             var parts: [String] = []
             if b.charging, let m = b.minutesToFull { parts.append("full in " + minutes(m)) }
             if !b.onAC, let m = b.minutesToEmpty { parts.append("empty in " + minutes(m)) }
-            parts.append(b.healthPercent.map { "health \($0)%" } ?? "health n/a")
+            if let h = b.health { parts.append(h == .normal ? "health normal" : "health: see System Settings") }
             if let c = b.cycles { parts.append("\(c) cycles") }
             battery = BatteryView(percent: b.percent, line1: l1, line2: parts.joined(separator: "  "))
         }
@@ -313,6 +314,7 @@ public enum ScreenBuilder {
         var s = settings
         s.removeScriptError = i.removeScriptError
         s.reopenApp = i.reopenApp
+        s.reportCopied = i.reportCopied
         if let l = i.feed.limits, l.active("seven_day") != nil, l.active("five_hour") == nil { s.fiveHour = false }
         return Screen(tab: i.tab, headerLine: headerLine(i), warn: i.warn, claude: claude, mac: macTab(i), settings: s)
     }

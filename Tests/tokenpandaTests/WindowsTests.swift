@@ -14,7 +14,7 @@ struct WindowsTests {
     let utc = TimeZone(identifier: "UTC")!
 
     func tempDir() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("tokenpanda-windows-\(UUID().uuidString)", isDirectory: true)
+        let url = TestTemp.root.appendingPathComponent("tokenpanda-windows-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: url.appendingPathComponent("sessions"), withIntermediateDirectories: true)
         return url
     }

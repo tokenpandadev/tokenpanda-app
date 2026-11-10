@@ -142,9 +142,12 @@ struct BarTests {
         #expect(s[9] == "     started, and says when one ends on its own")
         #expect(s[11] == " Install the status line entry")
         #expect(s[12] == "     one entry in ~/.claude/settings.json")
-        #expect(s[14] == " This app makes no network calls. Usage comes")
-        #expect(s[15] == " from Claude Code's own status feed on this Mac.")
-        #expect(s[17] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
+        #expect(s[14] == " Copy a problem report")
+        #expect(s[15] == "     versions, switches and errors to paste into")
+        #expect(s[16] == "     an issue or a mail, sends nothing")
+        #expect(s[18] == " This app makes no network calls. Usage comes")
+        #expect(s[19] == " from Claude Code's own status feed on this Mac.")
+        #expect(s[21] == " Quit" + String(repeating: " ", count: 40) + "\u{2318}Q")
     }
 
     @Test func keepAwakeRowSaysWhenItHoldsTheMacAwake() {
@@ -249,6 +252,18 @@ struct BarTests {
             let text = Grammar.popover(s).map(\.plain).joined(separator: "\n")
             for banned in ["\u{2014}", "\u{2013}", "\u{00B7}", "|"] { #expect(!(text.contains(banned)), "separator in tab \(tab)") }
         }
+    }
+
+    /// A small week never reads USD 0 beside real tokens (audit F-21): cents under USD 1, whole dollars from there.
+    @Test func thePriceChipShowsCentsUnderOneDollar() {
+        func chip(_ usd: Double) -> String? {
+            var input = Fixtures.input(tab: 0)
+            input.tokens?.listPrice7d = usd
+            return ScreenBuilder.tokensView(input).priceChip
+        }
+        #expect(chip(0.318) == "[list price equivalent  USD 0.32]")
+        #expect(chip(1) == "[list price equivalent  USD 1]")
+        #expect(chip(1140) == "[list price equivalent  USD 1,140]")
     }
 
     @Test func formats() {

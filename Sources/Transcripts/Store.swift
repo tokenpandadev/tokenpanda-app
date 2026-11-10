@@ -52,6 +52,7 @@ public actor TranscriptStore {
         public var fileCount: Int
         public var rootsExist: Bool
         public var error: String?
+        public var cause: (any Error)?   // the error itself, for the problem report's codes (never its text)
         public var version: Int
     }
 
@@ -66,11 +67,12 @@ public actor TranscriptStore {
         let present = Set(found.map(\.url))
         for url in files.keys where !present.contains(url) { files.removeValue(forKey: url); version += 1 }
         var error: String? = nil   // this pass only: a later pass without an error clears it
+        var cause: (any Error)? = nil
         for f in found {
             var st = files[f.url] ?? FileState()
             if f.size < st.offset { st = FileState(); version += 1 }   // truncated or rewritten: start over
             if f.size > st.offset {
-                do { try read(f, into: &st, chunk: chunk, maxLine: maxLine) } catch let e { error = e.localizedDescription }
+                do { try read(f, into: &st, chunk: chunk, maxLine: maxLine) } catch let e { error = e.localizedDescription; cause = e }
             }
             files[f.url] = st
         }
@@ -79,7 +81,7 @@ public actor TranscriptStore {
         let unchanged = onlyIfChanged && version == lastReportedVersion
         lastReportedVersion = version
         let all = unchanged ? [] : files.values.flatMap(\.records)
-        return Result(records: all, fileCount: found.count, rootsExist: rootsExist, error: error, version: version)
+        return Result(records: all, fileCount: found.count, rootsExist: rootsExist, error: error, cause: cause, version: version)
     }
 
     func read(_ f: TranscriptFile, into st: inout FileState, chunk: Int, maxLine: Int) throws {

@@ -6,7 +6,7 @@ import IOKit
 import IOKit.ps
 
 // Every call is a public Mach, sysctl, IOKit or libproc call made in process. No tool is spawned, no root, no entitlement.
-// Two readings depend on keys Apple does not document (GPU utilisation, battery health): shown when present, omitted when absent.
+// GPU utilisation depends on a key Apple does not document, and battery health on what system_profiler answers: shown when present, omitted when absent.
 
 public struct ProcessSample: Sendable, Equatable {
     public var pid: Int32
@@ -26,10 +26,10 @@ public struct BatterySample: Sendable, Equatable {
     public var adapterWatts: Int?
     public var watts: Double?          // voltage times amperage; negative when discharging
     public var cycles: Int?
-    public var healthPercent: Int?     // nil on a Mac without the capacity keys
-    public init(percent: Int, charging: Bool, charged: Bool, onAC: Bool, minutesToFull: Int?, minutesToEmpty: Int?, adapterWatts: Int?, watts: Double?, cycles: Int?, healthPercent: Int?) {
+    public var health: BatteryHealth?  // nil until macOS has answered, or when it does not (BatteryHealth.swift)
+    public init(percent: Int, charging: Bool, charged: Bool, onAC: Bool, minutesToFull: Int?, minutesToEmpty: Int?, adapterWatts: Int?, watts: Double?, cycles: Int?, health: BatteryHealth?) {
         self.percent = percent; self.charging = charging; self.charged = charged; self.onAC = onAC; self.minutesToFull = minutesToFull
-        self.minutesToEmpty = minutesToEmpty; self.adapterWatts = adapterWatts; self.watts = watts; self.cycles = cycles; self.healthPercent = healthPercent
+        self.minutesToEmpty = minutesToEmpty; self.adapterWatts = adapterWatts; self.watts = watts; self.cycles = cycles; self.health = health
     }
 }
 
@@ -60,15 +60,30 @@ public struct MacSample: Sendable, Equatable {
     }
 }
 
+/// The outcome of a read that ran; word nil means it gave no answer.
+public struct HealthRead: Sendable, Equatable {
+    public let word: BatteryHealth?
+}
+
 public actor MacSampler {
     public static let hogThreshold = 80.0
     var previousTicks: [UInt32]? = nil   // per core: user, system, idle, nice
     var previousProc: [Int32: (UInt64, Date)] = [:]
     var lastSampleAt: Date? = nil
+    var healthCache = BatteryHealthCache()
+    var healthRead: Task<Void, Never>? = nil   // the one read in flight; never on this actor, so a slow tool never holds a sample
+    let healthReader: @Sendable () -> Data?
+    let powerSource: @Sendable () -> BatterySample?
+    let clock: @Sendable () -> ContinuousClock.Instant
     let cores: Int
     let ticksToNanos: Double   // rusage times are Mach absolute time ticks, not nanoseconds
 
-    public init() {
+    public init(healthReader: @escaping @Sendable () -> Data? = BatteryHealthReader.runTool,
+                powerSource: @escaping @Sendable () -> BatterySample? = MacSampler.readPower,
+                clock: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now }) {
+        self.healthReader = healthReader
+        self.powerSource = powerSource
+        self.clock = clock
         var n: Int32 = 0; var len = MemoryLayout<Int32>.size
         sysctlbyname("hw.ncpu", &n, &len, nil, 0)
         cores = Int(max(n, 1))
@@ -78,7 +93,11 @@ public actor MacSampler {
     }
 
     /// full: the whole table (popover open). Otherwise CPU, pressure and one libproc pass for the warning rule.
-    public func sample(full: Bool, now: Date = Date()) -> MacSample {
+    /// readHealth: the Mac tab shows, so the battery's word may be read; at most once an hour per launch, never without a
+    /// battery. The sample never waits for it: it holds the last word, the next one holds the new word.
+    /// The time is taken here, inside the actor: a call that waited its turn still measures its own interval.
+    public func sample(full: Bool, readHealth: Bool = false, now: Date? = nil) -> MacSample {
+        let now = now ?? Date()
         let cpu = sampleCPU()
         let (used, total, pressure, swap) = sampleMemory()
         let procs = sampleProcesses(now: now)
@@ -88,7 +107,7 @@ public actor MacSampler {
         s.processTotalCPU = procs.total
         if full {
             s.gpuUtilisation = sampleGPU()
-            s.battery = sampleBattery()
+            s.battery = sampleBattery(readHealth: readHealth)
         }
         lastSampleAt = now
         return s
@@ -171,7 +190,38 @@ public actor MacSampler {
 
     // MARK: battery, IOPowerSources plus the AppleSmartBattery registry entry
 
-    func sampleBattery() -> BatterySample? {
+    func sampleBattery(readHealth: Bool) -> BatterySample? {
+        guard var b = powerSource() else { return nil }
+        if readHealth { startHealthRead() }
+        b.health = healthCache.value
+        return b
+    }
+
+    /// Waits for the word, so the Mac tab has it at once when it opens. Reads only if one is due; a Mac without a battery never
+    /// does. nil when no read ran, so the caller changes nothing. Takes no sample: a second one right after the first would
+    /// measure a few milliseconds, in which the app itself looks like the top process (review 09.11.2026).
+    public func refreshHealth() async -> HealthRead? {
+        if powerSource() != nil { startHealthRead() }
+        guard let read = healthRead else { return nil }
+        await read.value
+        return HealthRead(word: healthCache.value)
+    }
+
+    func startHealthRead() {
+        let now = clock()
+        guard healthRead == nil, healthCache.due(now: now) else { return }
+        healthCache.begin(now: now)
+        let reader = healthReader
+        healthRead = Task {
+            let answer = await withCheckedContinuation { (done: CheckedContinuation<BatteryHealth?, Never>) in
+                DispatchQueue.global(qos: .utility).async { done.resume(returning: reader().flatMap(BatteryHealthReader.parse)) }
+            }
+            healthCache.finish(answer)
+            healthRead = nil
+        }
+    }
+
+    @Sendable public static func readPower() -> BatterySample? {
         guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
               let list = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef] else { return nil }
         var out: BatterySample? = nil
@@ -181,7 +231,7 @@ public actor MacSampler {
             let state = d[kIOPSPowerSourceStateKey] as? String
             var b = BatterySample(percent: pct, charging: d[kIOPSIsChargingKey] as? Bool ?? false,
                                   charged: d[kIOPSIsChargedKey] as? Bool ?? false, onAC: state == kIOPSACPowerValue,
-                                  minutesToFull: nil, minutesToEmpty: nil, adapterWatts: nil, watts: nil, cycles: nil, healthPercent: nil)
+                                  minutesToFull: nil, minutesToEmpty: nil, adapterWatts: nil, watts: nil, cycles: nil, health: nil)
             if let t = d[kIOPSTimeToFullChargeKey] as? Int, t > 0, t != 65535 { b.minutesToFull = t }
             if let t = d[kIOPSTimeToEmptyKey] as? Int, t > 0, t != 65535 { b.minutesToEmpty = t }
             out = b
@@ -199,10 +249,6 @@ public actor MacSampler {
                 if let v = d["Voltage"] as? Int, let a = d["Amperage"] as? Int {
                     let amps = Int64(Int32(truncatingIfNeeded: a))   // the registry stores a signed value in an unsigned slot
                     b.watts = Double(v) / 1000 * Double(amps) / 1000
-                }
-                if let design = d["DesignCapacity"] as? Int, design > 0 {
-                    if let nominal = d["NominalChargeCapacity"] as? Int { b.healthPercent = Int((Double(nominal) / Double(design) * 100).rounded()) }
-                    else if let raw = d["AppleRawMaxCapacity"] as? Int { b.healthPercent = Int((Double(raw) / Double(design) * 100).rounded()) }
                 }
             }
         }

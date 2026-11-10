@@ -74,7 +74,7 @@ public enum Fixtures {
         return w
     }()
 
-    public static func mac(healthKnown: Bool = true, hog: Bool = false) -> MacSample {
+    public static func mac(health: BatteryHealth? = .normal, hog: Bool = false) -> MacSample {
         let gb: UInt64 = 1_073_741_824
         let procs = [ProcessSample(pid: 501, name: "Safari", cpuPercent: 6.1, footprint: UInt64(6.2 * Double(gb))),
                      ProcessSample(pid: 502, name: "Xcode", cpuPercent: 2.3, footprint: UInt64(1.4 * Double(gb))),
@@ -82,7 +82,7 @@ public enum Fixtures {
                      ProcessSample(pid: 504, name: "Terminal", cpuPercent: 0.8, footprint: 128 * 1_048_576),
                      ProcessSample(pid: 505, name: "Music", cpuPercent: 0.6, footprint: UInt64(2.1 * Double(gb)))]
         let battery = BatterySample(percent: 75, charging: true, charged: false, onAC: true, minutesToFull: 51, minutesToEmpty: nil,
-                                    adapterWatts: 94, watts: 47.6, cycles: 316, healthPercent: healthKnown ? 89 : nil)
+                                    adapterWatts: 94, watts: 47.6, cycles: 316, health: health)
         var sample = MacSample(cpuBusy: 9, cpuUser: 5, cpuSystem: 4, cores: 10, gpuUtilisation: 11,
                          memoryUsed: UInt64(25.5 * Double(gb)), memoryTotal: 36 * gb, pressureLevel: hog ? 2 : 1, swapUsed: UInt64(0.9 * Double(gb)),
                          battery: battery, processes: procs, processError: nil, hogPid: nil)
@@ -91,13 +91,13 @@ public enum Fixtures {
     }
 
     public static func input(weekly: Double = 61, stale: Bool = false, feedState: FeedState? = nil, hook: HookStatus = HookStatus(installed: true, previousCommand: nil),
-                             warn: Bool = false, tab: Int = 0, section: Int = 0, healthKnown: Bool = true) -> LiveInput {
+                             warn: Bool = false, tab: Int = 0, section: Int = 0, health: BatteryHealth? = .normal) -> LiveInput {
         let feed = feedState ?? FeedState(limits: limits(weekly: weekly, asOf: stale ? date(2026, 10, 15, 13, 5) : now.addingTimeInterval(-60)),
                                           sessions: stale ? [] : openSessions, lastWriteAt: stale ? date(2026, 10, 15, 13, 5) : now.addingTimeInterval(-2))
         var w = weeks
         w.records[3].lastUsed = weekly
         return LiveInput(feed: feed, hook: hook, tokens: tokens, transcriptsRootsExist: true, transcriptsError: nil,
-                         mac: mac(healthKnown: healthKnown), weeks: w, macInBar: false, nudges: true, listPrice: true, nudgeNote: nil,
+                         mac: mac(health: health), weeks: w, macInBar: false, nudges: true, listPrice: true, nudgeNote: nil,
                          warn: warn, tab: tab, section: section, now: now, timeZone: timeZone, calendar: calendar)
     }
 
@@ -149,7 +149,8 @@ public enum Fixtures {
             ("claude-sessions", input(section: 2)),
             ("mac", input(tab: 1)),
             ("mac-warning", input(warn: true, tab: 1)),
-            ("mac-health-na", input(tab: 1, healthKnown: false)),
+            ("mac-no-health", input(tab: 1, health: nil)),
+            ("mac-health-other", input(tab: 1, health: .other)),
             ("settings", settings),
             ("claude-firstreply", firstReply),
             ("claude-install-failed", installFailed),

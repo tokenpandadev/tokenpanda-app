@@ -445,8 +445,8 @@ public enum Grammar {
             out.append(blank)
             out += spoken([L(sp(" "), sp("Battery", .bold)),
                            L(sp(" "), .bar(Bar.render(width: popBar, used: Double(b.percent), elapsed: nil)), sp(" \(b.percent)%")),
-                           L(sp(" "), sp(b.line1, .dim)),
-                           L(sp(" "), sp(b.line2, .dim))], label: "Battery \(b.percent)%, " + c(b.line1) + ", " + c(b.line2), focusable: true)
+                           L(sp(" "), sp(b.line1, .dim))] + (b.line2.isEmpty ? [] : Format.wrap(b.line2, popCells - 1).map { L(sp(" "), sp($0, .dim)) }),
+                           label: "Battery \(b.percent)%, " + c(b.line1) + (b.line2.isEmpty ? "" : ", " + c(b.line2)), focusable: true)
         }
         out.append(blank)
         out.append(L(sp(" "), sp("Processes by CPU", .bold)))
@@ -474,6 +474,8 @@ public enum Grammar {
         out += hookRow(installed: s.hookInstalled, someInstalled: s.hookSomeInstalled, error: s.hookError, slowerRefresh: s.hookSlowerRefresh,
                        targets: s.hookTargets, scriptMissing: s.hookScriptMissing, removeScriptError: s.removeScriptError)
         out.append(blank)
+        out += reportRow(copied: s.reportCopied)
+        out.append(blank)
         out += privacy()
         if let v = s.version { out.append(L(sp(" "), sp(v, .dim))) }
         out.append(blank)
@@ -481,6 +483,22 @@ public enum Grammar {
                         hover: true, label: "Quit, command Q"))
         return out
     }
+
+    /// Copy a problem report: one click puts plain text on the clipboard for an issue or a mail. The dim line is its help.
+    public static func reportRow(copied: Bool?) -> [Line] {
+        let label = "Copy a problem report"
+        var out = [Line([sp(" "), Piece(label, .text, action: .copyReport)], hover: true, label: label, help: reportHelp)]
+        out += dimLines(reportHelp, indent: 5).map(\.silent)
+        if let copied { out += dimLines(copied ? reportCopied : reportFailed, indent: 5) }
+        return out
+    }
+
+    /// Under the button: what it does and what it never does.
+    public static let reportHelp = "versions, switches and errors to paste into an issue or a mail, sends nothing"
+    /// After a click, until the panel closes.
+    public static let reportCopied = "copied"
+    /// After a click the clipboard refused.
+    public static let reportFailed = "could not copy"
 
     /// The app Reopen opens the sessions in: one pop-up row under the Reopen switch, a menu of Terminal, iTerm and Ghostty
     /// on a click, Space or Return. Ghostty and iTerm ask before they run each file they are handed, so their row says so.

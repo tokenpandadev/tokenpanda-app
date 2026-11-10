@@ -69,6 +69,17 @@ When a session does not show up:
 
 To uninstall with Homebrew, `brew uninstall --zap tokenpanda` puts your previous status line back before it deletes the app's data (once 0.1.9 or later has run; it runs the remove script the app keeps in its data folder). With a plain `brew uninstall`, click "Remove the status line entry" in Settings first.
 
+## Update
+
+tokenpanda never checks for updates itself. With Homebrew: `brew upgrade --cask tokenpandadev/tap/tokenpanda`. From a download: quit tokenpanda and replace tokenpanda.app in Applications with the new one. Your status line entry stays. macOS blocks a downloaded update once more, so click Open Anyway as on the first launch.
+
+## Known issues
+
+- Not notarised yet, so you click Open Anyway on the first launch and after each downloaded update.
+- A new Ultra user sees a 5h row until the first reply.
+- The "session ended" notice also comes when you quit a session on purpose.
+- When Reopen uses Ghostty, it asks before each session. iTerm asks until you tick Suppress.
+
 ## By the rules
 
 - It reads the status line, the one feed Claude Code documents for exactly this, and nothing else. The plan figures are four fields in it: `rate_limits.five_hour` and `rate_limits.seven_day`, each with `used_percentage` and `resets_at`.
@@ -100,7 +111,7 @@ You need a Mac on macOS 14 or later with the Command Line Tools or Xcode. Swift 
 ```sh
 swift build
 swift test -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
-scripts/build-app.sh 0.1.16
+scripts/build-app.sh 0.1.17
 open build/tokenpanda.app
 ```
 

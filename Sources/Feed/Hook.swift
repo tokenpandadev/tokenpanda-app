@@ -62,17 +62,31 @@ public struct HookStatus: Sendable, Equatable {
 
 public enum HookError: Error, Sendable, CustomStringConvertible {
     case cannotReadSettings(String)
-    case cannotWriteSettings(String)
-    case cannotWriteScript(String)
+    case cannotWriteSettings(String, cause: (any Error)? = nil)
+    case cannotWriteScript(String, cause: (any Error)? = nil)
     case inFolder(String, Error)
 
     public var description: String {
         switch self {
         case .inFolder(let folder, let e): return folder + ": " + ((e as? HookError)?.description ?? e.localizedDescription)
         case .cannotReadSettings(let m): return "cannot read settings.json: " + m
-        case .cannotWriteSettings(let m): return "cannot write settings.json: " + m
-        case .cannotWriteScript(let m): return "cannot write the hook script: " + m
+        case .cannotWriteSettings(let m, _): return "cannot write settings.json: " + m
+        case .cannotWriteScript(let m, _): return "cannot write the hook script: " + m
         }
+    }
+
+    /// The system error underneath, for the problem report's codes (never its text).
+    public var cause: (any Error)? {
+        switch self {
+        case .inFolder(_, let e): return (e as? HookError)?.cause ?? e
+        case .cannotReadSettings: return nil
+        case .cannotWriteSettings(_, let c), .cannotWriteScript(_, let c): return c
+        }
+    }
+
+    /// The same error without the folder it happened in.
+    public var inner: HookError? {
+        if case .inFolder(_, let e) = self { return (e as? HookError)?.inner } else { return self }
     }
 }
 
@@ -165,7 +179,7 @@ public struct Hook: Sendable {
     public func install(previousFallback: String? = nil) throws -> HookStatus {
         let fm = FileManager.default
         // before anything is written: a link into a folder that does not exist fails here, with nothing left behind
-        do { _ = try SettingsFile.writableTarget(settingsURL) } catch { throw HookError.cannotWriteSettings(SettingsFile.reason(error)) }
+        do { _ = try SettingsFile.writableTarget(settingsURL) } catch { throw HookError.cannotWriteSettings(SettingsFile.reason(error), cause: error) }
         var settings: [String: Any] = [:]
         let created = !fm.fileExists(atPath: settingsURL.path)
         if !created {
@@ -187,7 +201,7 @@ public struct Hook: Sendable {
             try script.write(to: hookPath, atomically: true, encoding: .utf8)
             try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hookPath.path)
             if !alreadyOurs { try writeBackup(existing, createdSettings: created) }
-        } catch { throw HookError.cannotWriteScript(error.localizedDescription) }
+        } catch { throw HookError.cannotWriteScript(error.localizedDescription, cause: error) }
         var sl = existing ?? [:]
         sl["type"] = "command"
         sl["command"] = hookCommand
@@ -250,7 +264,7 @@ public struct Hook: Sendable {
                     // Through a link (a dotfiles folder whose file did not exist yet) the file Install wrote goes and the
                     // link stays as the user had it; deleting the link left the entry in the file it pointed at (to 0.1.13).
                     let target = (try? SettingsFile.resolve(settingsURL)) ?? settingsURL
-                    do { try fm.removeItem(at: target) } catch { throw HookError.cannotWriteSettings(error.localizedDescription) }
+                    do { try fm.removeItem(at: target) } catch { throw HookError.cannotWriteSettings(error.localizedDescription, cause: error) }
                 } else {
                     try writeSettings(settings)
                 }
@@ -268,12 +282,12 @@ public struct Hook: Sendable {
         do {
             let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .withoutEscapingSlashes])
             try SettingsFile.write(data, to: settingsURL)
-        } catch { throw HookError.cannotWriteSettings(SettingsFile.reason(error)) }
+        } catch { throw HookError.cannotWriteSettings(SettingsFile.reason(error), cause: error) }
     }
 }
 
 /// Writes settings.json the way an editor that respects links does.
-enum SettingsFile {
+public enum SettingsFile {
     /// The file a path finally names, found the way the kernel opens it: part by part from /, each part that is a link
     /// replaced by its target (an absolute one from /, a relative one from the real folder reached so far), and ".."
     /// stepping up from that real folder, never by text. A part that does not exist yet (ENOENT) ends the walk, the rest
@@ -323,6 +337,9 @@ enum SettingsFile {
 
     /// A link into a folder that does not exist: Install does not make it (spec 20.1.9).
     struct MissingFolder: Error { let folder: URL }
+
+    /// Whether an error is that refusal, for the problem report's fixed reason.
+    public static func isMissingFolder(_ error: any Error) -> Bool { error is MissingFolder }
 
     static func reason(_ error: Error) -> String {
         if let m = error as? MissingFolder {
@@ -543,7 +560,11 @@ public struct HookSet: Sendable {
     /// Lists the folders whose entry is ours (installed, or pointing at a lost script); with none, the file goes.
     /// Returns why it could not be written, for the Settings tab, and logs it: without it brew's zap cannot put the entry back.
     @discardableResult
-    public func writeRemoveScript() -> String? {
+    public func writeRemoveScript() -> String? { writeRemoveScriptError()?.localizedDescription }
+
+    /// The same, with the error itself, so the problem report can print its codes.
+    @discardableResult
+    public func writeRemoveScriptError() -> (any Error)? {
         guard let url = removeScriptPath else { return nil }
         let fm = FileManager.default
         let ours = hooks.filter { let st = $0.status(); return st.installed || st.scriptMissing }
@@ -560,7 +581,7 @@ public struct HookSet: Sendable {
             return nil
         } catch {
             FileLog.failed("remove.sh", error)
-            return error.localizedDescription
+            return error
         }
     }
 

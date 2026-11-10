@@ -119,7 +119,7 @@ struct LaunchTests {
             let parts = f.string(from: d).split(separator: " ").map(String.init)
             return [parts[0], parts[1], parts[2].count == 1 ? " " + parts[2] : parts[2], parts[3], parts[4]].joined(separator: " ")
         }
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("tokenpanda-live-\(UUID().uuidString)", isDirectory: true)
+        let folder = TestTemp.root.appendingPathComponent("tokenpanda-live-\(UUID().uuidString)", isDirectory: true)
         let dir = folder.appendingPathComponent("sessions", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
@@ -141,5 +141,23 @@ struct LaunchTests {
         let path = try #require(ProcessTable.executablePath(of: getpid()))
         #expect(path.hasPrefix("/"))
         #expect(ProcessTable.executablePath(of: -5) == nil)
+    }
+
+    /// Reopen's temp folder follows TMPDIR, so a test in a throwaway home never cleans the user's real one (05.11.2026).
+    @Test func reopenTempFolderFollowsTMPDIR() {
+        let dir = TestTemp.root.appendingPathComponent("tp-tmpdir-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        #expect(Reopen.tempFolder(environment: ["TMPDIR": dir.path + "/"]).path == dir.path)
+        let system = FileManager.default.temporaryDirectory
+        #expect(Reopen.tempFolder(environment: [:]) == system)
+        #expect(Reopen.tempFolder(environment: ["TMPDIR": ""]) == system)
+        #expect(Reopen.tempFolder(environment: ["TMPDIR": "relative/path"]) == system)
+        #expect(Reopen.tempFolder(environment: ["TMPDIR": dir.path + "/missing"]) == system)
+        // cleanup in that folder: an old Reopen folder goes, the user's real temp folder is not looked at
+        let old = dir.appendingPathComponent(Reopen.folderPrefix + "old", isDirectory: true)
+        try? FileManager.default.createDirectory(at: old, withIntermediateDirectories: true)
+        let removed = Reopen.removeLeftovers(in: Reopen.tempFolder(environment: ["TMPDIR": dir.path]), now: Date().addingTimeInterval(3600))
+        #expect(removed == [Reopen.folderPrefix + "old"])
     }
 }

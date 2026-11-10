@@ -121,7 +121,7 @@ public struct MemView: Sendable, Equatable {
 public struct BatteryView: Sendable, Equatable {
     public var percent: Int
     public var line1: String        // "charging  47.6 W in  94 W adapter"
-    public var line2: String        // "full in 51 min  health 89%  316 cycles"
+    public var line2: String        // "full in 51 min  health normal  316 cycles"; can be empty
     public init(percent: Int, line1: String, line2: String) { self.percent = percent; self.line1 = line1; self.line2 = line2 }
 }
 
@@ -165,6 +165,7 @@ public struct SettingsTab: Sendable, Equatable {
     public var hookScriptMissing: Bool   // settings.json points at a hook script that is gone
     public var version: String?          // "tokenpanda 0.1.9", under the privacy lines
     public var removeScriptError: String? = nil   // remove.sh could not be written: brew's zap cannot put the entry back
+    public var reportCopied: Bool?       // "Copy a problem report" since the panel opened: true copied, false refused, nil not clicked
     public var fiveHour = true           // false once the feed has plan figures without a 5h window (Ultra): the nudge row names 80% only
     public init(macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String? = nil, hookInstalled: Bool = false, hookError: String? = nil,
                 keepAwake: Bool = false, keepAwakeWhileOpen: Bool = false, awakeNote: String? = nil, openAtLogin: LoginItem = .off, loginError: String? = nil,

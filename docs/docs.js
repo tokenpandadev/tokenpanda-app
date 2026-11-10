@@ -251,7 +251,7 @@ function macTab(anim) {
   s += BL + L(' ' + sp('Battery', 'b'));
   s += L(' ' + bar(POPBAR, 75, null, {anim}) + ' 75%');
   s += L(' ' + sp('charging  47.6 W in  94 W adapter', 'd'));
-  s += L(' ' + sp('full in 51 min  health 89%  316 cycles', 'd'));
+  s += L(' ' + sp('full in 51 min  health normal  316 cycles', 'd'));
   s += BL + L(' ' + sp('Processes by CPU', 'b'));
   s += rows(PROCS, '', {anim});
   return s;
@@ -266,6 +266,9 @@ function settingsTab(st) {
     + cbRow('Reopen sessions after a restart', !!st.restore, 'asks first, then opens each as it was started, and says when one ends on its own', {more: st.restore && st.notifOff ? [NOTIF_OFF] : []})
     + BL
     + hookRow(st.hook !== false)
+    + BL
+    + L(' <button type="button" class="tab hk">Copy a problem report</button>', 'srow')
+    + wrap('versions, switches and errors to paste into an issue or a mail, sends nothing', POP + 1 - 5).map(x => L('     ' + sp(x, 'd'))).join('')
     + BL
     + L(' ' + sp('This app makes no network calls. Usage comes', 'd'))
     + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd'))

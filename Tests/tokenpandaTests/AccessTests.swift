@@ -13,7 +13,7 @@ import Pace
 /// the hook script check, the zap safe remove and the smaller fixes.
 struct AccessTests {
     func tempDir() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
+        let url = TestTemp.root.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
@@ -41,8 +41,9 @@ struct AccessTests {
         #expect(boxes.allSatisfy { $0.cells == 4 + $0.label.count })
         // the plain buttons: Install and Quit, in reading order after the boxes
         let buttons = c.filter { $0.kind == .button }
-        #expect(buttons.map(\.label) == ["Remove the status line entry", "Quit, command Q"])
-        #expect(buttons.map(\.action) == [.uninstall, .quit])
+        #expect(buttons.map(\.label) == ["Remove the status line entry", "Copy a problem report", "Quit, command Q"])
+        #expect(buttons.map(\.action) == [.uninstall, .copyReport, .quit])
+        #expect(buttons.first { $0.action == .copyReport }?.help == Grammar.reportHelp)
         // keys are stable: the same screen gives the same keys
         #expect(Controls.extract(lines).map(\.key) == c.map(\.key))
     }
@@ -671,7 +672,7 @@ struct AccessTests {
         #expect(grid.1 == "Memory 25.5 of 36 gigabytes, 71%, free 10.5 gigabytes, swap 0.9 gigabytes, pressure normal")
         #expect(mac.filter { $0.0 == .image }.count == 1)
         #expect(mac.contains { $0.1.hasPrefix("CPU ") && $0.1.contains("% , ") == false && $0.1.contains("cores") })
-        #expect(mac.contains { $0.1.hasPrefix("Battery ") && $0.1.contains("cycles") })
+        #expect(mac.contains { $0.1.hasPrefix("Battery ") && $0.1.contains("health normal") && $0.1.contains("cycles") })
         // a process row says its figure once, and no help repeats it
         let row = try #require(mac.first { $0.1.contains("% CPU") })
         #expect(row.2 == nil)

@@ -12,7 +12,7 @@ struct FeedCacheTests {
     }
 
     func tempDir() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
+        let url = TestTemp.root.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: url.appendingPathComponent("sessions"), withIntermediateDirectories: true)
         return url
     }
@@ -130,7 +130,7 @@ struct FeedCacheTests {
     }
 
     @Test func liveSessionCacheReadsLikeAFreshReadAndParsesOnlyChanges() throws {
-        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("tokenpanda-live-\(UUID().uuidString)", isDirectory: true)
+        let folder = TestTemp.root.appendingPathComponent("tokenpanda-live-\(UUID().uuidString)", isDirectory: true)
         let dir = folder.appendingPathComponent("sessions", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let me = getpid()
@@ -169,7 +169,7 @@ struct FeedCacheTests {
 
     @Test func theFolderWatchSurvivesTheFolderBeingDeletedAndMadeAgain() async throws {
         let fm = FileManager.default
-        let dir = fm.temporaryDirectory.appendingPathComponent("tokenpanda-watch-\(UUID().uuidString)", isDirectory: true)
+        let dir = TestTemp.root.appendingPathComponent("tokenpanda-watch-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: dir) }
         let count = Counter()

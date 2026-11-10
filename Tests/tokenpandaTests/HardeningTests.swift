@@ -10,7 +10,7 @@ import Prices
 /// Files the app writes and reads that are not its own: a linked settings.json, paths with shell characters.
 struct HardeningTests {
     func tempDir() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
+        let url = TestTemp.root.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
@@ -88,7 +88,7 @@ struct HardeningTests {
 
     /// A home under /tmp, itself a link to /private/tmp, so every test also walks a linked folder at the root.
     func tmpHome() throws -> URL {
-        let url = URL(fileURLWithPath: "/tmp/tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
+        let url = TestTemp.root.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
@@ -461,7 +461,7 @@ struct HardeningTests {
     }
 
     @Test func aTranscriptLineOverTheLimitIsSkippedTheNextOneCounts() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("tokenpanda-transcripts-\(UUID().uuidString)/projects", isDirectory: true)
+        let root = TestTemp.root.appendingPathComponent("tokenpanda-transcripts-\(UUID().uuidString)/projects", isDirectory: true)
         let project = root.appendingPathComponent("-Users-someone-workspace", isDirectory: true)
         try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
         func line(_ id: String, pad: Int = 0) -> String {

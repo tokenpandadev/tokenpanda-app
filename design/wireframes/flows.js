@@ -1298,7 +1298,7 @@ window.TITLES = {
  "pop-mac-ultra": "Mac tab (Ultra, today)",
  "pop-mac-warning": "Mac tab with the warning: dot on the tab, pressure warn",
  "pop-live-warn": "Claude tab with the Mac warning dot",
- "pop-mac-health": "Mac tab, battery health unknown: health n/a",
+ "pop-mac-health": "Mac tab, no battery health from macOS: left out",
  "desk-warning": "Menu bar with the Mac warning sign",
  "desk-mac": "Menu bar with Mac figures in the bar: CPU 9%",
  "desk-quit": "Menu bar after Quit: the item is gone",

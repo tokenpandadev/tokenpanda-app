@@ -72,7 +72,7 @@ if let i = args.firstIndex(of: "--login-item"), i + 1 < args.count {
         print("before \(Controller.loginStatus())  raw \(SMAppService.mainApp.status.rawValue)  bundle \(Bundle.main.bundlePath)")
         let what = args[i + 1]
         if what == "on" || what == "off" {
-            print(Controller.setLogin(on: what == "on") ?? "no error")
+            print(Controller.setLogin(on: what == "on")?.message ?? "no error")
             print("after \(Controller.loginStatus())  raw \(SMAppService.mainApp.status.rawValue)")
         }
     }
@@ -103,9 +103,10 @@ if let i = args.firstIndex(of: "--sample-mac"), i + 1 < args.count, let rounds =
         let wall0 = Date(), cpu0 = selfCPU()
         for r in 0..<rounds {
             let t = Date()
-            let s = await sampler.sample(full: true)
+            let s = await sampler.sample(full: true, readHealth: true)
             let took = Date().timeIntervalSince(t)
-            if r == 0 || r == rounds - 1 { print("round \(r): cpu \(Int(s.cpuBusy))% gpu \(s.gpuUtilisation ?? -1) procs \(s.processes.count) total \(Int(s.processTotalCPU)) took \(String(format: "%.1f", took * 1000)) ms") }
+            let health = s.battery?.health.map { "\($0)" } ?? "none"
+            if r == 0 || r == rounds - 1 { print("round \(r): cpu \(Int(s.cpuBusy))% gpu \(s.gpuUtilisation ?? -1) health \(health) procs \(s.processes.count) total \(Int(s.processTotalCPU)) \(String(format: "%.1f", took * 1000)) ms") }
             try? await Task.sleep(for: .seconds(max(0, 2 - took)))
         }
         let wall = Date().timeIntervalSince(wall0), cpu = selfCPU() - cpu0
@@ -117,6 +118,8 @@ if let i = args.firstIndex(of: "--sample-mac"), i + 1 < args.count, let rounds =
 }
 #endif
 
+// the battery's tool never outlives the app
+NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: nil) { _ in BatteryHealthReader.stopRunning() }
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 let controller = Controller()

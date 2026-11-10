@@ -21,7 +21,7 @@ struct TranscriptsTests {
     // swiftlint:enable line_length
 
     func makeTree() throws -> URL {
-        let root = fm.temporaryDirectory.appendingPathComponent("tokenpanda-transcripts-\(UUID().uuidString)/projects", isDirectory: true)
+        let root = TestTemp.root.appendingPathComponent("tokenpanda-transcripts-\(UUID().uuidString)/projects", isDirectory: true)
         let project = root.appendingPathComponent("-Users-someone-workspace", isDirectory: true)
         let session = "11111111-0000-4000-8000-000000000001"
         let sessionDir = project.appendingPathComponent(session, isDirectory: true)

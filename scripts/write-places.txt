@@ -1,0 +1,40 @@
+# SPDX-FileCopyrightText: 2026 tokenpanda
+# SPDX-License-Identifier: MIT
+# Each write or delete call in Sources, by key (python3 -I scripts/write-places.py --list), then where it lands.
+# "data folder" = ~/Library/Application Support/dev.tokenpanda.app; anything else names its place. A test run in a
+# throwaway home must cover every place below that is not the data folder (the temp folder does not follow the home).
+9f347610d635 data folder: sessions/ at launch
+a19b15ccf776 debug flag only: --live-snapshot <folder> given on the command line
+1149e22fb687 debug flag only: --live-snapshot <folder>, live-panel.png
+a525dbcf2ed1 temp folder: the Reopen folder, mode 0700
+d7d050b6decc temp folder: one start script per session in the Reopen folder, mode 0600
+5469921c20bc data folder: restore.json when Reopen is switched off
+7acc7e92a297 debug build only: --snapshot <folder>
+e596454fde0b data folder: old sessions/<id>.json files
+9e1919e4d488 data folder: sessions/ files that are not regular files or too large
+5a8db44eec2a data folder: limits.json folder
+cb3744f24431 data folder: limits.json
+33cbf38d5cbb data folder: statusline-before.json
+874a25d7adbd data folder: sessions/ on Install
+e862e50d3ed4 data folder: hook.sh on Install and repair
+091c14b0ac5d settings folder: settings.json, deleted on Remove only when Install created it and nothing else is in it
+bacd61a58dce data folder: sessions/ on Remove
+67b8c0ab38c4 data folder: hook.sh on Remove
+a6f1275e3222 data folder: statusline-before.json on Remove
+8bcaf8076c5b settings folder: the folder of settings.json, on Install (the one named write into the user's config)
+c2aea25fafab data folder: remove.sh when nothing is installed
+ffcfd02fbabd data folder: remove.sh folder
+244aa58826d8 data folder: remove.sh
+2142234466f8 data folder: sessions/ after the last Remove
+01d034f8a185 temp folder: the delete inside the Reopen cleanup (Reopen.removeLeftovers)
+e057ea2b6816 data folder: restore.json folder
+7dd20ab2baa0 data folder: restore.json
+f4f0d18633b1 data folder: weeks.json folder
+c6d87d58e02e data folder: weeks.json
+6f4c4ddbf7ea test and debug only: Snapshot.writeScreen, PNGs for the snapshot tests and docs
+1d12233843b7 temp folder: deletes tokenpanda-reopen-* folders older than the age limit, at launch
+8003cefa222e temp folder: Reopen.tempFolder(), TMPDIR when set, else the system's
+355ba3606096 temp folder: deletes old tokenpanda-reopen-* folders before a Reopen
+c26f80bc83b9 temp folder: where Reopen.tempFolder() is decided (TMPDIR first)
+2b16811a56d2 temp folder: the system's, when TMPDIR is not set
+fffc8367ec7f temp folder: Reopen.removeLeftovers, deletes only tokenpanda-reopen-* folders directly in it

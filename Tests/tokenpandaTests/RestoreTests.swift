@@ -45,7 +45,7 @@ struct RestoreTests {
     }
 
     @Test func roundTripsOwnerOnly() throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("restore-\(UUID().uuidString).json")
+        let url = TestTemp.root.appendingPathComponent("restore-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: url) }
         var r = RestoreRecord(lastScan: t0)
         r.apply([open(id)], now: t0)
@@ -67,7 +67,7 @@ struct RestoreTests {
     @Test func theLastScriptDeletesItsFolder() throws {
         let s = try #require(Reopen.script(id: id, folder: "/tmp", name: nil, options: nil, remoteControl: false))
         let head = s.split(separator: "\n", omittingEmptySubsequences: false).prefix(4).joined(separator: "\n") + "\n"
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(Reopen.folderPrefix + "test-" + UUID().uuidString)
+        let dir = TestTemp.root.appendingPathComponent(Reopen.folderPrefix + "test-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: dir) }
         let a = dir.appendingPathComponent("a.command"), b = dir.appendingPathComponent("b.command")
@@ -89,7 +89,7 @@ struct RestoreTests {
     /// At launch and before each Reopen: Reopen folders older than ten minutes go, nothing else in the temporary folder.
     @Test func leftoverReopenFoldersOlderThanTenMinutesAreDeleted() throws {
         let fm = FileManager.default
-        let temp = fm.temporaryDirectory.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
+        let temp = TestTemp.root.appendingPathComponent("tokenpanda-tests-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: temp, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: temp) }
         let now = Date()
@@ -146,7 +146,7 @@ struct RestoreTests {
 
     @Test func anOldRecordStillLoads() throws {
         let json = #"{"entries":[{"id":"\#(id)","folder":"/tmp","lastSeen":1800000000}],"lastScan":1800000000}"#
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("old-\(UUID().uuidString).json")
+        let url = TestTemp.root.appendingPathComponent("old-\(UUID().uuidString).json")
         defer { try? FileManager.default.removeItem(at: url) }
         try Data(json.utf8).write(to: url)
         let r = try #require(RestoreRecord.load(from: url))
@@ -154,7 +154,7 @@ struct RestoreTests {
     }
 
     @Test func remoteControlIsReadFromTheTranscript() throws {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("t-\(UUID().uuidString).jsonl")
+        let url = TestTemp.root.appendingPathComponent("t-\(UUID().uuidString).jsonl")
         defer { try? FileManager.default.removeItem(at: url) }
         try Data("{\"type\":\"user\"}\n".utf8).write(to: url)
         #expect(!Reopen.hadRemoteControl(transcript: url.path))

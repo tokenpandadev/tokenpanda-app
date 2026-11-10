@@ -37,6 +37,7 @@ struct PanelSnapshotTests {
         case weeks = "weeks"
         case memoryGrid = "memory-grid"
         case macBars = "mac-bars"
+        case macHealthOther = "mac-health-other"
         case settingsRows = "settings-rows"
         case focusRing = "focus-ring"
         case popoverClaude = "popover-claude"
@@ -83,6 +84,7 @@ struct PanelSnapshotTests {
         case .weeks: return (claude.claude.weeks.map(Grammar.week), none)
         case .memoryGrid: return (Grammar.memGrid(try #require(try screen("mac").mac.memory)), none)
         case .macBars: return (Grammar.macTab(try screen("mac").mac), none)
+        case .macHealthOther: return (Grammar.macTab(try screen("mac-health-other").mac), none)
         case .settingsRows: return (Grammar.settingsTab(try screen("settings").settings), none)
         case .focusRing:
             // the keyboard on the second setting

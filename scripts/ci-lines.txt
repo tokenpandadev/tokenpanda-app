@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 tokenpanda
+# SPDX-License-Identifier: MIT
+# Each run: step of .github/workflows, by fingerprint (python3 -I scripts/ci-lines.py --list), then how preflight covers it.
+# A changed or new step is not listed: run it here or name why it cannot run here, then add its line.
+7d099b8fc27a build.yml swift --version: prints only, nothing to check
+bad4dc965e43 build.yml release check: preflight step "release check"
+3bff894c1789 build.yml swiftlint download and lint --strict: preflight step "lint" with the installed swiftlint
+3acfa58a8916 build.yml and codeql.yml swift build: preflight step "build, warnings fail"
+b87a499859bf build.yml swift test: preflight step "tests" in three zones
+31da52946bb6 release.yml version and CHANGELOG notes: preflight step "CHANGELOG" checks the newest section the same way
+9689ef422134 release.yml swift test: preflight step "tests"
+96695322e4f3 release.yml build-app.sh: not run by preflight, it writes build/tokenpanda.app, which may be the copy that is running; the release build is covered by the load test build, and the CI zip is tried in the clean VM before it is published
+4be24aac8b33 release.yml copy into out/: cannot run here, needs the CI build's files
+00c916a99eea release.yml attestation and draft release: cannot run here, needs the tag on GitHub and its token

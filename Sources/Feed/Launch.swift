@@ -272,6 +272,20 @@ extension Reopen {
     /// A folder older than this is left over: a script that never ran (a cancelled Ghostty prompt, an app that did not open).
     public static let leftoverAge: TimeInterval = 10 * 60
 
+    /// The temporary folder Reopen writes into and cleans: TMPDIR when it is set (a test run points it into its
+    /// throwaway home), else the system's. FileManager.temporaryDirectory ignores TMPDIR on macOS, so a test in a
+    /// throwaway home would clean the user's real folder (05.11.2026). A normal launch sets TMPDIR to that same folder.
+    public static func tempFolder(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        // a TMPDIR that is not an absolute path to a folder this user can write falls back to the system's folder,
+        // so Reopen never fails silently on an odd environment
+        var isDir: ObjCBool = false
+        if let t = environment["TMPDIR"], t.hasPrefix("/"),
+           FileManager.default.fileExists(atPath: t, isDirectory: &isDir), isDir.boolValue, access(t, W_OK) == 0 {
+            return URL(fileURLWithPath: t, isDirectory: true)
+        }
+        return FileManager.default.temporaryDirectory
+    }
+
     /// Deletes the Reopen folders in `temp` last changed more than `age` ago. Only folders whose name has the prefix,
     /// only real folders (a link is left alone), only directly in `temp`. Returns the names it deleted.
     @discardableResult
