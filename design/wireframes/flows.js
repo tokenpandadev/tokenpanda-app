@@ -27,7 +27,7 @@ window.FLOWS = [
    },
    {
     "n": "3",
-    "text": "With Homebrew instead: brew trust --cask, then brew install tokenpandadev/tap/tokenpanda; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap.",
+    "text": "With Homebrew instead: brew install --cask tokenpandadev/tap/tokenpanda, with no trust step; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap.",
     "screens": [
      "term-brew"
     ],
@@ -678,13 +678,14 @@ window.FLOWS = [
    },
    {
     "n": "8",
-    "text": "At 100% the panda shows x x until the reset.",
+    "text": "At 100% the panda shows x x until the reset, and the weekly window reads \"limit reached, resets Sun 18:00\" in place of the pace lines.",
     "screens": [
-     "desk-weekly-limit"
+     "desk-weekly-limit",
+     "pop-live-limit"
     ],
     "do": "Wait for the reset.",
     "now": "works",
-    "ev": "ItemImage; flow-test-0.1.13 06.6.",
+    "ev": "ItemImage; Grammar.windowSection (spec 24.33); flow-test-0.1.13 06.6.",
     "walk": "next"
    }
   ]
@@ -1060,7 +1061,7 @@ window.FLOWS = [
    },
    {
     "n": "2",
-    "text": "brew upgrade --cask tokenpanda quits and replaces the app.",
+    "text": "brew upgrade --cask tokenpandadev/tap/tokenpanda quits and replaces the app.",
     "screens": [
      "term-brew-upgrade"
     ],
@@ -1289,11 +1290,12 @@ window.TITLES = {
  "pop-pace-reset": "Claude tab, On pace and Ahead read the share at the reset: 100% by reset at this rate",
  "pop-pace-over-early": "Claude tab, ten minutes into a 5h window: Over pace keeps its limit time even this early",
  "desk-weekly-limit": "Menu bar, weekly limit reached: x x eyes until the reset",
+ "pop-live-limit": "Claude tab, the weekly window at 100%: limit reached, resets Sun 18:00",
  "pop-asof": "Claude tab, last session closed 20 minutes ago: As of 14:00, pace still computed",
  "pop-stale": "Claude tab, stale: no session for over an hour",
  "desk-stale": "Menu bar, stale: the item at half strength",
  "pop-nolimits": "Claude tab, sessions on an API key, Bedrock or Vertex: no plan limits",
- "pop-notranscripts": "Claude tab, no transcripts folder",
+ "pop-notranscripts": "Claude tab, no transcripts folder: the folders looked in, no Week over week",
  "pop-mac": "Mac tab: CPU, GPU, memory, battery, processes",
  "pop-mac-ultra": "Mac tab (Ultra, today)",
  "pop-mac-warning": "Mac tab with the warning: dot on the tab, pressure warn",
@@ -1320,7 +1322,7 @@ window.TITLES = {
  "pop-small-settings": "Settings on a small screen: the keyboard ring scrolls Quit into view",
  "browser-release": "Releases page: tokenpanda-0.1.15.zip and its .sha256",
  "term-shasum": "Terminal: shasum checks the zip, OK",
- "term-brew": "Terminal: brew trust, brew install from the tap, the caveats",
+ "term-brew": "Terminal: brew install from the tap, the caveats",
  "finder-apps": "Finder, Applications: tokenpanda.app",
  "gk-blocked": "macOS blocks the first open: Apple could not verify tokenpanda",
  "gk-settings": "System Settings, Privacy & Security: Open Anyway, at the bottom",
@@ -1348,7 +1350,7 @@ window.TITLES = {
  "desk-reopen-denied": "After a restart with notifications off: no offer; the Reopen row says so",
  "term-reopen": "Terminal: each session started again as it was started, with Remote Control where it had it",
  "term-pmset": "Terminal: pmset lists the tokenpanda assertion",
- "term-brew-upgrade": "Terminal: brew upgrade, then Open Anyway again",
+ "term-brew-upgrade": "Terminal: brew upgrade --cask, then Open Anyway again",
  "finder-bin": "Finder: tokenpanda.app moved to the Bin",
  "term-leftover": "Moved to the Bin without Remove: the script cleans up after itself, the folder stays small",
  "term-zap": "brew uninstall --zap: remove.sh takes the entry out first, your own status line comes back"

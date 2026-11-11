@@ -5,7 +5,7 @@ flowchart TD
   classDef byhand fill:#1d2029,stroke:#eceef1,stroke-width:1px,stroke-dasharray:4 3,color:#eceef1;
   S1["1. The releases page offers the zip of each<br/>version and its .sha256; the README says it<br/>runs on a Mac with Apple silicon (M1 or later)<br/>on macOS 14 or later.<br/><i>works</i>"]:::works
   S2["2. In Terminal, shasum -a 256 -c checks the zip<br/>and prints OK; unzip and move tokenpanda.app to<br/>Applications.<br/><i>works</i>"]:::works
-  S3["3. With Homebrew instead: brew trust --cask, then<br/>brew install tokenpandadev/tap/tokenpanda; the<br/>cask declares Apple silicon only, so an Intel<br/>Mac is refused, and the caveats say Open Anyway<br/>and explain the zap.<br/><i>works</i>"]:::works
+  S3["3. With Homebrew instead: brew install --cask<br/>tokenpandadev/tap/tokenpanda, with no trust<br/>step; the cask declares Apple silicon only, so<br/>an Intel Mac is refused, and the caveats say<br/>Open Anyway and explain the zap.<br/><i>works</i>"]:::works
   S4["4. Double click in Applications: macOS refuses the<br/>ad hoc build, 'Apple could not verify<br/>tokenpanda is free of malware'.<br/><i>friction</i>"]:::friction
   S5["5. System Settings, Privacy and Security, scroll<br/>to the bottom, Open Anyway.<br/><i>by hand</i>"]:::byhand
   S6["6. The warning comes back once; Open Anyway starts<br/>the app.<br/><i>by hand</i>"]:::byhand

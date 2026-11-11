@@ -12,7 +12,7 @@ Method: the product read first (README, CHANGELOG, docs/spec.html, styleguide.ht
 1. Flows: 14. Steps: 105.
 2. In the real app: 86 work, 6 friction, 0 broken.
 3. In the wireframes: 105 of 105 steps drawn; 73 reached by a click or key from the step before, 14 flow starts, 18 reached with Next.
-4. Screens: 90, a 1280 by 800 desktop with the menu bar, the popover at its real 380 point width and 16 point lines.
+4. Screens: 91, a 1280 by 800 desktop with the menu bar, the popover at its real 380 point width and 16 point lines.
 
 ## The 5 hour window for Ultra, exactly
 
@@ -35,7 +35,7 @@ Kept for plans that still send it: a Max or Pro feed carries five_hour on every 
 
 1. works. The releases page offers the zip of each version and its .sha256; the README says it runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later. Screens: browser-release. Do: Download both. Evidence: README.md, Install (0.1.15); flow-test-0.1.13 01.1. Wireframe: start.
 2. works. In Terminal, shasum -a 256 -c checks the zip and prints OK; unzip and move tokenpanda.app to Applications. Screens: term-shasum. Do: Run the two lines. Evidence: README.md, Install; flow-test-0.1.13 01.2. Wireframe: click.
-3. works. With Homebrew instead: brew trust --cask, then brew install tokenpandadev/tap/tokenpanda; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap. Screens: term-brew. Do: Read the caveats. Evidence: Casks/tokenpanda.rb: depends_on arch: :arm64 (0.1.14), caveats; README.md, Install. Wireframe: click.
+3. works. With Homebrew instead: brew install --cask tokenpandadev/tap/tokenpanda, with no trust step; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap. Screens: term-brew. Do: Read the caveats. Evidence: Casks/tokenpanda.rb: depends_on arch: :arm64 (0.1.14), caveats; README.md, Install. Wireframe: click.
 4. friction. Double click in Applications: macOS refuses the ad hoc build, "Apple could not verify tokenpanda is free of malware". Screens: finder-apps, gk-blocked. Do: Click Done. Evidence: codesign Signature=adhoc; spctl rejected (flow-test-0.1.13 01.4). By design until Developer ID signing (spec 17, path two). Wireframe: click.
 5. by hand. System Settings, Privacy and Security, scroll to the bottom, Open Anyway. Screens: gk-settings. Do: Find the button. Evidence: README.md, Install; flow-test-0.1.13 01.5. Wireframe: click.
 6. by hand. The warning comes back once; Open Anyway starts the app. Screens: gk-confirm. Do: Click Open Anyway. Evidence: README.md, Install. Wireframe: click.
@@ -105,7 +105,7 @@ Kept for plans that still send it: a Max or Pro feed carries five_hour on every 
 5. works. Early in a window the pace row does not guess: "On pace  too early to project" until 5% of the window has passed (8 h 24 min of a week, 15 min of a 5h window). The new week above shows it. Screens: pop-pace-early, pop-week-new. Do: Read the pace row in the first hours. Evidence: PaceModel.reading, earliestProjection (0.1.15, flow test 06.8; texts approved 2026-11-04); test theFirstMinutesOfAWindowProjectOnlyOverPace. Wireframe: next.
 6. works. On pace or Ahead the projection reads "N% by reset at this rate", N at most 100; Over pace keeps "limit ... at this rate" in every phase, also ten minutes in. Screens: pop-pace-reset, pop-pace-over-early. Do: Read the pace row. Evidence: PaceModel.reading (0.1.15; texts approved 2026-11-04); test aLimitIsNamedOnlyOverPace. Wireframe: next.
 7. works. Week over week keeps the highest value seen per week. Screens: pop-live. Do: Trust the history. Evidence: WindowsTests weekOverWeekKeepsTheHighestValuePerWeek; flow-test-0.1.13 06.5. Wireframe: click.
-8. works. At 100% the panda shows x x until the reset. Screens: desk-weekly-limit. Do: Wait for the reset. Evidence: ItemImage; flow-test-0.1.13 06.6. Wireframe: next.
+8. works. At 100% the panda shows x x until the reset, and the weekly window reads "limit reached, resets Sun 18:00" in place of the pace lines. Screens: desk-weekly-limit, pop-live-limit. Do: Wait for the reset. Evidence: ItemImage; Grammar.windowSection (spec 24.33); flow-test-0.1.13 06.6. Wireframe: next.
 
 ## 07 Stale or missing feed
 
@@ -154,7 +154,7 @@ Kept for plans that still send it: a Max or Pro feed carries five_hour on every 
 ## 12 Update
 
 1. friction. The app never checks for updates (no network); a new version is found on the releases page or with brew outdated. Screens: browser-release. Do: Look on GitHub. Evidence: By design (spec 16). Wireframe: start.
-2. by hand. brew upgrade --cask tokenpanda quits and replaces the app. Screens: term-brew-upgrade. Do: Run it. Evidence: Casks/tokenpanda.rb, uninstall quit. Wireframe: click.
+2. by hand. brew upgrade --cask tokenpandadev/tap/tokenpanda quits and replaces the app. Screens: term-brew-upgrade. Do: Run it. Evidence: Casks/tokenpanda.rb, uninstall quit. Wireframe: click.
 3. by hand. A new ad hoc build can bring back the Open Anyway steps; the version line in Settings confirms what runs. Screens: term-brew-upgrade, gk-blocked. Do: Open Anyway again. Evidence: codesign adhoc; flow-test-0.1.13 12.3. Wireframe: click.
 4. works. Settings, the entry and the records survive the update, and the installed script is brought up to date at launch. Screens: pop-live. Do: Nothing. Evidence: flow-test-0.1.13 12.4. Wireframe: click.
 

@@ -10,7 +10,7 @@ flowchart TD
   S5["5. Early in a window the pace row does not guess:<br/>'On pace too early to project' until 5% of the<br/>window has passed (8 h 24 min of a week, 15 min<br/>of a 5h window). The new week above shows it.<br/><i>works</i>"]:::works
   S6["6. On pace or Ahead the projection reads 'N% by<br/>reset at this rate', N at most 100; Over pace<br/>keeps 'limit ... at this rate' in every phase,<br/>also ten minutes in.<br/><i>works</i>"]:::works
   S7["7. Week over week keeps the highest value seen per<br/>week.<br/><i>works</i>"]:::works
-  S8["8. At 100% the panda shows x x until the reset.<br/><i>works</i>"]:::works
+  S8["8. At 100% the panda shows x x until the reset,<br/>and the weekly window reads 'limit reached,<br/>resets Sun 18:00' in place of the pace lines.<br/><i>works</i>"]:::works
   S1 --> S2
   S2 --> S3
   S3 --> S4

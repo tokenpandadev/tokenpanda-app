@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Builds the clickable wireframes of tokenpanda as it is built (0.1.15, main at 274b15c).
-Every popover screen draws what 0.1.15 draws: the wording of Sources/Text/Grammar.swift and
+"""Builds the clickable wireframes of tokenpanda as it is built (0.1.19, main at 432dde0).
+Every popover screen draws what 0.1.19 draws: the wording of Sources/Text/Grammar.swift and
 Sources/UI/ScreenBuilder.swift, the colours of Sources/Text/Tokens.swift (dark appearance), the bar of
 Sources/Text/Bar.swift. Names of models, projects, sessions and processes stay filler bars; every figure is sample
 data (Sources/UI/Fixtures.swift), never a real reading.
@@ -219,6 +219,11 @@ def win(title, mode='live', used=0, elapsed=None, over=False, reset='', countdow
         out.append(L(T(' '), T(f'{reset}  {countdown}', 'dim')))
         out.append(L(T(' '), T(status, 'bold'), T(f'  {proj}', 'dim')) if proj else L(T(' '), T(status, 'bold')))
         out.append(L(T(' '), T(allow, 'dim')))
+    elif mode == 'limit':
+        # 24.33: at 100% "limit reached" (bold) and ", resets ..." (dim) take the place of the status and allowance lines
+        out.append(L(T(' '), bar(36, 100, elapsed, over), T(' 100% used')))
+        out.append(L(T(' '), T(f'{reset}  {countdown}', 'dim')))
+        out.append(L(T(' '), T('limit reached', 'bold'), T(', ' + reset[0].lower() + reset[1:], 'dim')))
     elif mode == 'stale':
         out.append(L(T(' '), bar(36, used, elapsed, stale=True), T(f' {used}% used', 'dim')))
         out.append(L(T(' '), T(reset, 'dim')))
@@ -275,6 +280,8 @@ def sessions(rows=S_TWO, waiting=False, tipline=False, more=0):
     if not rows:
         return ''.join(out) + L(T(' '), T('no open session', 'dim'))
     for i, (n, m, hue, used, fig) in enumerate(rows):
+        if i:
+            out.append(BL)   # a blank line between sessions (0.1.19)
         out.append(L(T(' '), fb(n, 'k'), T('  '), fb(m)))
         if waiting:
             out.append(L(T(' '), T('waiting for the first reply', 'dim')))
@@ -301,13 +308,14 @@ def tokens(section=0, empty=None, chip=True, linked=True):
         subs.append(A(hrefs[i] if i != section else None, esc(f' {name} '), 'sub' + (' on' if i == section else '')))
     out = [L(T(' '), T(title, 'bold')), L(*subs)]
     if empty:
-        return ''.join(out) + L(T(' '), T(empty, 'dim'))
+        return ''.join(out) + dim_lines(empty, 1)   # wrapped like every note, the folders looked in can run long (0.1.19)
     for k, (n, share, fig) in enumerate(TOKEN_DATA[section]):
         hue = MODEL_HUES[k] if section == 0 else TOK['blue'] if section == 1 else TOK['blue2']
         out.append(L(T(' '), fb(n, 'k'), T(' ' * (15 - n)), bar(24, share, color=hue, plain=True), T('  ' + fig.rjust(5))))
     if chip:
         out.append(L(T(' '), T('[list price equivalent  USD 1,140]', 'dim')))
     out.append(L(T(' '), T('[44% by subagents]', 'dim')))
+    out.append(L(T(' '), T('today 72.4M  7 days 2.10B  30 days 9.80B', 'dim')))   # the totals of spec 5 (0.1.19)
     return ''.join(out)
 
 
@@ -376,8 +384,10 @@ def claude(limits, sess=S_TWO, tok=0, wk=None, hdr=LIVE, tab_prefix='pop', warn=
     body = header(hdr, 0, warn, tab_prefix) + BL + limits + BL
     if not nohook_tab:
         body += sessions(sess, waiting, tipline) + BL
-    body += tokens(tok, tok_empty, chip, tab_prefix == 'pop') + BL + weeks(wk or W_SAMPLE) + foot(0)
-    return body
+    body += tokens(tok, tok_empty, chip, tab_prefix == 'pop')
+    if tok_empty and tok_empty.startswith('No transcripts'):
+        return body + foot(0)   # no transcripts: week over week is left out (spec 14)
+    return body + BL + weeks(wk or W_SAMPLE) + foot(0)
 
 
 WEEKLY_OVER = dict(used=61, elapsed=55, over=True, reset='Resets Sun 18:00', countdown='in 3d 3h', status='Over pace', proj='limit Sun 01:20 at this rate', allow='0.5% an hour left')
@@ -477,7 +487,12 @@ reg('pop-pace-over-early', 'Claude tab, ten minutes into a 5h window: Over pace 
     desk(item('62%', on=True, href='desk'), 'Sat 31 Oct 14:20', over=pop(claude(win('Weekly (all models)', used=62, elapsed=83.5, reset='Resets Sun 18:00', countdown='in 1d 3h', status='Ahead', proj='74% by reset at this rate', allow='1% an hour left') + BL
                                                                    + win('5h window', used=10, elapsed=3.3, over=True, reset='Resets 19:10', countdown='in 4h 50m', status='Over pace', proj='limit 15:50 at this rate', allow='19% an hour left')))
          + tip('Over pace keeps the limit time in every phase: 10% ten minutes into a 5h window reads "Over pace  limit 15:50 at this rate". The weekly row below is Ahead and reads the share at the reset.', 500, 250, 330, n=True)), POP_KEYS)
-reg('desk-weekly-limit', 'Menu bar, weekly limit reached: x x eyes until the reset', 'Menu bar', desk(item('100%', eyes='weekly', over=True, href='pop-live')))
+reg('desk-weekly-limit', 'Menu bar, weekly limit reached: x x eyes until the reset', 'Menu bar', desk(item('100%', eyes='weekly', over=True, href='pop-live-limit')))
+WEEKLY_LIMIT = dict(used=100, elapsed=55, over=True, reset='Resets Sun 18:00', countdown='in 3d 3h')
+reg('pop-live-limit', 'Claude tab, the weekly window at 100%: limit reached, resets Sun 18:00', 'Pace',
+    desk(item('100%', eyes='weekly', over=True, on=True, href='desk-weekly-limit'),
+         over=pop(claude(win('Weekly (all models)', 'limit', **WEEKLY_LIMIT) + BL + win('5h window', **FIVE_AHEAD), wk=W_SAMPLE[:3] + [('12 Oct', 100, False, 'so far', 55, True)])) + pmark(7, 1, 0, 34)
+                  + tip('At 100% the status, the projection and the allowance give way to one line: "limit reached" in bold, ", resets Sun 18:00" dim (a 5h window reads ", resets 17:45"). The label says the same to VoiceOver (Grammar.windowSection, 24.33). A figure under 100 never reads 100: 99.5 shows 99.', 500, 250, 330, n=True)), POP_KEYS)
 
 # stale and missing
 reg('pop-asof', 'Claude tab, last session closed 20 minutes ago: As of 14:00, pace still computed', 'Stale feed',
@@ -488,9 +503,10 @@ reg('pop-stale', 'Claude tab, stale: no session for over an hour', 'Stale feed',
     desk(item('61%', dim=True, on=True, href='desk-stale'), over=pop(claude(STALE, sess=[], hdr=ASOF('13:05'), wk=W_STALE))), POP_KEYS)
 reg('desk-stale', 'Menu bar, stale: the item at half strength', 'Menu bar', desk(item('61%', dim=True, href='pop-stale')))
 reg('pop-nolimits', 'Claude tab, sessions on an API key, Bedrock or Vertex: no plan limits', 'Stale feed',
-    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude(two_lines('Weekly and 5h window', 'these sessions carry no plan limits'), wk=W_SAMPLE[:3] + [('12 Oct', None, False, 'no feed yet', None, False)]))), POP_KEYS)
-reg('pop-notranscripts', 'Claude tab, no transcripts folder', 'Stale feed',
-    desk(item('61%', over=True, on=True, href='desk'), over=pop(claude(LIVE_LIMITS, tok_empty='No transcripts in ~/.claude/projects'))), POP_KEYS)
+    desk(item('', dim=True, on=True, href='desk-nofeed'), over=pop(claude(two_lines('Weekly and 5h window', 'these sessions carry no plan limits'), wk=W_SAMPLE[:3] + [('12 Oct', None, False, 'no plan limits', None, False)]))), POP_KEYS)
+reg('pop-notranscripts', 'Claude tab, no transcripts folder: the folders looked in, no Week over week', 'Stale feed',
+    desk(item('61%', over=True, on=True, href='desk'), over=pop(claude(LIVE_LIMITS, tok_empty='No transcripts in ~/.claude/projects, ~/.claude-work/projects'))
+         + tip('The text names every folder the app looked in and wraps like the other notes (ScreenBuilder.tokensView, LiveInput.transcriptFolders). With no transcripts folder the chips and Week over week are left out (spec 14, 24.39).', 500, 250, 330, n=True)), POP_KEYS)
 
 # Mac tab
 
@@ -523,7 +539,8 @@ MK = keys(Escape='desk', Tab='pop-settings', Shift_Tab='pop-live', Meta_q='desk-
 reg('pop-mac', 'Mac tab: CPU, GPU, memory, battery, processes', 'Mac tab', desk(item('61%', over=True, on=True, href='desk'), over=pop(mac_tab())
     + tip('The free cells of the memory grid are #949494 (Tokens.dimmer, 0.1.14), 3 to 1 even over a white desktop; #6e6e73 in light mode.', 500, 300, 300, n=True)), MK)
 reg('pop-mac-ultra', 'Mac tab (Ultra, today)', 'Mac tab', desk(item('28%', on=True, href='desk-ultra'), TODAY, over=pop(mac_tab(prefix='ultra'))), keys(Escape='desk-ultra', Tab='pop-settings-ultra', Shift_Tab='pop-ultra-today'))
-reg('pop-mac-warning', 'Mac tab with the warning: dot on the tab, pressure warn', 'Mac tab', desk(item('61%', over=True, warn=True, on=True, href='desk-warning'), over=pop(mac_tab(warn=True, prefix='warn'))), keys(Escape='desk-warning', Tab='pop-settings', Shift_Tab='pop-live-warn'))
+reg('pop-mac-warning', 'Mac tab with the warning: dot on the tab, pressure warn', 'Mac tab', desk(item('61%', over=True, warn=True, on=True, href='desk-warning'), over=pop(mac_tab(warn=True, prefix='warn'))
+    + tip('On the selected Mac tab the dot is #7a4e00 (3.8 to 1 on the accent #b1b9f9); in light mode it is #ffc107 on #3b46b8 (4.7 to 1). On the other tabs it is the warning, #ffc107 dark, #7a4e00 light (Tokens.warningOnAccent, 24.38).', 500, 200, 330, n=True)), keys(Escape='desk-warning', Tab='pop-settings', Shift_Tab='pop-live-warn'))
 reg('pop-live-warn', 'Claude tab with the Mac warning dot', 'Mac tab', desk(item('61%', over=True, warn=True, on=True, href='desk-warning'), over=pop(claude(LIVE_LIMITS, tab_prefix='warn', warn=True))), keys(Escape='desk-warning', Tab='pop-mac-warning'))
 reg('pop-mac-health', 'Mac tab, no battery health from macOS: left out', 'Mac tab', desk(item('61%', over=True, on=True, href='desk'), over=pop(mac_tab(health=False))), MK)
 reg('desk-warning', 'Menu bar with the Mac warning sign', 'Menu bar', desk(item('61%', over=True, warn=True, href='pop-live-warn')))
@@ -547,7 +564,7 @@ def cb(on, label, href, subs=(), indent=1, focus=False, link=None):
 
 def settings_tab(login='off', nudge_note=None, awake=False, awake_open=False, awake_note=None, restore=False, hook=True,
                  hook_err=None, prefix='pop', hdr=LIVE, macbar=False, listprice=True, focus=None, five=True, folders=False):
-    """Grammar.settingsTab, row for row, with the version line of 0.1.15."""
+    """Grammar.settingsTab, row for row, with the version line of 0.1.19."""
     body = header(hdr, 2, False, prefix) + BL
     body += cb(login == 'on', 'Open at login', 'pop-settings-login' if login == 'off' else 'pop-settings')
     if login == 'approval':
@@ -560,6 +577,8 @@ def settings_tab(login='off', nudge_note=None, awake=False, awake_open=False, aw
         body += cb(awake_open, 'also while a session waits for you', 'pop-settings-awake-open' if not awake_open else 'pop-settings-awake', [awake_note] if awake_note else [], indent=5)
     body += cb(restore, 'Reopen sessions after a restart', 'pop-settings-restore' if not restore else 'pop-settings',
                ['asks first, then opens each as it was started, and says when one ends on its own'] + ([nudge_note] if restore and nudge_note else []))
+    if restore:
+        body += L(T('     '), T('Open sessions in Terminal ▾'))   # Grammar.reopenAppRow
     body += BL
     if folders:
         body += L(T(' '), A('editor-after', 'Install the status line entry')) + dim_lines('one entry in each of ~/.claude, ~/.claude-work', 5)
@@ -574,7 +593,7 @@ def settings_tab(login='off', nudge_note=None, awake=False, awake_open=False, aw
     if hook_err:
         body += dim_lines(hook_err, 5)
     body += BL + L(T(' '), A('', 'Copy a problem report')) + dim_lines('versions, switches and errors to paste into an issue or a mail, sends nothing', 5)
-    body += BL + PRIVACY + L(T(' '), T('tokenpanda 0.1.15', 'dim')) + BL
+    body += BL + PRIVACY + L(T(' '), T('tokenpanda 0.1.19', 'dim')) + BL
     body += L(T(' '), A('desk-quit', 'Quit'), T(' ' * 40), A('desk-quit', G('&#8984;Q', 2)))
     return body + foot(2)
 
@@ -667,9 +686,9 @@ reg('browser-release', 'Releases page: tokenpanda-0.1.15.zip and its .sha256', '
 reg('term-shasum', 'Terminal: shasum checks the zip, OK', 'Install',
     plain(term('Terminal, ~/Downloads', [('p', '$ shasum -a 256 -c tokenpanda-0.1.15.zip.sha256'), ('ok', 'tokenpanda-0.1.15.zip: OK'), ('p', '$ unzip -q tokenpanda-0.1.15.zip &amp;&amp; mv tokenpanda.app /Applications/')])
           + '<div class="alts"><a class="altg" href="finder-apps.html">Open Applications</a><a class="altg" href="term-brew.html">With Homebrew instead</a></div>', app='Terminal'))
-reg('term-brew', 'Terminal: brew trust, brew install from the tap, the caveats', 'Install',
-    plain(term('Terminal', [('p', '$ brew trust --cask tokenpandadev/tap/tokenpanda'), ('p', '$ brew install tokenpandadev/tap/tokenpanda'), ('d', '==&gt; Tapping tokenpandadev/tap'), ('d', '==&gt; Installing Cask tokenpanda'),
-                            ('', '==&gt; Caveats'), ('', 'The app is signed ad hoc, not notarised. On first launch macOS blocks it:'), ('', 'open System Settings, Privacy &amp; Security, and click Open Anyway.'), ('', ' '),
+reg('term-brew', 'Terminal: brew install from the tap, the caveats', 'Install',
+    plain(term('Terminal', [('p', '$ brew install --cask tokenpandadev/tap/tokenpanda'), ('d', '==&gt; Tapping tokenpandadev/tap'), ('d', '==&gt; Installing Cask tokenpanda'),
+                            ('', '==&gt; Caveats'), ('', 'The app is signed ad hoc, not notarised. On first launch macOS blocks it:'), ('', 'open System Settings, Privacy &amp; Security, and click Open Anyway. The warning'), ('', 'comes back once more: click Open Anyway again and enter your Mac password'), ('', 'or use Touch ID.'), ('', ' '),
                             ('', 'brew uninstall --zap removes the status line entry and puts back the one'), ('', 'you had before, once tokenpanda 0.1.9 or later has run at least once.'),
                             ('', 'With a plain brew uninstall, first open tokenpanda\'s Settings tab and'), ('', 'click "Remove the status line entry".'),
                             ('ok', 'tokenpanda was successfully installed!'), ('d', '(on an Intel Mac the cask refuses: depends_on arch: :arm64)')])
@@ -773,8 +792,8 @@ reg('term-reopen', 'Terminal: each session started again as it was started, with
           + tip('The options the session was started with come back, then its name, then Remote Control. If that start fails within 20 s, the same without Remote Control follows, then a plain claude --resume; a start prompt is not sent again (Reopen.script). The window keeps a shell when the session ends.', 760, 520, 330, n=True), app='Terminal'))
 reg('term-pmset', 'Terminal: pmset lists the tokenpanda assertion', 'Keep awake',
     plain(term('Terminal', [('p', '$ pmset -g assertions'), ('', '   pid 4242(tokenpanda): ... PreventUserIdleSystemSleep named: "tokenpanda: a Claude Code session is open"')]), app='Terminal'))
-reg('term-brew-upgrade', 'Terminal: brew upgrade, then Open Anyway again', 'Update',
-    plain(term('Terminal', [('p', '$ brew upgrade --cask tokenpanda'), ('d', '==&gt; Upgrading tokenpanda 0.1.14 -&gt; 0.1.15'), ('d', '==&gt; Quitting dev.tokenpanda.app'), ('ok', 'tokenpanda was successfully upgraded!')])
+reg('term-brew-upgrade', 'Terminal: brew upgrade --cask, then Open Anyway again', 'Update',
+    plain(term('Terminal', [('p', '$ brew upgrade --cask tokenpandadev/tap/tokenpanda'), ('d', '==&gt; Upgrading tokenpanda 0.1.14 -&gt; 0.1.15'), ('d', '==&gt; Quitting dev.tokenpanda.app'), ('ok', 'tokenpanda was successfully upgraded!')])
           + tip('<b>Friction.</b> Each new build is signed ad hoc with a new code hash, so the Open Anyway steps can come back after an update. Settings says which build runs: "tokenpanda 0.1.15".', 760, 520, 330)
           + '<div class="alts"><a class="altg" href="gk-blocked.html">Open the new build</a></div>', app='Terminal'))
 reg('finder-bin', 'Finder: tokenpanda.app moved to the Bin', 'Uninstall',

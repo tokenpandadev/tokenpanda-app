@@ -108,8 +108,13 @@ function windowSection(m, o = {}) {
     s += L(' ' + sp('as of ' + (o.asOf || '13:05'), 'd'));
   } else {
     s += L(' ' + sp(m.reset + '  ' + m.countdown, 'd'));
-    s += L(' ' + sp(m.status, 'b') + (m.proj ? sp('  ' + m.proj, 'd') : ''));
-    s += L(' ' + sp(m.allow, 'd'));
+    if (m.used >= 100) {
+      /* at 100% the status and allowance lines give way to one line (0.1.19) */
+      s += L(' ' + sp('limit reached', 'b') + sp(', ' + m.reset.charAt(0).toLowerCase() + m.reset.slice(1), 'd'));
+    } else {
+      s += L(' ' + sp(m.status, 'b') + (m.proj ? sp('  ' + m.proj, 'd') : ''));
+      s += L(' ' + sp(m.allow, 'd'));
+    }
   }
   return s;
 }
@@ -219,7 +224,7 @@ function openSession(name, model, hue, figure, used, tip, o = {}) {
 }
 function openSessions(o = {}) {
   let s = L(' ' + sp('Open sessions', 'b'));
-  OPEN.forEach(r => { s += openSession(r[0], r[1], r[2], r[3], r[4], r[5], o); });
+  OPEN.forEach((r, i) => { if (i) s += BL; s += openSession(r[0], r[1], r[2], r[3], r[4], r[5], o); });   /* a blank line between sessions (0.1.19) */
   return s;
 }
 
@@ -236,6 +241,7 @@ function claudeTab(st, sub, price, anim) {
   s += rows([MODELS, PROJECTS, SESSIONS][sub], sub === 2 ? 'today' : '7 days', {anim});
   if (price) s += L(' ' + sp('[list price equivalent  USD 1,140]', 'd'));
   s += L(' ' + sp('[44% by subagents]', 'd'));
+  s += L(' ' + sp('today 72.4M  7 days 2.10B  30 days 9.80B', 'd'));   /* the totals of spec 5 (0.1.19) */
   s += BL + L(' ' + sp('Week over week', 'b'));
   s += week('21 Sep', 88, {anim}) + week('28 Sep', 100, {hit:true, note:'Thu 16:10', anim}) + week('5 Oct', 96, {anim}) + week('12 Oct', mW.used, {E:mW.E, over:mW.over && !st.stale, note:'so far', anim});
   return s;
@@ -264,6 +270,7 @@ function settingsTab(st) {
     + cbRow('Keep the Mac awake while Claude works', !!st.awake, 'a closed lid on battery still sleeps')
     + (st.awake ? cbRow('also while a session waits for you', !!st.awakeOpen, st.awakeNote ? st.awakeNote : null, {indent: '     '}) : '')
     + cbRow('Reopen sessions after a restart', !!st.restore, 'asks first, then opens each as it was started, and says when one ends on its own', {more: st.restore && st.notifOff ? [NOTIF_OFF] : []})
+    + (st.restore ? L('     Open sessions in Terminal \u25be', 'srow') : '')
     + BL
     + hookRow(st.hook !== false)
     + BL
@@ -272,7 +279,7 @@ function settingsTab(st) {
     + BL
     + L(' ' + sp('This app makes no network calls. Usage comes', 'd'))
     + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd'))
-    + L(' ' + sp('tokenpanda 0.1.15', 'd'))
+    + L(' ' + sp('tokenpanda 0.1.19', 'd'))
     + BL
     + L(' Quit' + rcol('⌘Q', POP - 5));
 }

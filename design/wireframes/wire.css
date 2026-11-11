@@ -73,6 +73,7 @@ html.hot a[href]:hover { outline: 2px solid rgba(215, 119, 87, .8); }
 .ln .g { display: inline-block; text-align: left; overflow: visible; }
 .ln .dotc { position: relative; height: 16px; }
 .ln .dotc::after { content: ""; position: absolute; left: calc(50% - 3.5px); top: 4.5px; width: 7px; height: 7px; border-radius: 4px; background: #ffc107; }
+.ln .tab.on .dotc::after { background: #7a4e00; }   /* on the selected tab's accent: 3.8 to 1 (0.1.19); light mode takes #ffc107 */
 .ln.hov { background: #273d4c; }
 .ln a { border-radius: 0; }
 .ln.rule::before { content: ""; position: absolute; left: 0; top: 1px; width: 48ch; height: 1.5px; background: #b1b9f9; }

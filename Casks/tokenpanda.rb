@@ -36,7 +36,9 @@ cask "tokenpanda" do
 
   caveats <<~EOS
     The app is signed ad hoc, not notarised. On first launch macOS blocks it:
-    open System Settings, Privacy & Security, and click Open Anyway.
+    open System Settings, Privacy & Security, and click Open Anyway. The warning
+    comes back once more: click Open Anyway again and enter your Mac password
+    or use Touch ID.
 
     brew uninstall --zap removes the status line entry and puts back the one
     you had before, once tokenpanda 0.1.9 or later has run at least once.

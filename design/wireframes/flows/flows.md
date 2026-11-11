@@ -8,7 +8,7 @@ Diagram: 01-download-and-first-open.mmd
 
 1. The releases page offers the zip of each version and its .sha256; the README says it runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later.
 2. In Terminal, shasum -a 256 -c checks the zip and prints OK; unzip and move tokenpanda.app to Applications.
-3. With Homebrew instead: brew trust --cask, then brew install tokenpandadev/tap/tokenpanda; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap.
+3. With Homebrew instead: brew install --cask tokenpandadev/tap/tokenpanda, with no trust step; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap.
 4. Double click in Applications: macOS refuses the ad hoc build, "Apple could not verify tokenpanda is free of malware".
 5. System Settings, Privacy and Security, scroll to the bottom, Open Anyway.
 6. The warning comes back once; Open Anyway starts the app.
@@ -88,7 +88,7 @@ Diagram: 06-weekly-reset.mmd
 5. Early in a window the pace row does not guess: "On pace  too early to project" until 5% of the window has passed (8 h 24 min of a week, 15 min of a 5h window). The new week above shows it.
 6. On pace or Ahead the projection reads "N% by reset at this rate", N at most 100; Over pace keeps "limit ... at this rate" in every phase, also ten minutes in.
 7. Week over week keeps the highest value seen per week.
-8. At 100% the panda shows x x until the reset.
+8. At 100% the panda shows x x until the reset, and the weekly window reads "limit reached, resets Sun 18:00" in place of the pace lines.
 
 ## 07 Stale or missing feed
 
@@ -149,7 +149,7 @@ Diagram: 11-reopen-sessions-after-a-restart.mmd
 Diagram: 12-update.mmd
 
 1. The app never checks for updates (no network); a new version is found on the releases page or with brew outdated.
-2. brew upgrade --cask tokenpanda quits and replaces the app.
+2. brew upgrade --cask tokenpandadev/tap/tokenpanda quits and replaces the app.
 3. A new ad hoc build can bring back the Open Anyway steps; the version line in Settings confirms what runs.
 4. Settings, the entry and the records survive the update, and the installed script is brought up to date at launch.
 

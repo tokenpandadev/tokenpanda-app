@@ -28,7 +28,7 @@ FLOWS = [
  dict(id='01', name='Download and first open', steps=[
   S('The releases page offers the zip of each version and its .sha256; the README says it runs on a Mac with Apple silicon (M1 or later) on macOS 14 or later.', 'browser-release', 'Download both.', 'works', 'README.md, Install (0.1.15); flow-test-0.1.13 01.1.'),
   S('In Terminal, shasum -a 256 -c checks the zip and prints OK; unzip and move tokenpanda.app to Applications.', 'term-shasum', 'Run the two lines.', 'works', 'README.md, Install; flow-test-0.1.13 01.2.'),
-  S('With Homebrew instead: brew trust --cask, then brew install tokenpandadev/tap/tokenpanda; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap.', 'term-brew', 'Read the caveats.', 'works', 'Casks/tokenpanda.rb: depends_on arch: :arm64 (0.1.14), caveats; README.md, Install.'),
+  S('With Homebrew instead: brew install --cask tokenpandadev/tap/tokenpanda, with no trust step; the cask declares Apple silicon only, so an Intel Mac is refused, and the caveats say Open Anyway and explain the zap.', 'term-brew', 'Read the caveats.', 'works', 'Casks/tokenpanda.rb: depends_on arch: :arm64 (0.1.14), caveats; README.md, Install.'),
   S('Double click in Applications: macOS refuses the ad hoc build, "Apple could not verify tokenpanda is free of malware".', ['finder-apps', 'gk-blocked'], 'Click Done.', 'friction', 'codesign Signature=adhoc; spctl rejected (flow-test-0.1.13 01.4). By design until Developer ID signing (spec 17, path two).'),
   S('System Settings, Privacy and Security, scroll to the bottom, Open Anyway.', 'gk-settings', 'Find the button.', 'by hand', 'README.md, Install; flow-test-0.1.13 01.5.'),
   S('The warning comes back once; Open Anyway starts the app.', 'gk-confirm', 'Click Open Anyway.', 'by hand', 'README.md, Install.'),
@@ -93,7 +93,7 @@ FLOWS = [
   S('Early in a window the pace row does not guess: "On pace  too early to project" until 5% of the window has passed (8 h 24 min of a week, 15 min of a 5h window). The new week above shows it.', ['pop-pace-early', 'pop-week-new'], 'Read the pace row in the first hours.', 'works', 'PaceModel.reading, earliestProjection (0.1.15, flow test 06.8; texts approved 2026-11-04); test theFirstMinutesOfAWindowProjectOnlyOverPace.'),
   S('On pace or Ahead the projection reads "N% by reset at this rate", N at most 100; Over pace keeps "limit ... at this rate" in every phase, also ten minutes in.', ['pop-pace-reset', 'pop-pace-over-early'], 'Read the pace row.', 'works', 'PaceModel.reading (0.1.15; texts approved 2026-11-04); test aLimitIsNamedOnlyOverPace.'),
   S('Week over week keeps the highest value seen per week.', 'pop-live', 'Trust the history.', 'works', 'WindowsTests weekOverWeekKeepsTheHighestValuePerWeek; flow-test-0.1.13 06.5.'),
-  S('At 100% the panda shows x x until the reset.', 'desk-weekly-limit', 'Wait for the reset.', 'works', 'ItemImage; flow-test-0.1.13 06.6.'),
+  S('At 100% the panda shows x x until the reset, and the weekly window reads "limit reached, resets Sun 18:00" in place of the pace lines.', ['desk-weekly-limit', 'pop-live-limit'], 'Wait for the reset.', 'works', 'ItemImage; Grammar.windowSection (spec 24.33); flow-test-0.1.13 06.6.'),
  ]),
  dict(id='07', name='Stale or missing feed', steps=[
   S('The last session closes: its row leaves after 60 s and the header says "As of 13:05, last Claude Code session"; pace is still computed for an hour.', 'pop-asof', 'Read the time.', 'works', 'FeedTests openSessionsTiming; flow-test-0.1.13 07.1.'),
@@ -136,7 +136,7 @@ FLOWS = [
  ]),
  dict(id='12', name='Update', steps=[
   S('The app never checks for updates (no network); a new version is found on the releases page or with brew outdated.', 'browser-release', 'Look on GitHub.', 'friction', 'By design (spec 16).'),
-  S('brew upgrade --cask tokenpanda quits and replaces the app.', 'term-brew-upgrade', 'Run it.', 'by hand', 'Casks/tokenpanda.rb, uninstall quit.'),
+  S('brew upgrade --cask tokenpandadev/tap/tokenpanda quits and replaces the app.', 'term-brew-upgrade', 'Run it.', 'by hand', 'Casks/tokenpanda.rb, uninstall quit.'),
   S('A new ad hoc build can bring back the Open Anyway steps; the version line in Settings confirms what runs.', ['term-brew-upgrade', 'gk-blocked'], 'Open Anyway again.', 'by hand', 'codesign adhoc; flow-test-0.1.13 12.3.'),
   S('Settings, the entry and the records survive the update, and the installed script is brought up to date at launch.', 'pop-live', 'Nothing.', 'works', 'flow-test-0.1.13 12.4.'),
  ]),
