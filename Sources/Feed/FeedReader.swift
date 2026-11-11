@@ -72,7 +72,7 @@ public struct Limits: Sendable, Equatable, Codable {
     /// `carriedWindows` says whether any raw feed had a window entry, before passed or unreadable ones were dropped;
     /// only a reply with none at all makes the limits planless.
     /// `at` is the newest file time of the feeds applied. The record's time (asOf) becomes `repliedAt`; without a reply
-    /// it stays.
+    /// it stays, unless it lies after `at` (the clock was ahead when it was written), when the file time replaces it.
     public mutating func apply(_ rateLimits: [String: LimitWindow], at: Date, repliedAt: Date? = nil, carriedWindows: Bool? = nil) {
         for (key, w) in rateLimits {
             hidden.remove(key)
@@ -107,7 +107,7 @@ public struct Limits: Sendable, Equatable, Codable {
             }
         }
         fedAt = at
-        if let r = repliedAt { asOf = r }
+        if let r = repliedAt { asOf = r } else if asOf > at { asOf = at }
     }
 
     /// The record the eyes, the spoken label and the nudges may use: none for a retired or hidden window, or planless.
@@ -242,7 +242,10 @@ public actor FeedReader {
         }
         figuresSeen = nextFigures
         parsed = nextParsed   // a deleted or vanished file leaves the cache with its scan
-        if let t = newestLimits, t > (limits?.fedAt ?? .distantPast) {
+        // a stored time after now was written while the clock was ahead: it would hold back every file until the clock
+        // catches up, so the newest file is taken whatever its time
+        let ahead = limits.map { OpenSessionsRule.isAhead($0.fedAt, now: now) || OpenSessionsRule.isAhead($0.asOf, now: now) } ?? false
+        if let t = newestLimits, ahead || t > (limits?.fedAt ?? .distantPast) {
             var l = limits ?? Limits(asOf: t)
             l.apply(Limits.merge(feeds, now: now), at: t, repliedAt: repliedAt, carriedWindows: carriedWindows)
             if l != limits {

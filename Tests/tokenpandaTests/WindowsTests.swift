@@ -503,6 +503,29 @@ struct WindowsTests {
         #expect(l.fedAt == t0.addingTimeInterval(1))
     }
 
+    @Test func aLimitsFileFromAClockThatRanAheadIsStaleAndTakesTheNewestFile() async throws {
+        let dir = try tempDir()
+        let ahead = t0.addingTimeInterval(86400)
+        let stored = """
+        {"asOf":\(ahead.timeIntervalSince1970),"windows":{"seven_day":{"contradicts":false,"used":10,"resetsAt":\(week.timeIntervalSince1970)}}}
+        """
+        try Data(stored.utf8).write(to: dir.appendingPathComponent("limits.json"))
+        #expect(OpenSessionsRule.isStale(asOf: ahead, now: t0))
+        #expect(!OpenSessionsRule.isStale(asOf: t0.addingTimeInterval(30), now: t0))   // a file stamped just after the scan began
+        let reader = FeedReader(dataDir: dir)
+        let before = try #require(await reader.scan(now: t0).limits)
+        guard case .stale = mode("seven_day", before, t0) else { Issue.record("a record from the future reads fresh"); return }
+        // the newest file is taken although it is older than the stored time
+        try write("s", feed("s", windows: ["seven_day": (55, week)], cost: 1), in: dir, at: t0.addingTimeInterval(2))
+        let l = try #require(await reader.scan(now: t0.addingTimeInterval(2)).limits)
+        #expect(l.windows["seven_day"]?.used == 55)
+        #expect(l.asOf == t0.addingTimeInterval(2) && l.fedAt == t0.addingTimeInterval(2))
+        #expect(isLive(mode("seven_day", l, t0.addingTimeInterval(2))))
+        // and a reply after it moves the record on as usual
+        try write("s", feed("s", windows: ["seven_day": (56, week)], cost: 2), in: dir, at: t0.addingTimeInterval(7))
+        #expect(await reader.scan(now: t0.addingTimeInterval(7)).limits?.windows["seven_day"]?.used == 56)
+    }
+
     @Test func disableAllHooksIsReported() throws {
         let dir = try tempDir()
         let settings = dir.appendingPathComponent("settings.json")

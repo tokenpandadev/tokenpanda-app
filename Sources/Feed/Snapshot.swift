@@ -118,7 +118,14 @@ public enum OpenSessionsRule {
 
     public static func isOpen(writtenAt: Date, now: Date) -> Bool { now.timeIntervalSince(writtenAt) <= openWithin }
     public static func shouldDelete(writtenAt: Date, now: Date) -> Bool { now.timeIntervalSince(writtenAt) > dropAfter }
-    public static func isStale(asOf: Date, now: Date) -> Bool { now.timeIntervalSince(asOf) > staleAfter }
+    /// A time this far after now is a clock that ran ahead, not a file stamped just after a scan began.
+    public static let aheadAfter: TimeInterval = 60
+
+    /// Older than an hour, or later than now (a record written while the clock was ahead says nothing of its age).
+    public static func isStale(asOf: Date, now: Date) -> Bool {
+        now.timeIntervalSince(asOf) > staleAfter || isAhead(asOf, now: now)
+    }
+    public static func isAhead(_ t: Date, now: Date) -> Bool { t.timeIntervalSince(now) > aheadAfter }
 }
 
 /// Which open sessions are working, for the keep awake setting. An idle session keeps writing the same figures
