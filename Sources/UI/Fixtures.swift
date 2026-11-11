@@ -143,7 +143,7 @@ public enum Fixtures {
                              TokenGroup(name: "a0000000", key: "a0000000-0000-4000-8000-000000000003", tokens: 18_000_000, share: 30),
                              TokenGroup(name: "c91e0a44", key: "c91e0a44-0000-4000-8000-000000000003", tokens: 12_600_000, share: 20)],
             agentShare7d: 100, listPrice7d: 1.498, unpricedModels: 2,
-            tokensToday: 999_999_999, tokens7d: 133_459_003_999, tokens30d: 9_999_999_999_999, total7d: 0, totalToday: 0)
+            tokensToday: 999_999_999, tokens7d: 133_459_003_999, tokens30d: 9_999_999_999_999)
         var lim = limits(weekly: 100, five: 99.5)
         lim.windows["seven_day_opus_extra_long_key_that_runs_well_past_the_panel_edge"] = .init(used: 12, resetsAt: weeklyReset)
         var wide = input(feedState: FeedState(limits: lim, sessions: open, lastWriteAt: now.addingTimeInterval(-2)))
@@ -163,7 +163,7 @@ public enum Fixtures {
             byProject7d: [TokenGroup(name: long, key: long, tokens: Int.max / 3, share: 100)],
             bySessionToday: [TokenGroup(name: "a0000000", key: "a0000000", tokens: Int.max, share: 100)],
             agentShare7d: 0, listPrice7d: 123_456_789.5, unpricedModels: 12,
-            tokensToday: Int.max, tokens7d: Int.max, tokens30d: Int.max, total7d: 0, totalToday: 0)
+            tokensToday: Int.max, tokens7d: Int.max, tokens30d: Int.max)
         var hugeSessions = open
         hugeSessions[0].snapshot.currentUsageTokens = Int.max
         hugeSessions[0].snapshot.contextWindowSize = Int.max

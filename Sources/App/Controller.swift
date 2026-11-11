@@ -34,6 +34,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var hook: HookSet
     var folders: [URL]
     let store: TranscriptStore
+    var transcriptRoots: [URL]   // the store's roots as last given, for the panel's folder names (the store's own copy is actor isolated)
     let sampler = MacSampler()
     let notifier = Notifier()
     let nudges = NudgeLedger(mark: { Settings.nudged($0) }, setMark: { Settings.setNudged($0, $1) })   // the rule: NudgeRules
@@ -99,7 +100,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         folders = found.install
         hook = HookSet(folders: folders, dataDir: Paths.dataDir)
         // the transcripts of every settings folder found, besides the usual places
-        store = TranscriptStore(roots: ConfigFolders.transcriptRoots(usual: TranscriptLocator.roots(), folders: found.transcripts))
+        transcriptRoots = ConfigFolders.transcriptRoots(usual: TranscriptLocator.roots(), folders: found.transcripts)
+        store = TranscriptStore(roots: transcriptRoots)
         super.init()
         _ = folderClock.due(now: Date())   // the look just made counts: the next one a minute on
     }
@@ -289,6 +291,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func refreshFolders() {
         let found = ConfigFolders.scan()
         let roots = ConfigFolders.transcriptRoots(usual: TranscriptLocator.roots(), folders: found.transcripts)
+        transcriptRoots = roots
         Task { if await store.setRoots(roots) { await refreshTranscripts() } }
         guard found.install != folders else { return }
         folders = found.install
@@ -608,6 +611,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         i.sessionNames = sessionNames
         i.removeScriptError = removeScriptError
         i.reportCopied = reportCopied
+        i.transcriptFolders = ScreenBuilder.folderNames(TranscriptLocator.unique(transcriptRoots))
         // looked up in Launch Services only while Settings shows, where the row is
         if i.restoreSessions, tab == 2 { i.reopenApp = ReopenApp.current }
         return i
