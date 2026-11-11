@@ -104,7 +104,10 @@ public enum ScreenBuilder {
             return WindowView(title: title, used: rec.used, mode: .stale(asOf: clock(limits.asOf, tz), reset: r.resetText, elapsed: r.elapsedShare))
         }
         // at 100% the line says the limit is reached and when it resets, in place of the pace lines (0.1.19)
-        let p = PaceLines(reset: r.resetText, countdown: r.countdown, status: r.status.rawValue, projection: r.projection,
+        // nothing used yet, so no rate to project: the status line still says where the week lands, "Ahead  0% by reset
+        // at this rate", never the bare word (0.1.19)
+        let projection = r.projection ?? (rec.used <= 0 ? "0% by reset at this rate" : nil)
+        let p = PaceLines(reset: r.resetText, countdown: r.countdown, status: r.status.rawValue, projection: projection,
                           allowance: r.allowance, over: r.status == .overPace, elapsed: r.elapsedShare,
                           limitReached: rec.used >= 100 ? clock(rec.resetsAt, tz, weekday: weekday) : nil)
         return WindowView(title: title, used: rec.used, mode: .live(p))

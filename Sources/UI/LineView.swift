@@ -123,6 +123,9 @@ public final class LineView: NSView {
     let baseline: CGFloat
     let barTop: CGFloat
     let barHeight: CGFloat
+    /// The header rule's ink box inside its line, from the upper eighth block glyph it is written with.
+    let ruleTop: CGFloat
+    let ruleHeight: CGFloat
 
     struct Hit { var rect: NSRect; var line: Int; var piece: Int }
     var hits: [Hit] = []
@@ -153,6 +156,18 @@ public final class LineView: NSView {
         } else {
             barTop = 3; barHeight = 12
         }
+        var ruleChars = Array(String(LineView.ruleGlyph).utf16)
+        let ruleFont = CTFontCreateForString(ct, String(LineView.ruleGlyph) as CFString, CFRange(location: 0, length: 1))
+        var ruleGlyphs = [CGGlyph](repeating: 0, count: ruleChars.count)
+        CTFontGetGlyphsForCharacters(ruleFont, &ruleChars, &ruleGlyphs, ruleChars.count)
+        var ruleRect = CGRect.zero
+        CTFontGetBoundingRectsForGlyphs(ruleFont, .horizontal, &ruleGlyphs, &ruleRect, 1)
+        if ruleRect.height > 0 {
+            ruleTop = baseline - ruleRect.maxY
+            ruleHeight = ruleRect.height
+        } else {
+            ruleTop = barTop; ruleHeight = 1.5
+        }
         super.init(frame: NSRect(x: 0, y: 0, width: LineView.width, height: 100))
         wantsLayer = false
         let area = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil)
@@ -166,6 +181,24 @@ public final class LineView: NSView {
     // MARK: layout
 
     func lineY(_ i: Int) -> CGFloat { padTop + CGFloat(i) * LineView.lineHeight }
+
+    /// The header rule's glyph: a line of these is drawn as one rect.
+    nonisolated static let ruleGlyph: Character = "\u{2594}"
+
+    /// The width of the text column, as wide as the header rule: the row highlight ends where the rule ends (0.1.19; it
+    /// ran four points past it, to the panel's padding).
+    var columnWidth: CGFloat { CGFloat(Grammar.popCells + 1) * cellWidth }
+
+    /// The lines of the row a line belongs to: itself, or an open session's name line and bar line together.
+    func rowLines(_ li: Int) -> ClosedRange<Int> {
+        var a = li, b = li
+        while a > 0, lines[a - 1].joinsNext { a -= 1 }
+        while b < lines.count - 1, lines[b].joinsNext { b += 1 }
+        return a...b
+    }
+
+    /// The lines under the pointer's row, highlighted together; nil when none is.
+    var hoverRows: ClosedRange<Int>? { hoverLine.map(rowLines) }
 
     func rebuildHits() {
         hits = []
@@ -484,11 +517,20 @@ public final class LineView: NSView {
             (LineView.stageOverride?.ns ?? Tokens.stage.ink(isLight)).setFill(); bounds.fill()
             Tokens.tint.ink(isLight).setFill(); bounds.fill()
         }
+        let highlighted = hoverRows
+        // the lines are drawn around the tooltip's lines, so none of their pixels stays under it or in its gap
+        let tip = openTip
+        ctx.saveGState()
+        if let t = tip {
+            ctx.addRect(bounds)
+            ctx.addRect(t.clear)
+            ctx.clip(using: .evenOdd)
+        }
         for (li, line) in lines.enumerated() {
             let y = lineY(li)
-            if hoverLine == li, line.hover {
+            if let h = highlighted, h.contains(li), line.hover {
                 Tokens.selection.ink(isLight).setFill()
-                NSRect(x: padSide, y: y, width: bounds.width - 2 * padSide, height: LineView.lineHeight).fill()
+                NSRect(x: padSide, y: y, width: snap(padSide + columnWidth) - padSide, height: LineView.lineHeight).fill()
             }
             // grounds first, one rect per run of pieces with the same ground on whole device pixels: the selected tab with
             // the warning dot is three pieces on one flat block, without seams at their joins (0.1.19)
@@ -511,8 +553,10 @@ public final class LineView: NSView {
             }
             flushGround()
             if let pr = pressed, pr.inside, let c = controls.first(where: { $0.key == pr.key }), c.line == li {
-                // a control under a press that is still inside it: the accent at a quarter, until the button comes up
-                Tokens.accent.with(alpha: 0.25).ink(isLight).setFill()
+                // a control under a press that is still inside it: the accent at a quarter, until the button comes up. On
+                // a control drawn on a ground (the selected tab, the Install button) the accent would vanish into it, so
+                // the press is its ink at a quarter there (0.1.19)
+                pressColor(c).ink(isLight).setFill()
                 let r = controlRect(c)
                 NSRect(x: snap(r.minX), y: r.minY, width: snap(r.maxX) - snap(r.minX), height: r.height).fill()
             }
@@ -521,6 +565,8 @@ public final class LineView: NSView {
                 let w = CGFloat(p.cells) * cellWidth
                 if let bar = p.bar {
                     drawBar(bar, x: x, y: y, ctx: ctx)
+                } else if LineView.isRule(p.text) {
+                    drawRule(x: x, y: y, cells: p.cells, color: p.style.fg)
                 } else {
                     drawRun(p.text, bold: p.style.bold, color: p.style.fg, x: x, y: y, cells: p.cells, wide: p.wide, ctx: ctx)
                 }
@@ -533,9 +579,32 @@ public final class LineView: NSView {
             Tokens.accent.ink(isLight).setStroke()
             let path = NSBezierPath(rect: r); path.lineWidth = 1; path.stroke()
         }
-        if let (li, pi) = hoverTip, li < lines.count, pi < lines[li].pieces.count, let tip = lines[li].pieces[pi].tip {
-            drawTip(tip, line: li, piece: pi, ctx: ctx)
+        ctx.restoreGState()
+        if let tip { drawTip(tip, ctx: ctx) }
+    }
+
+    /// The colour of a press on a control: its ink at a quarter on a control with a ground of its own, else the accent
+    /// at a quarter.
+    func pressColor(_ c: Control) -> RGBA {
+        var cell = 0
+        for p in lines[c.line].pieces {
+            if cell == c.startCell { return p.style.bg != nil ? p.style.fg.with(alpha: 0.25) : Tokens.accent.with(alpha: 0.25) }
+            cell += p.cells
         }
+        return Tokens.accent.with(alpha: 0.25)
+    }
+
+    /// A run of the rule glyph only.
+    nonisolated static func isRule(_ text: String) -> Bool { !text.isEmpty && text.allSatisfy { $0 == ruleGlyph } }
+
+    /// The header rule as one rect on whole device pixels, at the glyph's ink box, at least one device pixel tall: the
+    /// glyphs side by side left faint hairlines at their joins (0.1.19).
+    func drawRule(x: CGFloat, y: CGFloat, cells: Int, color: RGBA) {
+        let l = snap(x), r = snap(x + CGFloat(cells) * cellWidth)
+        let top = snap(y + ruleTop)
+        let bottom = max(top + 1 / pixelScale, snap(y + ruleTop + ruleHeight))
+        color.ink(isLight).setFill()
+        NSRect(x: l, y: top, width: r - l, height: bottom - top).fill()
     }
 
     /// The device pixel scale: 2 on a Retina screen and in the snapshots.
@@ -590,23 +659,56 @@ public final class LineView: NSView {
         return out.flatMap { Cells.width($0) > width ? Format.wrap($0, width) : [$0] }
     }
 
-    func drawTip(_ tip: String, line li: Int, piece pi: Int, ctx: CGContext) {
+    /// Where a tooltip is drawn and its lines. It takes whole lines of the grid (`clear`): nothing of the lines there is
+    /// drawn, under the box or beside it, so no part of a covered line shows at its edge, and its box keeps the 2 pt gap to its row inside
+    /// them. It never takes its own row (both lines of an open session) or a row of tabs: above the row when the lines
+    /// there are in view and hold no tabs, else below it on the same terms, else above or below, whichever is in view
+    /// (0.1.19; it was 2 pt off the grid, over the session's name line and over the section switch).
+    func tipLayout(_ tip: String, line li: Int, piece pi: Int) -> (rect: NSRect, clear: NSRect, rows: [String]) {
         let p = lines[li].pieces[pi]
         var px = padSide
         for k in 0..<pi { px += CGFloat(lines[li].pieces[k].cells) * cellWidth }
         let rows = LineView.tipLines(tip, width: tipCells)
         let cells = rows.map { Cells.width($0) }.max() ?? 0
         let w = CGFloat(cells + 2) * cellWidth
-        let h = CGFloat(rows.count) * LineView.lineHeight
+        let n = rows.count
+        let h = CGFloat(n) * LineView.lineHeight
         var x = p.tipLeft ? padSide : px + CGFloat(p.cells) * cellWidth - w
         x = max(padSide, min(x, bounds.width - padSide - w))
-        // above the line, inside the part of the panel in view: below the line when there is no room above it
-        let above = lineY(li) - h - 2
-        let y = above >= visibleRect.minY ? above : lineY(li) + LineView.lineHeight + 2
+        let row = rowLines(li)
+        let above = row.lowerBound - n, below = row.upperBound + 1
+        // the part of the panel in view, never past its lines (a view outside a window reports no useful visible rect)
+        let seen = visibleRect.intersection(bounds)
+        let view = seen.isEmpty ? bounds : seen
+        func inView(_ first: Int) -> Bool { lineY(first) >= view.minY - 0.5 && lineY(first) + h <= view.maxY + 0.5 }
+        func clear(_ first: Int) -> Bool {
+            inView(first) && (first..<(first + n)).allSatisfy { $0 < 0 || $0 >= lines.count || !lines[$0].isTabRow }
+        }
+        let first = clear(above) ? above : clear(below) ? below : inView(above) ? above : below
+        let l = snap(x), r = snap(x + w)
+        // the lines it takes are cleared across the whole column, so no stray part of them (a figure beside the box)
+        // reads as part of the tooltip
+        let grid = NSRect(x: 0, y: lineY(first), width: bounds.width, height: h)
+        // the gap to the row is on the side that faces it
+        let top = first < row.lowerBound ? lineY(first) : lineY(first) + 2
+        let bottom = first < row.lowerBound ? lineY(first + n) - 2 : lineY(first + n)
+        return (NSRect(x: l, y: top, width: r - l, height: bottom - top), grid, rows)
+    }
+
+    /// The tooltip open now, laid out; nil when none is.
+    var openTip: (rect: NSRect, clear: NSRect, rows: [String])? {
+        guard let (li, pi) = hoverTip, li < lines.count, pi < lines[li].pieces.count, let tip = lines[li].pieces[pi].tip else { return nil }
+        return tipLayout(tip, line: li, piece: pi)
+    }
+
+    func drawTip(_ tip: (rect: NSRect, clear: NSRect, rows: [String]), ctx: CGContext) {
         Tokens.box.ink(isLight).setFill()
-        NSRect(x: x, y: y, width: w, height: h).fill()
-        for (k, row) in rows.enumerated() {
-            drawRun(row, bold: false, color: Tokens.text, x: x + cellWidth, y: y + CGFloat(k) * LineView.lineHeight, cells: Cells.width(row), wide: false, ctx: ctx)
+        tip.rect.fill()
+        // the text rows in the middle of the box, one line apart
+        let y0 = tip.rect.minY - (CGFloat(tip.rows.count) * LineView.lineHeight - tip.rect.height) / 2
+        for (k, row) in tip.rows.enumerated() {
+            drawRun(row, bold: false, color: Tokens.text, x: tip.rect.minX + cellWidth, y: y0 + CGFloat(k) * LineView.lineHeight,
+                    cells: Cells.width(row), wide: false, ctx: ctx)
         }
     }
 
@@ -622,10 +724,15 @@ public final class LineView: NSView {
     /// wherever the pointer is on the row, name, bar or figure (0.1.19; only over the figure before).
     func pointerMoved(to p: NSPoint) {
         let li = Int(((p.y - padTop) / LineView.lineHeight).rounded(.down))
-        let newLine: Int? = (li >= 0 && li < lines.count && lines[li].hover && p.x >= padSide && p.x <= bounds.width - padSide) ? li : nil
+        let newLine: Int? = (li >= 0 && li < lines.count && lines[li].hover && p.x >= padSide && p.x <= padSide + columnWidth) ? li : nil
         var newTip: (Int, Int)? = nil
         if let h = hit(at: p), lines[h.line].pieces[h.piece].tip != nil { newTip = (h.line, h.piece) }
-        else if let l = newLine, let pi = lines[l].pieces.firstIndex(where: { $0.tip != nil }) { newTip = (l, pi) }
+        else if let l = newLine {
+            // any line of the row shows the row's tooltip: an open session's name line shows its bar line's
+            for k in rowLines(l) {
+                if let pi = lines[k].pieces.firstIndex(where: { $0.tip != nil }) { newTip = (k, pi); break }
+            }
+        }
         if newLine != hoverLine || newTip?.0 != hoverTip?.line || newTip?.1 != hoverTip?.piece {
             hoverLine = newLine
             hoverTip = newTip.map { (line: $0.0, piece: $0.1) }

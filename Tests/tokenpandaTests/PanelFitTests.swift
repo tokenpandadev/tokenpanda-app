@@ -326,17 +326,19 @@ struct PanelFitTests {
         #expect(other.pieces.first { $0.text == "\u{25CF}" }?.style.fg == Tokens.warning)
     }
 
-    /// The bar track and the stale fill against their ground, dark and light: the glass of the style guide's
-    /// measurement (#111424 to #202030, and the tint over the stage), and the light glass over white and the light stage.
-    @Test func barTrackAndStaleFillReachThreeToOne() {
+    /// The stale fill on its faint track, dark and light, over the glass of the style guide's measurement (#111424 to
+    /// #202030, and the tint over the stage) and the light glass over white and the light stage. The track itself stays
+    /// at its 0.1.18 value, under 3 to 1 on the glass, the owner's choice of 11.11: the accent fill and the coral keep
+    /// their contrast to it.
+    @Test func theStaleFillReachesThreeToOneOnItsTrack() {
         let dark = [RGBA(hex: 0x111424), RGBA(hex: 0x202030), over(Tokens.tint, Tokens.stage)]
         let light = [over(Tokens.tintLight, Tokens.white), over(Tokens.tintLight, Tokens.stageLight)]
+        #expect(Tokens.track == RGBA(hex: 0x505370) && Tokens.light(Tokens.track) == RGBA(hex: 0x9ea4c8))
+        #expect(ratio(Tokens.accent, Tokens.track) >= 3 && ratio(Tokens.coral, Tokens.track) >= 2.3)
         for g in dark {
-            #expect(ratio(Tokens.track, g) >= 3)
             #expect(ratio(Tokens.staleFill, over(Tokens.trackStale, g)) >= 3)
         }
         for g in light {
-            #expect(ratio(Tokens.light(Tokens.track), g) >= 3)
             #expect(ratio(Tokens.light(Tokens.staleFill), over(Tokens.light(Tokens.trackStale), g)) >= 3)
         }
         // a stale bar is drawn in the stale fill
@@ -410,7 +412,7 @@ struct PanelFitTests {
     @Test func anUnknownModelFamilyTakesTheNextFreeHue() {
         let hues = Tokens.hues(forFamilies: ["fable", "zeta", "opus", "omega", "zeta"])
         #expect(hues["fable"] == Tokens.magenta && hues["opus"] == Tokens.yellow)
-        #expect(hues["zeta"] == Tokens.brightGreen && hues["omega"] == Tokens.brightYellow)
+        #expect(hues["zeta"] == Tokens.brightGreen && hues["omega"] == Tokens.brightCyan)   // bright yellow and bright magenta sit by Opus and Fable
         #expect(Tokens.hue(forFamily: "nothing") != Tokens.procWhite)
         var i = Fixtures.input()
         i.tokens?.byModel7d.append(TokenGroup(name: "Zeta 1", key: "claude-zeta-1", tokens: 1_000_000, share: 1))
