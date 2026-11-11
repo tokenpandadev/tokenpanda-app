@@ -20,6 +20,8 @@ struct TokensSyncTests {
         "inkOnBold": Tokens.inkOnBold, "white": Tokens.white, "tint": Tokens.tint, "stage": Tokens.stage,
         "magenta": Tokens.magenta, "yellow": Tokens.yellow, "cyan": Tokens.cyan, "green": Tokens.green,
         "blue": Tokens.blue, "blue2": Tokens.blue2, "procWhite": Tokens.procWhite,
+        "staleFill": Tokens.staleFill, "warningOnAccent": Tokens.warningOnAccent, "brightGreen": Tokens.brightGreen,
+        "brightYellow": Tokens.brightYellow, "brightMagenta": Tokens.brightMagenta, "brightCyan": Tokens.brightCyan,
     ]
 
     @Test func darkPaletteIsTheTokenTable() {

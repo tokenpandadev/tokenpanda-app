@@ -32,7 +32,7 @@
 </div></nav>
 
 <main class="main">
-<div class="head"><h1>Style guide</h1><span class="d">  tokenpanda  Claude Code native  4 November 2026, at 0.1.15</span></div>
+<div class="head"><h1>Style guide</h1><span class="d">  tokenpanda  Claude Code native  11 November 2026, at 0.1.19</span></div>
 <div class="head d">living: every specimen below is rendered by docs.css and docs.js</div>
 <div class="head"><span class="d">Pace  </span><button type="button" class="tab" data-pace="ahead"> Ahead </button><span>  </span><button type="button" class="tab" data-pace="on"> On pace </button><span>  </span><button type="button" class="tab" data-pace="over" aria-pressed="true"> Over pace </button><span class="q">  flips every live specimen</span></div>
 <div class="rule">▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔</div>
@@ -50,9 +50,11 @@
 <tr><td><span class="sw" style="color:#949494">████</span></td><td>#949494</td><td>dimmer</td><td>free cells in the memory grid. Lifted from #888888 in 0.1.14 so the free cells pass 3 to 1 for graphics over any desktop</td><td class="n">5.3 to 6.0 (3.1 over white)</td></tr>
 <tr><td><span class="sw" style="color:#b8b8b8">████</span></td><td>#b8b8b8</td><td>quiet</td><td>key hints in the foot; never a figure the user needs. Lifted from #505050 in 0.1.9 so the hints pass AA over any desktop</td><td class="n">8.7 (4.8 over white)</td></tr>
 <tr><td><span class="sw" style="color:#b1b9f9">████</span></td><td>#b1b9f9</td><td>accent</td><td>used fill, selected tab, the ▔ rule, the selected row's ❯, the text of a link</td><td class="n">8.5 to 9.7</td></tr>
-<tr><td><span class="sw" style="color:#505370">████</span></td><td>#505370</td><td>track</td><td>the bar behind the fill; the fill itself when stale</td><td class="n"></td></tr>
+<tr><td><span class="sw" style="color:#65698d">████</span></td><td>#65698d</td><td>track</td><td>the bar behind the fill. Lifted from #505370 in 0.1.19 so the track passes 3 to 1 for graphics on the glass (it was 2.2)</td><td class="n">3.0 to 3.4</td></tr>
+<tr><td><span class="sw" style="color:#7e82b0">████</span></td><td>#7e82b0</td><td>stale fill</td><td>the fill of a stale bar, on the track at 35%. New in 0.1.19: until then the stale fill was the track colour itself, 1.7 to 1.9 on its ground</td><td class="n">3.0 to 3.4 on the faint track</td></tr>
 <tr><td><span class="sw" style="color:#d77757">████</span></td><td>#d77757</td><td>coral</td><td>the fill past the tick when over pace, nothing else</td><td class="n">5.1 to 5.8</td></tr>
 <tr><td><span class="sw" style="color:#ffc107">████</span></td><td>#ffc107</td><td>warning</td><td>the ⚠ hit mark on a week, swap cells, the Mac warning dot</td><td class="n">9.8 to 11.2</td></tr>
+<tr><td><span class="sw" style="color:#7a4e00">████</span></td><td>#7a4e00</td><td>warning on accent</td><td>the Mac warning dot on the selected Mac tab, where the warning was 1.15 to 1 on the accent (0.1.19). It is the light palette's warning; in light mode the dot there takes #ffc107, 4.7 to 1 on #3b46b8</td><td class="n">3.8 on the accent</td></tr>
 <tr><td><span class="sw" style="color:#373737">████</span></td><td>#373737</td><td>box</td><td>the tooltip ground, the ground of code in these docs</td><td class="n"></td></tr>
 <tr><td><span class="sw" style="color:rgb(39,61,76)">████</span></td><td>rgb(39,61,76)</td><td>selection</td><td>row hover and settings row hover; the terminal's selection colour</td><td class="n"></td></tr>
 <tr><td><span class="sw" style="color:#000000">████</span></td><td>#000000</td><td>ink on accent</td><td>the text of the selected tab</td><td class="n"></td></tr>
@@ -74,7 +76,14 @@
 <tr><td><span class="sw" style="color:#67b5ed">████</span></td><td>#67b5ed</td><td>bright blue</td><td>sessions</td></tr>
 <tr><td><span class="sw" style="color:#dee5eb">████</span></td><td>#dee5eb</td><td>white</td><td>processes</td></tr>
 </table>
-<p class="d">A model family that is not in this list gets the next unused ANSI hue in palette order (red #b45648 is skipped: red fills are banned). Red and bright red are never used.</p>
+<table>
+<tr><th></th><th>Hex</th><th>Family</th><th>Rows</th></tr>
+<tr><td><span class="sw" style="color:#79be7e">████</span></td><td>#79be7e</td><td>bright green</td><td>the first model family not in the list</td></tr>
+<tr><td><span class="sw" style="color:#e5c872">████</span></td><td>#e5c872</td><td>bright yellow</td><td>the second</td></tr>
+<tr><td><span class="sw" style="color:#d389e5">████</span></td><td>#d389e5</td><td>bright magenta</td><td>the third</td></tr>
+<tr><td><span class="sw" style="color:#84dde0">████</span></td><td>#84dde0</td><td>bright cyan</td><td>the fourth, then from the first again</td></tr>
+</table>
+<p class="d">A model family that is not in the first list gets the next unused ANSI hue in palette order, one per family in the order the rows and sessions come (from 0.1.19; until then it took the process white and read as a process). Red and bright red are never used: red fills are banned. Black and bright black are greys, not hues; bright blue is the sessions' and bright white too near the process white. Light partners: #25704a, #7a5d00, #7b2f94, #006469.</p>
 
 <h2 id="type">2  Type</h2>
 <p>One face: SF Mono, the system font, loaded as <code>"SF Mono", ui-monospace, Menlo, monospace</code>. Nothing is bundled. Tabular numerals everywhere a number sits in a column; SF Mono is monospaced, so columns align by cell count.</p>
@@ -113,17 +122,17 @@
 <tr><td class="gl">⚠</td><td>warning</td><td>the hit mark at the end of a week bar; the Mac warning in the menu bar item</td></tr>
 <tr><td class="gl">↓ ↑</td><td>arrows</td><td>allowed as scroll hints at the edge of a list; unused</td></tr>
 <tr><td class="gl">⌘</td><td>command</td><td>the shortcut after Quit</td></tr>
-<tr><td class="gl">…</td><td>ellipsis</td><td>a name cut to its column: 13 characters and the ellipsis</td></tr>
+<tr><td class="gl">…</td><td>ellipsis</td><td>a name cut to its column: 13 cells and the ellipsis</td></tr>
 <tr><td class="gl">[ ]  [x]</td><td>brackets</td><td>the checkbox, off and on; and the dim chip "[list price equivalent  USD 1,140]"</td></tr>
 </table>
 <div class="spec"><div class="t" id="sp-glyphs"></div></div>
-<p>The wide cell glyphs (⛁ ⛀ ⛶ ⛝) take two cells each; the sheet sets them in a 2ch box so the grid stays square. ❯ and ⚠ take one cell in a 1ch box.</p>
+<p>The wide cell glyphs (⛁ ⛀ ⛶ ⛝) take two cells each; the sheet sets them in a 2ch box so the grid stays square. ❯ and ⚠ take one cell in a 1ch box. In a name, a wide character (Chinese, Japanese, Korean, fullwidth forms) and an emoji take two cells, as a terminal draws them: every width, cut and column counts them so, and each is drawn in a box of two cells (from 0.1.19; before, they were squeezed into one and an emoji covered the next letter).</p>
 
 <h2 id="material">4  Material</h2>
 <p>The popover is the terminal's glass: a dark tint over the blurred desktop. On macOS that is an NSVisualEffectView; in these pages it is a painted wallpaper behind a tint. Recipe:</p>
 <ul>
 <li>tint rgba(25,29,39,.82), blur 24 px behind it</li>
-<li>light mode (from 0.1.11): the panel follows the Mac's appearance. Under a light appearance the glass is the popover material with the tint rgba(250,250,252,.82), and every token is drawn as its light partner from one table in Tokens.swift (Tokens.light). The layout, the glyphs and the type do not change. Light partners: text #1d1d1f, bold #000000, dim #505055, quiet #525257, dimmer #6e6e73, accent #3b46b8, track #9ea4c8, coral #b9502e, warning #7a4e00, box #e4e4e8, row hover #d6e4f0, ink on the accent and on bold #ffffff; Fable #8e3fa3, Opus #8a6d00, Sonnet #00757a, Haiku #2e7d32, projects #2f5f86, sessions #1a6fb0, processes #3a3f45. Every text colour passes 4.5 to 1 over the light tint on white and on black; the hues, the coral fill and the free memory cells pass 3 to 1 (test everyLightTokenPassesAAOverBlackAndWhiteDesktops)</li>
+<li>light mode (from 0.1.11): the panel follows the Mac's appearance. Under a light appearance the glass is the popover material with the tint rgba(250,250,252,.82), and every token is drawn as its light partner from one table in Tokens.swift (Tokens.light). The layout, the glyphs and the type do not change. Light partners: text #1d1d1f, bold #000000, dim #505055, quiet #525257, dimmer #6e6e73, accent #3b46b8, track #888dac (#9ea4c8 until 0.1.19), stale fill #70748e, coral #b9502e, warning #7a4e00, warning on accent #ffc107, box #e4e4e8, row hover #d6e4f0, ink on the accent and on bold #ffffff; Fable #8e3fa3, Opus #8a6d00, Sonnet #00757a, Haiku #2e7d32, projects #2f5f86, sessions #1a6fb0, processes #3a3f45. Every text colour passes 4.5 to 1 over the light tint on white and on black; the hues, the coral fill and the free memory cells pass 3 to 1 (test everyLightTokenPassesAAOverBlackAndWhiteDesktops)</li>
 <li>popover 380 px wide at 1x, rendered at 2x; padding 12 px 10 px 10 px; radius 10 px; as tall as its lines, at most the screen's visible height less 60 pt and never under 200 pt (from 0.1.14). Past that the lines scroll inside the glass, always with the overlay scroller, which takes no width, shows while scrolling and hides when idle; no rubber band, no fade or arrow at the edge; every open and every tab click starts at the top</li>
 <li>shadow: a 1 px hairline at rgba(255,255,255,.1) as a ring, then 0 12px 32px rgba(0,0,0,.45)</li>
 <li>the arrow under the menu bar item: a 14 px square rotated 45 degrees, ground rgb(30,34,46), the same hairline on its two visible edges</li>
@@ -134,13 +143,13 @@
 <p>The tooltip is the one thing with its own ground: the prompt box #373737, text in default colour, one cell of padding, no radius, no shadow.</p>
 
 <h2 id="bars">5  Bar grammar</h2>
-<p>A bar is a run of block glyphs on a track. It is text: it copies as text, it is read by VoiceOver through its label, and it scales with the font. The sheet closes the hairline SF Mono leaves between two full blocks by painting the full cells' background in the fill colour too.</p>
+<p>A bar is a run of block glyphs on a track. It is text: it copies as text, it is read by VoiceOver through its label, and it scales with the font. The sheet closes the hairline SF Mono leaves between two full blocks by painting the full cells' background in the fill colour too. The app draws each cell as the part its glyph covers, on whole device pixels, at the full block's top and bottom: the last eighth cell is as tall as the full cells and no hairline shows at a join (0.1.19).</p>
 <h3>Cell counts</h3>
 <table class="nw">
 <tr><th class="n">Cells</th><th>Where</th><th>Why</th></tr>
 <tr><td class="n">50</td><td>Claude Code's own usage bar; the reference form</td><td>as observed in the usage tab</td></tr>
 <tr><td class="n">36</td><td>the window section in the popover</td><td>so " 61% used" sits on the same line inside 47 content cells</td></tr>
-<tr><td class="n">24</td><td>a table row (model, project, session, process)</td><td>name column 14, one space, bar 24, two spaces, figure 5</td></tr>
+<tr><td class="n">24</td><td>a table row (model, project, session, process)</td><td>name column 14, one space, bar 24, two spaces, figure 5. A list with a wider figure ("10.00B", "&lt;0.01B") widens its figure column for every row and the bar gives up those cells, so the row stays 47 cells (0.1.19)</td></tr>
 <tr><td class="n">20</td><td>a week in week over week</td><td>date 6, two spaces, bar 20, the hit mark, the percent 4</td></tr>
 </table>
 <h3>Fill</h3>
@@ -153,7 +162,7 @@
 <tr><td>Ahead</td><td>accent</td><td>nothing past it</td><td>text</td><td>bold</td></tr>
 <tr><td>On pace</td><td>accent</td><td>accent (within 5 points)</td><td>text</td><td>bold</td></tr>
 <tr><td>Over pace</td><td>accent up to the tick</td><td>coral #d77757 from the tick on</td><td>text</td><td>bold</td></tr>
-<tr><td>Stale</td><td>track #505370 on a track at 35% alpha</td><td>no coral, even if it was over</td><td>dim</td><td>dim</td></tr>
+<tr><td>Stale</td><td>stale fill #7e82b0 on the track #65698d at 35% alpha (0.1.19; the track colour on its faint self before)</td><td>no coral, even if it was over</td><td>dim</td><td>dim</td></tr>
 </table>
 <p>Never red. Never a gradient. Never a second accent. The track is the only ground a bar has; row bars are "plain": no track, the hue on the glass.</p>
 <div class="spec"><div class="wrap">
@@ -174,7 +183,7 @@
 <div class="t pop"><div id="c-h2"></div><div class="cap">with the Mac warning dot</div></div>
 <div class="t pop"><div id="c-h3"></div><div class="cap">Settings selected</div></div>
 </div></div>
-<p class="use"><b>Use</b> once, at the top of the popover. Line one is the updated line, dim: "Live from Claude Code" while a session has fed in the last 60 s; otherwise "As of HH:MM, last Claude Code session"; before any feed, "Waiting for a Claude Code session". The Mac figures are always live, so the line does not say so. There is no plan badge: the tier is not in the feed. Then the ▔ rule in accent across the full width, then the three tabs in Claude Code's tab grammar: the selected one inverted (black on accent, bold), the others in default text, white under the pointer. The Mac tab gets a warning dot ● when memory pressure is warn or critical or one process has been over 80% CPU for 60 s.</p>
+<p class="use"><b>Use</b> once, at the top of the popover. Line one is the updated line, dim: "Live from Claude Code" while a session has fed in the last 60 s; otherwise "As of HH:MM, last Claude Code session"; before any feed, "Waiting for a Claude Code session". The Mac figures are always live, so the line does not say so. There is no plan badge: the tier is not in the feed. Then the ▔ rule in accent across the full width, then the three tabs in Claude Code's tab grammar: the selected one inverted (black on accent, bold), the others in default text, white under the pointer. The Mac tab gets a warning dot ● (in warning; on the selected tab's accent in #7a4e00, light #ffc107, so it keeps 3 to 1 there, and the selected tab is one flat block under its pieces, 0.1.19) when memory pressure is warn or critical or one process has been over 80% CPU for 60 s.</p>
 <p class="use"><b>Do not</b> add a fourth tab, a title, a name or an icon; the popover has no title. Do not draw a second rule.</p>
 
 <h3>6.2  Block bar</h3>
@@ -188,7 +197,7 @@
 <div class="t pop"><div id="c-won"></div><div class="cap">weekly  on pace</div></div>
 <div class="t pop"><div id="c-wstale"></div><div class="cap">weekly  stale, as of 13:05</div></div>
 </div></div>
-<p class="use"><b>Use</b> for each of the two windows, weekly first, then the 5h window, one blank line between them. Five lines: the title bold; the bar with " N% used" after it; the reset line dim with the clock time and the countdown as the second value; the status word bold followed by the projection dim; the allowance dim. The stale form has three lines: title, bar, reset, then "as of HH:MM".</p>
+<p class="use"><b>Use</b> for each of the two windows, weekly first, then the 5h window, one blank line between them. Five lines: the title bold; the bar with " N% used" after it; the reset line dim with the clock time and the countdown as the second value; the status word bold followed by the projection dim; the allowance dim. The stale form has three lines: title, bar, reset, then "as of HH:MM". At 100% the status and allowance lines give way to one line, "limit reached" bold and ", resets Sun 18:00" dim (the 5h window: ", resets 17:45"). The percent is never 100 before the window is full: 99.5 reads 99% while a projection still runs (0.1.19). A window key the app does not know is titled by the key with its underscores as spaces, cut to the panel with …</p>
 <p class="use"><b>Do not</b> show a countdown alone, a percent alone, or a projection from stale data. Do not reorder the lines; the eye learns the positions.</p>
 
 <h3>6.4  Pace sentence</h3>
@@ -209,7 +218,7 @@
 <div class="t pop"><div id="c-rsessions"></div><div class="cap">sessions, today</div></div>
 <div class="t pop"><div id="c-rprocs"></div><div class="cap">processes by CPU, share of the 9% in use  first row under the pointer</div></div>
 </div></div>
-<p class="use"><b>Use</b> for a list of named things with a share and a figure: models, projects, sessions, processes. Name column 14 cells (cut with …), one space, a 24 cell plain bar in the family hue, two spaces, the figure right aligned in 5 cells. The bar is the share of the list's total, not of a limit. Hover or focus the figure for the readout tooltip. Row hover is the terminal's selection colour across the full width. A selected row leads with ❯ in accent and its name in bold.</p>
+<p class="use"><b>Use</b> for a list of named things with a share and a figure: models, projects, sessions, processes. Name column 14 cells (cut with …), one space, a 24 cell plain bar in the family hue, two spaces, the figure right aligned in 5 cells (wider for the whole list when a figure needs it, the bar shorter by as much). The bar is the share of the list's total, not of a limit. A token column shares one unit, picked after rounding: 999,999,999 is 1.00B, never 1000M; 99,960 is 100k, never 100.0k; a small group beside large ones reads &lt;0.01B, never 0.00B. A process at 100% or more drops the decimal: 123%, 1000%. Hover anywhere on the row, name, bar or figure, or focus the figure for the readout tooltip (the whole row from 0.1.19; the figure alone before). Row hover is the terminal's selection colour across the full width. A selected row leads with ❯ in accent and its name in bold.</p>
 <p class="use"><b>Do not</b> add columns, icons, avatars or a percent next to the figure (the tooltip has it). Do not sort by anything but the figure, largest first. Lists are at most five rows; the rest is "other".</p>
 
 <h3>6.6  Section switch</h3>
@@ -226,6 +235,7 @@
 <div class="t"><div id="c-chipno"></div><div class="cap">inverted text  not chosen</div></div>
 </div></div>
 <p class="use"><b>Use</b> the dim bracketed form for a figure that qualifies a list: "[list price equivalent  USD 1,140]" and "[44% by subagents]" under the token rows. The inverted form was shown and rejected: inverted text already means selected, and a chip is not selectable.</p>
+<p class="use">The list price has two decimals under USD 10 (USD 1.50) and whole dollars from there (USD 1,140). A chip longer than the panel wraps at its double spaces; its second line stands one cell in, under the text after the bracket, so the bracket reads as one chip (0.1.19). After the chips, one dim line closes the section with the totals: "today 72.4M  7 days 2.10B  30 days 9.80B".</p>
 <p class="use"><b>Do not</b> put a chip anywhere but directly under the rows it qualifies. Never write "spent".</p>
 
 <h3>6.8  Weeks</h3>
@@ -239,7 +249,7 @@
 <div class="spec"><div class="wrap">
 <div class="t pop"><div id="c-mem"></div><div class="cap">memory  25.5 of 36 GB  pressure normal  swap 0.9 GB</div></div>
 </div></div>
-<p class="use"><b>Use</b> for the Mac's memory picture, in Claude Code's context grid grammar: 20 by 10 cells of 0.18 GB each on a 36 GB machine, ⛁ used in accent, ⛶ free in dimmer, ⛝ swap in warning, filled left to right, top to bottom, the swap from the end. The legend under it names each glyph with its figure; the pressure level sits after swap.</p>
+<p class="use"><b>Use</b> for the Mac's memory picture, in Claude Code's context grid grammar: 20 by 10 cells of 0.18 GB each on a 36 GB machine, ⛁ used in accent, ⛶ free in dimmer, ⛝ swap in warning, filled left to right, top to bottom, the swap from the end; with memory full the swap cells take their place from the used ones, and swap above zero shows at least one cell, so the grid matches the legend (0.1.19). The legend under it names each glyph with its figure; the pressure level sits after swap.</p>
 <p class="use"><b>Do not</b> use the grid for CPU, GPU or battery; those are bars. Do not colour pressure: when it is warn or critical, the word says so and the Mac tab gets its dot.</p>
 
 <h3>6.10  Toggle and Settings rows</h3>
@@ -247,17 +257,15 @@
 <div class="t"><div id="c-cb"></div><div class="cap">off  on  click to toggle</div></div>
 <div class="t pop"><div id="c-settings"></div><div class="cap">settings rows  the nudge row under the pointer</div></div>
 </div></div>
-<p class="use"><b>Use</b> the bracket checkbox, the TUI form, for every setting: "[ ]" off, "[x]" on, the label after it, an explanation on a second dim line indented under the label when needed. Rows highlight on hover like table rows. The privacy sentence stands as two dim lines, the version line "tokenpanda 0.1.14" dim under it. Quit is the last row with ⌘Q right aligned. "Open at login" is the first row; its box shows what macOS reports, never a stored copy, and while macOS waits for the user's OK the dim line under it says "click to allow it in Login Items".</p>
+<p class="use"><b>Use</b> the bracket checkbox, the TUI form, for every setting: "[ ]" off, "[x]" on, the label after it, an explanation on a second dim line indented under the label when needed. Rows highlight on hover like table rows. The privacy sentence stands as two dim lines, the version line "tokenpanda 0.1.19", the bundle's version, dim under it. A button, a checkbox, a tab or a link acts when the button comes up inside it; while it is held the control shows the accent at 25% under its cells, and dragging off before letting go takes the press back (0.1.19; it acted on the press before). Quit is the last row with ⌘Q right aligned. "Open at login" is the first row; its box shows what macOS reports, never a stored copy, and while macOS waits for the user's OK the dim line under it says "click to allow it in Login Items".</p>
 <p class="use"><b>Do not</b> use the macOS switch (it is not text) or ● and ○ (● is taken by the Mac warning dot). Do not add settings beyond those in the spec without a decision. The status line entry row is an action, not a setting: "Install the status line entry" or "Remove the status line entry", one click each, with what it does on a dim second line.</p>
 <p class="use"><b>Link.</b> A note under a row that opens a setting elsewhere is a link: its text in the accent instead of dim, at the indent of the dim lines, a control of its own that the pointer, the arrows and Space reach, highlighted on hover like a row. It is said once, as a button, and is not also the checkbox's help. The one link so far is "Notifications are off in System Settings", under Nudge and, while it is on, under Reopen sessions; it opens System Settings, Notifications, at tokenpanda (from 0.1.14 in the accent; 0.1.12 and 0.1.13 drew it dim). <b>Do not</b> underline it, add an arrow or a glyph to it, or draw any other dim line in the accent.</p>
 
 <h3>6.11  Tooltip</h3>
 <div class="spec"><div class="wrap">
 <div class="t"><div id="c-tip1"></div><div class="cap">readout</div></div>
-<div class="t"><div id="c-tip2"></div><div class="cap">week</div></div>
-<div class="t"><div id="c-tip3"></div><div class="cap">time</div></div>
 </div></div>
-<p class="use"><b>Use</b> for a line of detail on hover or focus of a figure: the ground is the prompt box #373737, text colour default, one cell of padding each side, no radius, no arrow. It appears above the figure, right aligned to it, at once in the app (this page fades it in); in a scrolled panel with no room above the line inside the visible part, it opens below the line. A tooltip longer than the panel breaks over lines at spaces, so nothing is cut (from 0.1.9).</p>
+<p class="use"><b>Use</b> for a line of detail on hover of a row that has a readout, anywhere on it (name, bar or figure, from 0.1.19), or on focus of its figure. The readout is the one kind: a token row, a process row and an open session's figure line carry it; a week row and the header line have none (the week and time specimens shown here until 0.1.18 were never built): the ground is the prompt box #373737, text colour default, one cell of padding each side, no radius, no arrow. It appears above the figure, right aligned to it, at once in the app (this page fades it in); in a scrolled panel with no room above the line inside the visible part, it opens below the line. A tooltip longer than the panel breaks over lines at spaces, so nothing is cut (from 0.1.9).</p>
 <p class="use"><b>Do not</b> put a figure that only lives in the tooltip and nowhere else when the user needs it.</p>
 
 <h3>6.12  Menu bar item</h3>
@@ -288,7 +296,7 @@
 <div class="spec"><div class="wrap">
 <div class="t pop"><div id="c-open"></div><div class="cap">two open sessions  the sample  hover a figure</div></div>
 </div></div>
-<p class="use"><b>Use</b> under the windows, one entry per Claude Code session that has fed in the last 10 s. Line one: the session's name in default text (set with -n or /rename; without one, the project folder's name), cut with … so the model fits, then the model dim. Line two: the 24 cell plain bar of the context window in the model family's hue, two spaces, the context figure "405.6k of 1M" and "41%". No tick: a context window is a share, not a time window. The figure's tooltip carries the list price equivalent, the lines added and removed and the effort. Before the first reply the bar line reads "waiting for the first reply", after a compact or a resume "compacted or resumed  next reply updates it". Largest context first, at most five, then "and N more".</p>
+<p class="use"><b>Use</b> under the windows, one entry per Claude Code session that has fed in the last 10 s. Line one: the session's name in default text (set with -n or /rename; without one, the project folder's name), cut with … so the model fits, then the model dim. Name and model always fit one line, measured in cells: the name is cut first; the model is cut too only when it alone would leave the name under eight cells. A blank line stands between two sessions (0.1.19). Line two: the 24 cell plain bar of the context window in the model family's hue, two spaces, the context figure "405.6k of 1M" and "41%". No tick: a context window is a share, not a time window. The figure's tooltip carries the list price equivalent (only while that setting is on, from 0.1.19), the lines added and removed and the effort. Before the first reply the bar line reads "waiting for the first reply", after a compact or a resume "compacted or resumed  next reply updates it". Largest context first, at most five, then "and N more".</p>
 <p class="use"><b>Do not</b> draw a breakdown of the context by category or per MCP tool; those figures are not in the feed. Do not keep a session on the list more than 60 s after its last feed. With no session open, keep the title and say "no open session".</p>
 
 <h3>6.15  The popover, assembled</h3>
@@ -314,10 +322,11 @@
 <li><b>No centred text.</b> Everything starts at the left cell. Figures are right aligned in their column, which is alignment, not centring.</li>
 <li><b>No emoji</b>, no sparkles, no "AI" as decoration.</li>
 <li><b>Sentence case</b> for titles and labels: "Weekly (all models)", "Tokens by model  7 days", "Week over week", "Processes by CPU", "Mac figures in the bar".</li>
-<li><b>Units</b>: tokens as "72.4M", "2.1B"; memory "25.5 of 36 GB (71%)"; power "47.6 W in  94 W adapter"; time "full in 51 min", "health normal", "316 cycles"; CPU "user 5%  system 4%  10 cores".</li>
+<li><b>Units</b>: tokens as "72.4M", "2.1B", the unit picked after rounding ("1.00B", never "1000M"); memory "25.5 of 36 GB (71%)"; power "47.6 W in  94 W adapter"; time "full in 51 min", "health normal", "316 cycles"; CPU "user 5%  system 4%  10 cores".</li>
 <li><b>The privacy sentence</b> in Settings, verbatim: "This app makes no network calls. Usage comes from Claude Code's own status feed on this Mac."</li>
 <li><b>Key hints</b> in the foot, quiet: "Esc closes  Tab switches  m p s sections" on the Claude tab, "Esc closes  Tab switches" on the others.</li>
-<li><b>Unknown window</b>: a feed key the app does not know prints "unknown window" in place of the pace lines; nothing is guessed.</li>
+<li><b>Unknown window</b>: a feed key the app does not know is titled by the key with its underscores as spaces, cut to the panel, and prints "unknown window" in place of the pace lines; nothing is guessed.</li>
+<li><b>At the limit</b>: "limit reached, resets Sun 18:00" in place of the status and allowance lines.</li>
 <li><b>Names</b>: "Claude Code", "5h window", "weekly" are facts and may be used. The app's name, tokenpanda, is drawn in the popover once, in the version line on Settings.</li>
 </ul>
 
@@ -341,6 +350,9 @@
 <tr><td>#b1b9f9 accent</td><td class="n">8.5</td><td class="n">9.7</td><td>AAA</td><td>fills, rule, selected tab ground, the text of a link</td></tr>
 <tr><td>#d77757 coral</td><td class="n">5.1</td><td class="n">5.8</td><td>AA</td><td>fill past the tick; the status word repeats it in words</td></tr>
 <tr><td>#ffc107 warning</td><td class="n">9.8</td><td class="n">11.2</td><td>AAA</td><td>hit mark, swap, the dot</td></tr>
+<tr><td>#7a4e00 warning on accent</td><td class="n">3.8</td><td class="n">3.8</td><td>3 to 1 for graphics</td><td>the dot on the selected Mac tab, on #b1b9f9; light #ffc107 on #3b46b8, 4.7. Until 0.1.18 the dot kept #ffc107 there: 1.15 dark, 1.06 light</td></tr>
+<tr><td>#65698d track</td><td class="n">3.0</td><td class="n">3.4</td><td>3 to 1 for graphics</td><td>the bar track, on the glass #111424 to #202030 and the tint over the stage; light #888dac, 3.0 to 3.2 on the light glass. Until 0.1.18 #505370, 2.2 to 2.5, and light #9ea4c8, 2.3 to 2.4</td></tr>
+<tr><td>#7e82b0 stale fill</td><td class="n">3.0</td><td class="n">3.4</td><td>3 to 1 for graphics</td><td>a stale bar's fill on its track at 35%; light #70748e, 3.1. The accent fill keeps 2.8 from the track (light 2.3): a track 3 to 1 from both the glass and the fill is not a colour that exists</td></tr>
 </table>
 <p>Every colour drawn as text (text, bold, dim, quiet, accent, warning, white) passes 4.5 to 1 over a white desktop by this bound, and a test checks it. The hues, the coral and the free cells in dimmer are graphics, never text, and pass the 3 to 1 for graphics, tested the same way: blue 3.0, green 3.5, coral 3.0, dimmer 3.1 (from 0.1.14; 2.7 before). That bound ignores the dark layer of the window material, so the real figures are higher; they could not be measured here, because macOS lets an app read the composited glass only with Screen Recording permission. Check them by eye on a white wallpaper.</p>
 <p>Rule: colour never carries a meaning alone. Over pace is coral and the word "Over pace". A hit week is ⚠ and "Thu 16:10". A Mac warning is the dot and the pressure word on the Mac tab.</p>
@@ -370,7 +382,7 @@
 <ul>
 <li>Open and close the popover from the menu bar item; Esc closes it.</li>
 <li>Tab moves between the three tabs; Shift Tab goes back. The focus lands on the selected tab, so the ring shows where you are.</li>
-<li>Down and Up move the focus through the tab's controls in reading order: the tab strip, the section switch, the figures with a readout, the checkboxes, Install, Remove, Quit. Left and Right move along a line, the tab strip and the section switch. A focused figure shows its readout tooltip.</li>
+<li>Down and Up move the focus through the tab's controls in reading order: the tab strip, the section switch, the figures with a readout, the checkboxes, Install, Remove, Quit. Left and Right move along a line, the tab strip and the section switch. A focused figure shows its readout tooltip. Past the last control Down scrolls the panel on a line at a time, and before the first Up scrolls it back, so in a panel shorter than its lines every line can be reached (0.1.19).</li>
 <li>Space and Return press the focused control: a tab or section is selected, a checkbox toggles, a button runs.</li>
 <li>m, p, s switch the token section on the Claude tab.</li>
 <li>⌘Q quits.</li>
@@ -422,7 +434,7 @@ $('c-chipno').innerHTML = L(' <span class="tab sub" aria-selected="true"> list p
 $('c-mem').innerHTML = memGrid(); $('c-open').innerHTML = R6.openSessions();
 $('c-cb').innerHTML = L(' <button type="button" class="cb" role="checkbox" aria-checked="false">[ ]</button> off   <button type="button" class="cb" role="checkbox" aria-checked="true">[x]</button> on');
 $('c-settings').innerHTML = cbRow('Open at login', false) + cbRow('Mac figures in the bar', false) + cbRow('Nudge at 80% and before the 5h end', true, null, {hover:true}) + cbRow('List price equivalent', true, 'tokens at list prices, not the plan price') + cbRow('Keep the Mac awake while Claude works', false, 'a closed lid on battery still sleeps') + BL + R6.hookRow(true) + BL + L(' ' + sp('This app makes no network calls. Usage comes', 'd')) + L(' ' + sp("from Claude Code's own status feed on this Mac.", 'd')) + BL + L(' Quit' + rcol('⌘Q', R6.POP - 5));
-$('c-tip1').innerHTML = L(' <span class="tip show">1.02B tokens  49% of 7 days</span>'); $('c-tip2').innerHTML = L(' <span class="tip show">Week of 28 Sep  hit Thu 16:10</span>'); $('c-tip3').innerHTML = L(' <span class="tip show">14:19  last snapshot</span>');
+$('c-tip1').innerHTML = L(' <span class="tip show">1.02B tokens  49% of 7 days</span>');
 $('c-ion').innerHTML = L(strip(item(57, 55))); $('c-iahead').innerHTML = L(strip(item(24, 32))); $('c-iover').innerHTML = L(strip(item(61, 55, {over:true}))); $('c-iweekly').innerHTML = L(strip(item(100, 55, {over:true, eyes:'weekly'}))); $('c-ifive').innerHTML = L(strip(item(61, 55, {over:true, eyes:'five'}))); $('c-istale').innerHTML = L(strip(item(61, 55, {stale:true}))); $('c-iwarn').innerHTML = L(strip(item(61, 55, {warn:true}))); $('c-imac').innerHTML = L(strip(item(61, 55, {mac:true}))); $('c-ilight').innerHTML = L(strip(item(61, 55, {over:true, mac:true}), true));
 $('c-nb1').innerHTML = '<div class="nb" role="status"><span class="tx"><b>Weekly at 80%</b><p>2 days 4 h to the reset. At this pace the limit lands Sat 09:00.</p></span><time>now</time></div>';
 $('c-nb2').innerHTML = '<div class="nb" role="status"><span class="tx"><b>5h window ends in 15 min</b><p>34% used.</p></span><time>now</time></div>';

@@ -10,9 +10,11 @@ public struct PaceLines: Sendable, Equatable {
     public var allowance: String    // "0.5% an hour left"
     public var over: Bool
     public var elapsed: Double      // E, the tick
-    public init(reset: String, countdown: String, status: String, projection: String?, allowance: String, over: Bool, elapsed: Double) {
+    public var limitReached: String?   // "Sun 18:00": the window is at 100%, "limit reached, resets Sun 18:00" takes the pace lines' place
+    public init(reset: String, countdown: String, status: String, projection: String?, allowance: String, over: Bool, elapsed: Double,
+                limitReached: String? = nil) {
         self.reset = reset; self.countdown = countdown; self.status = status; self.projection = projection
-        self.allowance = allowance; self.over = over; self.elapsed = elapsed
+        self.allowance = allowance; self.over = over; self.elapsed = elapsed; self.limitReached = limitReached
     }
 }
 
@@ -76,10 +78,14 @@ public struct TokensView: Sendable, Equatable {
     public var rows: [[RowView]]            // three lists
     public var priceChip: String?           // "[list price equivalent  USD 1,140]"
     public var agentChip: String?           // "[44% by subagents]"
-    public var empty: String?               // "No transcripts in ~/.claude/projects"
+    public var empty: String?               // "No transcripts in ~/.claude/projects", naming the folders looked in
     public var errorLine: String?           // the error's own message, under "Cannot read ~/.claude/projects"
-    public init(section: Int, rows: [[RowView]], priceChip: String?, agentChip: String?, empty: String? = nil, errorLine: String? = nil) {
+    public var noTranscripts = false        // no transcript folder exists: week over week is left out with the chips (spec 14)
+    public var totals: String?              // "today 72.4M  7 days 2.10B  30 days 9.80B", the last line of the section
+    public init(section: Int, rows: [[RowView]], priceChip: String?, agentChip: String?, empty: String? = nil, errorLine: String? = nil,
+                noTranscripts: Bool = false, totals: String? = nil) {
         self.section = section; self.rows = rows; self.priceChip = priceChip; self.agentChip = agentChip; self.empty = empty; self.errorLine = errorLine
+        self.noTranscripts = noTranscripts; self.totals = totals
     }
 }
 
@@ -133,8 +139,11 @@ public struct MacTab: Sendable, Equatable {
     public var battery: BatteryView?
     public var processes: [RowView]
     public var processError: String?
-    public init(cpu: Int, cpuLine: String, gpu: Int?, memory: MemView?, battery: BatteryView?, processes: [RowView], processError: String? = nil) {
+    public var sampling = false     // the first sample is pending: CPU says "sampling", no figure and no process list title
+    public init(cpu: Int, cpuLine: String, gpu: Int?, memory: MemView?, battery: BatteryView?, processes: [RowView], processError: String? = nil,
+                sampling: Bool = false) {
         self.cpu = cpu; self.cpuLine = cpuLine; self.gpu = gpu; self.memory = memory; self.battery = battery; self.processes = processes; self.processError = processError
+        self.sampling = sampling
     }
 }
 

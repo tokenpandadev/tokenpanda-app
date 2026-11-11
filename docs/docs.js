@@ -82,7 +82,7 @@ function bar(N, U, E, o = {}) {
   const t = (E == null) ? null : Math.min(N - 1, Math.round(E / 100 * N));
   const cells = [];
   for (let i = 0; i < N; i++) cells.push(i < full ? '█' : i === full ? (e8 === 8 ? '█' : EIGHTHS[e8]) : ' ');
-  const fillCol = o.col || (o.stale ? '#505370' : '#b1b9f9'), pastCol = o.over ? '#d77757' : fillCol;
+  const fillCol = o.col || (o.stale ? '#7e82b0' : '#b1b9f9'), pastCol = o.over ? '#d77757' : fillCol;
   /* full cells run with the colour behind them too, so SF Mono's hairline between blocks closes */
   let html = '', cur = null, buf = '';
   const flush = () => { if (!buf) return; const solid = cur.solid ? ';background:' + cur.c : ''; html += '<span style="color:' + cur.c + solid + '">' + buf + '</span>'; buf = ''; };

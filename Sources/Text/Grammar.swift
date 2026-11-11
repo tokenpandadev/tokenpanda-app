@@ -105,7 +105,9 @@ public enum Grammar {
             let style: Style = i == sel ? .tabSelected : .text
             if name == "Mac" && warn {
                 tabs.append(Piece(" Mac ", style, action: .tab(i), checked: i == sel, label: "Mac, warning"))
-                tabs.append(Piece("\u{25CF}", Style(fg: Tokens.warning, bg: style.bg), action: .tab(i), checked: i == sel, label: "Mac, warning"))
+                // on the selected tab's accent the dot takes the warning of the other palette: 3 to 1 or more there (0.1.19)
+                let dot = i == sel ? Tokens.warningOnAccent : Tokens.warning
+                tabs.append(Piece("\u{25CF}", Style(fg: dot, bg: style.bg), action: .tab(i), checked: i == sel, label: "Mac, warning"))
                 tabs.append(Piece(" ", style, action: .tab(i), checked: i == sel, label: "Mac, warning"))
             } else {
                 tabs.append(Piece(" \(name) ", style, action: .tab(i), checked: i == sel, label: name))
@@ -119,23 +121,27 @@ public enum Grammar {
     }
 
     static func percentPiece(_ used: Double, dim: Bool) -> Piece {
-        sp(" \(Int(used.rounded()))% used", dim ? .dim : .text)
+        sp(" \(Format.percentUsed(used))% used", dim ? .dim : .text)
     }
 
     // 6.3 window section
     public static func windowSection(_ w: WindowView) -> [Line] {
-        var out: [Line] = [L(sp(" "), sp(w.title, .bold))]
+        // a title the app does not know is the feed's key made readable, cut to the panel
+        var out: [Line] = [L(sp(" "), sp(Format.cut(w.title, popCells), .bold))]
         switch w.mode {
         case .live(let p):
             let bar = Bar.render(width: popBar, used: w.used, elapsed: p.elapsed, options: BarOptions(over: p.over))
             out.append(L(sp(" "), .bar(bar), percentPiece(w.used, dim: false)))
             out.append(L(sp(" "), sp(p.reset + "  " + p.countdown, .dim)))
-            if let proj = p.projection {
+            if let at = p.limitReached {
+                // at 100% there is no pace left to tell: the line says the limit is reached and when it resets (0.1.19)
+                out.append(L(sp(" "), sp("limit reached", .bold), sp(", resets " + at, .dim)))
+            } else if let proj = p.projection {
                 out.append(L(sp(" "), sp(p.status, .bold), sp("  " + proj, .dim)))
             } else {
                 out.append(L(sp(" "), sp(p.status, .bold)))
             }
-            out.append(L(sp(" "), sp(p.allowance, .dim)))
+            if p.limitReached == nil { out.append(L(sp(" "), sp(p.allowance, .dim))) }
         case .stale(let asOf, let reset, let e):
             let bar = Bar.render(width: popBar, used: w.used, elapsed: e, options: BarOptions(stale: true))
             out.append(L(sp(" "), .bar(bar), percentPiece(w.used, dim: true)))
@@ -163,12 +169,13 @@ public enum Grammar {
     /// The style guide's one label per window section: "Weekly, all models. 61% used. Resets Sunday 18:00, in 3 days
     /// 3 hours. Over pace, limit Sunday 01:20 at this rate. 0.5% an hour left."
     public static func windowLabel(_ w: WindowView) -> String {
-        let pct = "\(Int(w.used.rounded()))% used"
+        let pct = "\(Format.percentUsed(w.used))% used"
         var parts = [Spoken.title(w.title)]
         switch w.mode {
         case .live(let p):
-            parts += [pct, Spoken.words(p.reset) + ", " + Spoken.countdown(p.countdown),
-                      p.projection.map { p.status + ", " + Spoken.words($0) } ?? p.status, p.allowance]
+            parts += [pct, Spoken.words(p.reset) + ", " + Spoken.countdown(p.countdown)]
+            if let at = p.limitReached { parts += ["limit reached, resets " + Spoken.words(at)] }
+            else { parts += [p.projection.map { p.status + ", " + Spoken.words($0) } ?? p.status, p.allowance] }
         case .stale(let asOf, let reset, _): parts += [pct, Spoken.words(reset) + ", as of " + asOf]
         case .resetPassed(let reset): parts += [Spoken.words(reset) + ", no session since"]
         case .nextReply(let reset): parts += [Spoken.words(reset) + ", new window on the next reply"]
@@ -259,13 +266,12 @@ public enum Grammar {
             out.append(L(sp(" "), sp("no open session", .dim)))
             return out
         }
-        for s in list {
+        for (k, s) in list.enumerated() {
+            if k > 0 { out.append(blank) }   // a blank line between sessions (0.1.19)
             // the name and model are in the figure line's label; said once, there. A waiting session has no figure line
             // with a label, so its name line stays.
-            // a long session name is cut so name and model stay on one line inside the panel
-            let room = max(8, popCells - 2 - s.model.count)
-            let name = s.name.count > room ? String(s.name.prefix(room - 1)) + "\u{2026}" : s.name
-            let nameLine = L(sp(" "), sp(name), sp("  "), sp(s.model, .dim))
+            let (name, model) = nameAndModel(s.name, s.model)
+            let nameLine = L(sp(" "), sp(name), sp("  "), sp(model, .dim))
             out.append(s.waiting ? nameLine : nameLine.silent)
             let bar = Bar.render(width: rowBar, used: s.waiting ? 0 : Double(s.used), elapsed: nil, options: BarOptions(color: s.hue, plain: true))
             if s.waiting {
@@ -273,7 +279,9 @@ public enum Grammar {
                 let words = s.compacted ? "compacted or resumed  next reply updates it" : "waiting for the first reply"
                 out.append(Line([sp(" "), sp(words, .dim)], hover: true))
             } else {
-                let fig = Piece(s.figure + "  " + Format.rcol("\(s.used)%", 3), .text, tip: s.tip, tipLeft: true)
+                let pct = Format.rcol("\(s.used)%", 3)
+                let figure = Format.cut(s.figure, popCells + 1 - 1 - rowBar - 2 - 2 - Cells.width(pct))
+                let fig = Piece(figure + "  " + pct, .text, tip: s.tip, tipLeft: true)
                 out.append(Line([sp(" "), .bar(bar), sp("  "), fig], hover: true,
                                 label: "\(s.name), \(s.model), context \(Spoken.words(s.figure)), \(s.used)% used"))
             }
@@ -282,10 +290,26 @@ public enum Grammar {
         return out
     }
 
+    /// The name and the model of an open session on one line inside the panel, both measured in cells: the name is cut
+    /// first with the ellipsis; the model is cut too only when it alone leaves the name under eight cells (0.1.19).
+    public static func nameAndModel(_ name: String, _ model: String) -> (String, String) {
+        let room = popCells - 2   // the line less its first cell and the two spaces between name and model
+        let minName = min(8, Cells.width(name))
+        var m = model
+        if Cells.width(m) > room - minName { m = Format.cut(m, room - minName) }
+        return (Format.cut(name, room - Cells.width(m)), m)
+    }
+
+    /// The figure column of a list: five cells, wider when a figure needs it ("10.00B", "1000%"), never wider than 20.
+    public static func figureCells(_ list: [RowView]) -> Int {
+        min(20, max(5, list.map { Cells.width($0.figure) }.max() ?? 5))
+    }
+
     // 6.5 table row
-    public static func row(_ r: RowView) -> Line {
-        let bar = Bar.render(width: rowBar, used: Double(r.share), elapsed: nil, options: BarOptions(color: r.hue, plain: true))
-        let fig = Piece(Format.rcol(r.figure, 5), .text, tip: r.tip)
+    /// figureCells: the list's figure column; the bar gives up the cells a wider column takes, so the row stays in the panel.
+    public static func row(_ r: RowView, figureCells fw: Int = 5) -> Line {
+        let bar = Bar.render(width: rowBar - (fw - 5), used: Double(r.share), elapsed: nil, options: BarOptions(color: r.hue, plain: true))
+        let fig = Piece(Format.rcol(Format.cut(r.figure, fw), fw), .text, tip: r.tip)
         // the readout is in the label, so it is not said a second time as help
         return Line([sp(" "), sp(Format.col(r.name, 14)), sp(" "), .bar(bar), sp("  "), fig], hover: true,
                     label: "\(r.name), " + Spoken.words(r.tip), help: "")
@@ -305,19 +329,27 @@ public enum Grammar {
         let title = ["Tokens by model  7 days", "Tokens by project  7 days", "Tokens by session  today"][t.section]
         var out: [Line] = [L(sp(" "), sp(title, .bold)), subTabs(t.section)]
         if let empty = t.empty {
-            out.append(L(sp(" "), sp(empty, .dim)))
-            if let e = t.errorLine { out.append(L(sp(" "), sp(Format.col(e, popCells - 1).trimmingCharacters(in: .whitespaces), .dim))) }
+            // the folders looked in can run long: wrapped like every other note, as is the error (0.1.19; it was cut)
+            out += dimLines(empty, indent: 1)
+            if let e = t.errorLine { out += dimLines(e, indent: 1) }
             return out
         }
         let list = t.rows[t.section]
         if list.isEmpty {
             out.append(L(sp(" "), sp(t.section == 2 ? "no session today" : "nothing in the last 7 days", .dim)))
         }
-        for r in list { out.append(row(r)) }
+        let fw = figureCells(list)
+        for r in list { out.append(row(r, figureCells: fw)) }
         // a chip longer than the panel ("[list price equivalent  USD 0.63  one model unpriced]") wraps at its double
-        // spaces and is still read as one line (0.1.18; cut off at the panel's edge since 0.1.17 showed cents)
+        // spaces and is still read as one line (0.1.18; cut off at the panel's edge since 0.1.17 showed cents). Its
+        // second line stands one cell in, under the text after the bracket, so the bracket reads as one chip (0.1.19).
         for chip in [t.priceChip, t.agentChip].compactMap({ $0 }) {
-            out += spoken(Format.wrap(chip, popCells - 1).map { L(sp(" "), sp($0, .dim)) }, label: Spoken.chip(chip))
+            let rows = Cells.width(chip) <= popCells - 1 ? [chip] : Format.wrap(chip, popCells - 2)
+            out += spoken(rows.enumerated().map { k, r in L(sp(k == 0 ? " " : "  "), sp(r, .dim)) }, label: Spoken.chip(chip))
+        }
+        // the totals of spec 5, one dim line at the end of the section (0.1.19)
+        if let totals = t.totals {
+            out += spoken(Format.wrap(totals, popCells - 1).map { L(sp(" "), sp($0, .dim)) }, label: Spoken.words(totals))
         }
         return out
     }
@@ -420,6 +452,8 @@ public enum Grammar {
             out += sessionRows(c.sessions, more: c.moreSessions) + [blank]
         }
         out += tokens(c.tokens)
+        // no transcripts: week over week is left out with the chips (spec 14)
+        if c.tokens.noTranscripts { return out }
         out.append(blank)
         out.append(L(sp(" "), sp("Week over week", .bold)))
         if c.weeks.isEmpty { out.append(L(sp(" "), sp("no week recorded yet", .dim))) }
@@ -429,9 +463,11 @@ public enum Grammar {
 
     public static func macTab(_ m: MacTab) -> [Line] {
         func c(_ t: String) -> String { t.replacingOccurrences(of: "  ", with: ", ") }
+        // while the first sample is pending there is no figure yet: the bar stands empty and the line says "sampling"
+        let cpuFigure = m.sampling ? "" : " \(m.cpu)%"
         var out: [Line] = spoken([L(sp(" "), sp("CPU", .bold)),
-                                  L(sp(" "), .bar(Bar.render(width: popBar, used: Double(m.cpu), elapsed: nil)), sp(" \(m.cpu)%")),
-                                  L(sp(" "), sp(m.cpuLine, .dim))], label: "CPU \(m.cpu)%, " + c(m.cpuLine), focusable: true)
+                                  L(sp(" "), .bar(Bar.render(width: popBar, used: m.sampling ? 0 : Double(m.cpu), elapsed: nil)), sp(cpuFigure)),
+                                  L(sp(" "), sp(m.cpuLine, .dim))], label: m.sampling ? "CPU, " + m.cpuLine : "CPU \(m.cpu)%, " + c(m.cpuLine), focusable: true)
         if let gpu = m.gpu {
             out.append(blank)
             out += spoken([L(sp(" "), sp("GPU", .bold)),
@@ -451,13 +487,16 @@ public enum Grammar {
                            L(sp(" "), sp(b.line1, .dim))] + (b.line2.isEmpty ? [] : Format.wrap(b.line2, popCells - 1).map { L(sp(" "), sp($0, .dim)) }),
                            label: "Battery \(b.percent)%, " + c(b.line1) + (b.line2.isEmpty ? "" : ", " + c(b.line2)), focusable: true)
         }
+        // no title over nothing while the first sample is pending (0.1.19)
+        if m.sampling && m.processes.isEmpty && m.processError == nil { return out }
         out.append(blank)
         out.append(L(sp(" "), sp("Processes by CPU", .bold)))
         if let e = m.processError {
             out.append(L(sp(" "), sp("Cannot read the process list", .dim)))
-            out.append(L(sp(" "), sp(e, .dim)))
+            out += dimLines(e, indent: 1)
         }
-        for r in m.processes { out.append(row(r)) }
+        let fw = figureCells(m.processes)
+        for r in m.processes { out.append(row(r, figureCells: fw)) }
         return out
     }
 

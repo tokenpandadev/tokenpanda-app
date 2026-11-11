@@ -294,8 +294,14 @@ struct AccessTests {
     }
 
     @Test func versionLineInSettings() throws {
+        var v = Fixtures.input(tab: 2); v.version = "0.1.19"
+        #expect(Grammar.popover(ScreenBuilder.screen(v)).map(\.plain).contains(" tokenpanda 0.1.19"))
+        // the Settings fixture takes the bundle's version, never a number of its own (0.1.19; it said 0.1.15 in every
+        // later build): in the tests there is no tokenpanda bundle, so no version line
         let plain = Grammar.popover(try screen("settings")).map(\.plain)
-        #expect(plain.contains(" tokenpanda 0.1.15"))
+        #expect(Fixtures.bundleVersion == nil)
+        #expect(!plain.contains { $0.contains("tokenpanda 0.1.15") })
+        #expect(!plain.contains { $0.hasPrefix(" tokenpanda ") })
         var i = Fixtures.input(tab: 2); i.version = nil
         #expect(!Grammar.popover(ScreenBuilder.screen(i)).map(\.plain).contains { $0.contains("tokenpanda 0") })
     }
@@ -387,10 +393,12 @@ struct AccessTests {
         }
         // the same order as dark: figures lead, the dim lines sit below them
         #expect(lum(Tokens.light(Tokens.dim)) > lum(Tokens.light(Tokens.text)))
-        // the bar track shows over both desktops, and the fill stands apart from it (graphics, 3 to 1)
+        // the bar track shows over both desktops, and the fill stands apart from it. The track is 3 to 1 on the glass
+        // since 0.1.19 (barTrackAndStaleFillReachThreeToOne), so the fill keeps 2 to 1 from it, no longer 3: a track
+        // 3 to 1 from the light glass and 3 to 1 from the accent fill is not a colour that exists
         let track = Tokens.light(Tokens.track)
         #expect(ratio(track, bright) >= 1.5 && ratio(track, darkest) >= 1.5)
-        #expect(ratio(Tokens.light(Tokens.accent), track) >= 3)
+        #expect(ratio(Tokens.light(Tokens.accent), track) >= 2)
         // the tooltip text reads on its box
         #expect(ratio(Tokens.light(Tokens.text), Tokens.light(Tokens.box)) >= 4.5)
     }

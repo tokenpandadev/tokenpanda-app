@@ -50,7 +50,7 @@ public struct Piece: Sendable {
         self.value = value
         self.text = text; self.style = style; self.wide = wide; self.action = action
         self.tip = tip; self.tipLeft = tipLeft; self.bar = bar; self.checked = checked; self.label = label
-        self.cells = cells ?? (wide ? text.count * 2 : text.count)
+        self.cells = cells ?? (wide ? text.count * 2 : Cells.width(text))
     }
 
     public static func bar(_ b: BarRender) -> Piece { Piece(b.glyphs, .text, cells: b.width, bar: b) }

@@ -40,6 +40,9 @@ public struct LiveInput: Sendable {
     public var removeScriptError: String? = nil       // why remove.sh could not be written, shown under the status line row
     public var reopenApp: TerminalApp = .terminal     // the app Reopen opens the sessions in: the pick, or Terminal when it is gone
     public var reportCopied: Bool?                    // "Copy a problem report": true copied, false refused, nil not clicked
+    /// The transcript folders the reader looks in, as the user knows them ("~/.claude/projects"): the empty and error
+    /// texts of the token section name these (0.1.19). The App fills it from the store's roots (folderNames).
+    public var transcriptFolders: [String] = ["~/.claude/projects"]
 
     public init(feed: FeedState, hook: HookStatus, tokens: TokenSummary?, transcriptsRootsExist: Bool, transcriptsError: String?,
                 mac: MacSample?, weeks: WeekRecords, macInBar: Bool, nudges: Bool, listPrice: Bool, nudgeNote: String?, hookError: String? = nil,
@@ -64,8 +67,24 @@ public enum ScreenBuilder {
 
     // MARK: the windows
 
+    /// Folders as the user knows them: the home folder as "~". For LiveInput.transcriptFolders.
+    public static func folderNames(_ urls: [URL], home: URL = FileManager.default.homeDirectoryForCurrentUser) -> [String] {
+        let h = home.standardizedFileURL.path
+        return urls.map { u in
+            let p = u.standardizedFileURL.path
+            return p == h ? "~" : p.hasPrefix(h + "/") ? "~" + p.dropFirst(h.count) : p
+        }
+    }
+
+    /// The title of a window: the known ones by name, any other the feed's key made readable, underscores as spaces
+    /// (0.1.19; it was the raw key). Grammar cuts it to the panel.
+    public static func windowTitle(_ key: String) -> String {
+        let t = WindowKind.title(forKey: key)
+        return t == key ? key.replacingOccurrences(of: "_", with: " ") : t
+    }
+
     public static func windowView(key: String, limits: Limits, now: Date, tz: TimeZone) -> WindowView {
-        let title = WindowKind.title(forKey: key)
+        let title = windowTitle(key)
         guard let rec = limits.windows[key] else { return WindowView(title: title, used: 0, mode: .absent) }
         guard !limits.isUnknown(key), let length = WindowKind.length(forKey: key) else { return WindowView(title: title, used: rec.used, mode: .unknown) }
         let weekday = WindowKind.showsWeekday(length: length)
@@ -84,8 +103,10 @@ public enum ScreenBuilder {
         if stale {
             return WindowView(title: title, used: rec.used, mode: .stale(asOf: clock(limits.asOf, tz), reset: r.resetText, elapsed: r.elapsedShare))
         }
+        // at 100% the line says the limit is reached and when it resets, in place of the pace lines (0.1.19)
         let p = PaceLines(reset: r.resetText, countdown: r.countdown, status: r.status.rawValue, projection: r.projection,
-                          allowance: r.allowance, over: r.status == .overPace, elapsed: r.elapsedShare)
+                          allowance: r.allowance, over: r.status == .overPace, elapsed: r.elapsedShare,
+                          limitReached: rec.used >= 100 ? clock(rec.resetsAt, tz, weekday: weekday) : nil)
         return WindowView(title: title, used: rec.used, mode: .live(p))
     }
 
@@ -115,17 +136,35 @@ public enum ScreenBuilder {
 
     // MARK: open sessions
 
+    /// The hue of every model family on the screen: the table's for the known ones, the next unused palette hue for each
+    /// other one, the token rows' families first, then the open sessions' (style guide section 1; 0.1.19).
+    static func familyHues(_ i: LiveInput) -> [String: RGBA] {
+        // the "other" row of a long list is a mix of models, not a family: it keeps the plain white and takes no hue
+        let families = (i.tokens?.byModel7d.filter { $0.key != "other" }.map { PriceTable.family(forModel: $0.key) } ?? [])
+            + i.feed.sessions.map { PriceTable.family(forModel: $0.snapshot.modelId ?? "") }
+        return Tokens.hues(forFamilies: families)
+    }
+
+    /// The name an open session goes by: the one set with -n or /rename, else its project folder, else the start of its id.
+    static func sessionName(_ snap: Snapshot, _ i: LiveInput) -> String {
+        i.sessionNames[snap.sessionId] ?? snap.projectName ?? snap.sessionId.prefix(8).description
+    }
+
     public static func sessionViews(_ i: LiveInput) -> ([SessionView], Int) {
+        let hues = familyHues(i)
         let all = i.feed.sessions.map { s -> SessionView in
             let snap = s.snapshot
             let family = PriceTable.family(forModel: snap.modelId ?? "")
             let size = snap.contextWindowSize ?? 0
             let figure = (snap.currentUsageTokens.map { Format.contextTokens($0) } ?? "0") + " of " + Format.contextTokens(size, decimal: false)
-            var tip = Format.usd(snap.totalCostUSD ?? 0, cents: true) + " list price equivalent  \(snap.linesAdded ?? 0) added  \(snap.linesRemoved ?? 0) removed"
+            // the list price only while its setting is on, as with the chip (0.1.19)
+            var tip = i.listPrice ? Format.usd(snap.totalCostUSD ?? 0, cents: true) + " list price equivalent  " : ""
+            tip += "\(snap.linesAdded ?? 0) added  \(snap.linesRemoved ?? 0) removed"
             if let e = snap.effortLevel { tip += "  effort \(e)" }
+            let pct = min(max(snap.contextUsedPercentage ?? 0, 0), 999)
             // the session's own name (-n or /rename) first: several sessions in one folder are told apart by it
-            return SessionView(name: i.sessionNames[snap.sessionId] ?? snap.projectName ?? snap.sessionId.prefix(8).description, model: snap.modelDisplayName ?? "",
-                               hue: Tokens.hue(forFamily: family), used: Int((snap.contextUsedPercentage ?? 0).rounded()),
+            return SessionView(name: sessionName(snap, i), model: snap.modelDisplayName ?? "",
+                               hue: hues[family.lowercased()] ?? Tokens.hue(forFamily: family), used: Int(pct.isFinite ? pct.rounded() : 0),
                                figure: figure, tip: tip, waiting: snap.currentUsageTokens == nil,
                                compacted: snap.currentUsageTokens == nil && (snap.totalCostUSD ?? 0) > 0)
         }
@@ -135,31 +174,45 @@ public enum ScreenBuilder {
     // MARK: tokens
 
     public static func tokensView(_ i: LiveInput) -> TokensView {
+        // the folders looked in, not always ~/.claude/projects (0.1.19)
+        let folders = i.transcriptFolders.isEmpty ? "~/.claude/projects" : i.transcriptFolders.joined(separator: ", ")
         guard i.transcriptsRootsExist else {
-            return TokensView(section: i.section, rows: [[], [], []], priceChip: nil, agentChip: nil, empty: "No transcripts in ~/.claude/projects")
+            return TokensView(section: i.section, rows: [[], [], []], priceChip: nil, agentChip: nil, empty: "No transcripts in " + folders,
+                              noTranscripts: true)
         }
         if let e = i.transcriptsError, i.tokens == nil {
-            return TokensView(section: i.section, rows: [[], [], []], priceChip: nil, agentChip: nil, empty: "Cannot read ~/.claude/projects", errorLine: e)
+            return TokensView(section: i.section, rows: [[], [], []], priceChip: nil, agentChip: nil, empty: "Cannot read " + folders, errorLine: e)
         }
         guard let t = i.tokens else {
             return TokensView(section: i.section, rows: [[], [], []], priceChip: nil, agentChip: nil, empty: "reading the transcripts")
         }
-        func rows(_ g: [TokenGroup], hue: (TokenGroup) -> RGBA, unit: String) -> [RowView] {
+        func rows(_ g: [TokenGroup], hue: (TokenGroup) -> RGBA, unit: String, name: (TokenGroup) -> String = { $0.name }) -> [RowView] {
             let scale = Format.tokenScale(g.map(\.tokens).max() ?? 0)
-            return g.map { RowView(name: $0.name, hue: hue($0), share: $0.share, figure: Format.tokens($0.tokens, scale: scale),
+            return g.map { RowView(name: name($0), hue: hue($0), share: $0.share, figure: Format.tokens($0.tokens, scale: scale),
                                    tip: "\(Format.tokens($0.tokens, scale: scale)) tokens  \($0.share)% of \(unit)") }
         }
-        let models = rows(t.byModel7d, hue: { Tokens.hue(forFamily: PriceTable.family(forModel: $0.key)) }, unit: "7 days")
+        let hues = familyHues(i)
+        let models = rows(t.byModel7d, hue: { g in
+            if g.key == "other" { return Tokens.procWhite }
+            let f = PriceTable.family(forModel: g.key)
+            return hues[f.lowercased()] ?? Tokens.hue(forFamily: f)
+        }, unit: "7 days")
         let projects = rows(t.byProject7d, hue: { _ in Tokens.blue }, unit: "7 days")
-        let sessions = rows(t.bySessionToday, hue: { _ in Tokens.blue2 }, unit: "today")
+        // a session's row goes by the name Open sessions shows for it, where there is one (0.1.19; the id's start before)
+        var names = i.sessionNames
+        for s in i.feed.sessions where names[s.snapshot.sessionId] == nil { names[s.snapshot.sessionId] = sessionName(s.snapshot, i) }
+        let sessions = rows(t.bySessionToday, hue: { _ in Tokens.blue2 }, unit: "today", name: { names[$0.key] ?? $0.name })
         var price: String? = nil
         if i.listPrice, t.tokens7d > 0 {
-            var chip = "[list price equivalent  " + Format.usd(t.listPrice7d, cents: t.listPrice7d < 1)
+            // two decimals under USD 10, so 1.498 reads USD 1.50, never USD 1 (0.1.19; cents only under USD 1 before)
+            var chip = "[list price equivalent  " + Format.usd(t.listPrice7d, cents: t.listPrice7d < 10)
             if t.unpricedModels == 1 { chip += "  one model unpriced" } else if t.unpricedModels > 1 { chip += "  \(t.unpricedModels) models unpriced" }
             price = chip + "]"
         }
         let agents: String? = t.tokens7d > 0 ? "[\(t.agentShare7d)% by subagents]" : nil
-        return TokensView(section: i.section, rows: [models, projects, sessions], priceChip: price, agentChip: agents)
+        // the totals of spec 5: today, 7 days, 30 days (0.1.19)
+        let totals = "today \(Format.tokens(t.tokensToday))  7 days \(Format.tokens(t.tokens7d))  30 days \(Format.tokens(t.tokens30d))"
+        return TokensView(section: i.section, rows: [models, projects, sessions], priceChip: price, agentChip: agents, totals: totals)
     }
 
     // MARK: weeks
@@ -183,10 +236,10 @@ public enum ScreenBuilder {
                 let stale = i.feed.limits.map { OpenSessionsRule.isStale(asOf: $0.asOf, now: i.now) } ?? true
                 let start = c.resetsAt.addingTimeInterval(-weeklyLength)
                 let reading = PaceModel.reading(used: c.used, start: start, reset: c.resetsAt, now: i.now, timeZone: tz)
-                out.append(WeekView(date: date, used: Int(c.used.rounded()), hit: false, note: "so far",
+                out.append(WeekView(date: date, used: Format.percentUsed(c.used), hit: false, note: "so far",
                                     elapsed: reading?.elapsedShare, over: !stale && !c.retired && reading?.status == .overPace))
             } else {
-                out.append(WeekView(date: date, used: Int(r.lastUsed.rounded()), hit: r.hitAt != nil,
+                out.append(WeekView(date: date, used: Format.percentUsed(r.lastUsed), hit: r.hitAt != nil,
                                     note: r.hitAt.map { clock($0, tz, weekday: true) }))
             }
         }
@@ -201,7 +254,8 @@ public enum ScreenBuilder {
             // the window rolled while no session fed: the new week has no figure until the next reply (the old week keeps its own)
             out.append(WeekView(date: thisWeek, used: nil, note: "no reply yet"))
         } else if current == nil {
-            out.append(WeekView(date: thisWeek, used: nil, note: "no feed yet"))
+            // sessions that feed without plan figures (an API key): the week has none to show, the feed is there (0.1.19)
+            out.append(WeekView(date: thisWeek, used: nil, note: limitsView(i) == .noLimits ? "no plan limits" : "no feed yet"))
         }
         return Array(out.suffix(4))
     }
@@ -210,7 +264,7 @@ public enum ScreenBuilder {
 
     public static func macTab(_ i: LiveInput) -> MacTab {
         guard let m = i.mac else {
-            return MacTab(cpu: 0, cpuLine: "sampling", gpu: nil, memory: nil, battery: nil, processes: [])
+            return MacTab(cpu: 0, cpuLine: "sampling", gpu: nil, memory: nil, battery: nil, processes: [], sampling: true)
         }
         let cpu = Int(m.cpuBusy.rounded())
         let line = "user \(Int(m.cpuUser.rounded()))%  system \(Int(m.cpuSystem.rounded()))%  \(m.cores) cores"
@@ -218,8 +272,10 @@ public enum ScreenBuilder {
         if m.memoryTotal > 0 {
             let total = Double(m.memoryTotal), used = Double(m.memoryUsed), swap = Double(m.swapUsed)
             let cells = Grammar.memCols * Grammar.memRows
-            let usedCells = min(cells, Int((used / total * Double(cells)).rounded()))
-            let swapCells = min(cells - usedCells, Int((swap / total * Double(cells)).rounded()))
+            // the swap cells come from the end; with memory full they take their place from the used cells, and swap above
+            // zero shows at least one, so the grid matches the legend (0.1.19; full memory hid the swap)
+            let swapCells = swap > 0 ? min(cells, max(1, Int((swap / total * Double(cells)).rounded()))) : 0
+            let usedCells = min(cells - swapCells, Int((used / total * Double(cells)).rounded()))
             let totalGB = total / 1_073_741_824
             let totalText = totalGB == totalGB.rounded() ? String(Int(totalGB)) : String(format: "%.1f", totalGB)
             mem = MemView(usedCells: usedCells, swapCells: swapCells,
@@ -251,7 +307,7 @@ public enum ScreenBuilder {
         let inUse = max(m.processTotalCPU, 0.1)
         let procs = m.processes.map { p -> RowView in
             let share = min(100, Int((p.cpuPercent / inUse * 100).rounded()))
-            let fig = String(format: "%.1f%%", p.cpuPercent)
+            let fig = Format.cpu(p.cpuPercent)   // "123%" from 100% up, so it stays in its column (0.1.19)
             return RowView(name: p.name, hue: Tokens.procWhite, share: share, figure: fig, tip: fig + " CPU  " + memory(p.footprint) + " memory")
         }
         return MacTab(cpu: cpu, cpuLine: line, gpu: m.gpuUtilisation, memory: mem, battery: battery, processes: procs, processError: m.processError)
@@ -354,8 +410,8 @@ public enum ScreenBuilder {
         }
         let stale = OpenSessionsRule.isStale(asOf: limits.asOf, now: i.now)
         if rec.retired, i.now < rec.resetsAt {
-            return ItemState(used: Int(rec.used.rounded()), elapsed: nil, over: false, stale: stale, warn: i.warn, macText: macText,
-                             label: "Weekly \(Int(rec.used.rounded()))% used, not in the last feed" + (i.warn ? ", Mac warning" : ""))
+            return ItemState(used: Format.percentUsed(rec.used), elapsed: nil, over: false, stale: stale, warn: i.warn, macText: macText,
+                             label: "Weekly \(Format.percentUsed(rec.used))% used, not in the last feed" + (i.warn ? ", Mac warning" : ""))
         }
         if i.now >= rec.resetsAt {
             return ItemState(used: nil, elapsed: nil, over: false, stale: true, warn: i.warn, macText: macText,
@@ -363,10 +419,10 @@ public enum ScreenBuilder {
         }
         let r = PaceModel.reading(used: rec.used, start: rec.resetsAt.addingTimeInterval(-length), reset: rec.resetsAt, now: i.now, timeZone: i.timeZone)
         let over = !stale && r?.status == .overPace
-        var label = "Weekly \(Int(rec.used.rounded()))% used"
+        var label = "Weekly \(Format.percentUsed(rec.used))% used"
         if let r { label += ", " + r.status.rawValue.lowercased() + ", resets " + spokenDay(rec.resetsAt, i.timeZone) }
         if stale { label += ", as of " + clock(limits.asOf, i.timeZone) }
         if i.warn { label += ", Mac warning" }
-        return ItemState(used: Int(rec.used.rounded()), elapsed: r?.elapsedShare, over: over, stale: stale, warn: i.warn, macText: macText, label: label)
+        return ItemState(used: Format.percentUsed(rec.used), elapsed: r?.elapsedShare, over: over, stale: stale, warn: i.warn, macText: macText, label: label)
     }
 }

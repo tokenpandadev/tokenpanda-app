@@ -323,6 +323,19 @@ public final class LineView: NSView {
         scrollToVisible(r.insetBy(dx: 0, dy: -LineView.lineHeight))
     }
 
+    /// Scrolls the panel by one line, down or up, within the lines: the line after the visible part comes into view, or
+    /// the one before it. Nothing moves in a panel that shows all its lines.
+    func scrollLine(down: Bool) {
+        let v = visibleRect
+        if down {
+            let y = min(bounds.maxY, v.maxY + LineView.lineHeight)
+            scrollToVisible(NSRect(x: v.minX, y: y - 1, width: 1, height: 1))
+        } else {
+            let y = max(bounds.minY, v.minY - LineView.lineHeight)
+            scrollToVisible(NSRect(x: v.minX, y: y, width: 1, height: 1))
+        }
+    }
+
     /// Where the control that runs this action is drawn, in the view's coordinates: the pop-up's menu opens there.
     public func rect(of action: Action) -> NSRect? {
         controls.first { $0.action == action }.map(controlRect)
@@ -347,6 +360,12 @@ public final class LineView: NSView {
         guard !controls.isEmpty else { return false }
         switch key {
         case .down, .up:
+            // past the last control Down scrolls the panel on a line at a time, and before the first Up scrolls back to
+            // the top, so in a panel shorter than its lines the keyboard reaches every line (0.1.19)
+            if let f = focus, focusVisible {
+                if key == .down, f == controls.count - 1 { scrollLine(down: true); return true }
+                if key == .up, f == 0 { scrollLine(down: false); return true }
+            }
             let next: Int
             if let f = focus { next = key == .down ? min(f + 1, controls.count - 1) : max(f - 1, 0) }
             else { next = key == .down ? 0 : controls.count - 1 }
@@ -414,6 +433,12 @@ public final class LineView: NSView {
         return l
     }
 
+    /// The box each character of a run is drawn in when the run is not drawn whole: its cells times the cell width, two
+    /// cells for a wide character or an emoji, two for every glyph of a wide piece (the memory grid).
+    func glyphBoxes(_ text: String, wide: Bool) -> [CGFloat] {
+        text.map { CGFloat(wide ? 2 : Cells.width($0)) * cellWidth }
+    }
+
     func drawRun(_ text: String, bold: Bool, color: RGBA, x: CGFloat, y: CGFloat, cells: Int, wide: Bool, ctx: CGContext) {
         guard !text.isEmpty else { return }
         let line = ctLine(text, bold: bold, color: color)
@@ -425,13 +450,26 @@ public final class LineView: NSView {
             ctx.textPosition = CGPoint(x: x, y: y + baseline)
             CTLineDraw(line, ctx)
         } else {
-            // a glyph from another font: each one in its own cell box, left aligned
-            let box = wide ? 2 * cellWidth : cellWidth
+            // a glyph from another font: each one in its own box of cells, left aligned. A wide character or an emoji has
+            // a box of two cells (0.1.19; one before, so CJK was squeezed and an emoji covered the next letter); a glyph
+            // wider than its box is narrowed to it, never drawn over its neighbour.
             var gx = x
-            for ch in text {
+            for (ch, box) in zip(text, glyphBoxes(text, wide: wide)) {
                 let gl = ctLine(String(ch), bold: bold, color: color)
-                ctx.textPosition = CGPoint(x: gx, y: y + baseline)
-                CTLineDraw(gl, ctx)
+                let gw = CTLineGetTypographicBounds(gl, nil, nil, nil)
+                if gw > box + 0.5, gw > 0 {
+                    ctx.saveGState()
+                    ctx.translateBy(x: gx, y: 0)
+                    ctx.scaleBy(x: box / gw, y: 1)
+                    ctx.textPosition = CGPoint(x: 0, y: y + baseline)
+                    CTLineDraw(gl, ctx)
+                    ctx.restoreGState()
+                } else {
+                    // a wide character narrower than its two cells sits in their middle, as a terminal draws it
+                    let inset = !wide && box > cellWidth * 1.5 ? max(0, (box - gw) / 2) : 0
+                    ctx.textPosition = CGPoint(x: gx + inset, y: y + baseline)
+                    CTLineDraw(gl, ctx)
+                }
                 gx += box
             }
         }
@@ -440,6 +478,8 @@ public final class LineView: NSView {
 
     public override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
+        // the device pixels of this drawing: 2 on a Retina screen and in the snapshots, from the context itself
+        pixelScale = max(1, abs(ctx.userSpaceToDeviceSpaceTransform.a).rounded())
         if drawsStage {
             (LineView.stageOverride?.ns ?? Tokens.stage.ink(isLight)).setFill(); bounds.fill()
             Tokens.tint.ink(isLight).setFill(); bounds.fill()
@@ -450,12 +490,35 @@ public final class LineView: NSView {
                 Tokens.selection.ink(isLight).setFill()
                 NSRect(x: padSide, y: y, width: bounds.width - 2 * padSide, height: LineView.lineHeight).fill()
             }
-            var x = padSide
+            // grounds first, one rect per run of pieces with the same ground on whole device pixels: the selected tab with
+            // the warning dot is three pieces on one flat block, without seams at their joins (0.1.19)
+            var gx = padSide
+            var run: (start: CGFloat, end: CGFloat, color: RGBA)? = nil
+            func flushGround() {
+                if let r = run {
+                    r.color.ink(isLight).setFill()
+                    let a = snap(r.start), b = snap(r.end)
+                    NSRect(x: a, y: y, width: b - a, height: LineView.lineHeight).fill()
+                }
+                run = nil
+            }
             for p in line.pieces {
                 let w = CGFloat(p.cells) * cellWidth
                 if let bg = p.style.bg {
-                    bg.ink(isLight).setFill(); NSRect(x: x, y: y, width: w, height: LineView.lineHeight).fill()
-                }
+                    if let r = run, r.color == bg, abs(r.end - gx) < 0.01 { run?.end = gx + w } else { flushGround(); run = (gx, gx + w, bg) }
+                } else { flushGround() }
+                gx += w
+            }
+            flushGround()
+            if let pr = pressed, pr.inside, let c = controls.first(where: { $0.key == pr.key }), c.line == li {
+                // a control under a press that is still inside it: the accent at a quarter, until the button comes up
+                Tokens.accent.with(alpha: 0.25).ink(isLight).setFill()
+                let r = controlRect(c)
+                NSRect(x: snap(r.minX), y: r.minY, width: snap(r.maxX) - snap(r.minX), height: r.height).fill()
+            }
+            var x = padSide
+            for p in line.pieces {
+                let w = CGFloat(p.cells) * cellWidth
                 if let bar = p.bar {
                     drawBar(bar, x: x, y: y, ctx: ctx)
                 } else {
@@ -475,35 +538,38 @@ public final class LineView: NSView {
         }
     }
 
+    /// The device pixel scale: 2 on a Retina screen and in the snapshots.
+    var pixelScale: CGFloat = 2
+
+    /// A coordinate on the nearest device pixel edge, so two rects that meet leave no seam between them.
+    func snap(_ v: CGFloat) -> CGFloat { (v * pixelScale).rounded() / pixelScale }
+
+    /// The part of a cell a bar glyph covers, as a fraction from the cell's left edge: a full block, an eighth block (the
+    /// left n eighths) or a half of the notch. nil for a space or a glyph not of the bar grammar.
+    nonisolated static func coverage(_ g: Character) -> (from: Double, to: Double)? {
+        if g == Bar.full { return (0, 1) }
+        if g == Bar.notchLeft { return (0.5, 1) }   // ▐ the right half
+        if let n = Bar.eighths.firstIndex(of: g), n > 0 { return (0, Double(n) / 8) }   // ▌ is four eighths: the left half
+        return nil
+    }
+
+    /// The bar as rects on whole device pixels, one height for every cell: the track, then each run of one colour. The
+    /// eighth blocks and the notch halves are drawn as the parts of the cell their glyphs cover, at the full block's top
+    /// and bottom, so the last cell of a fill has no step and the joins inside a fill no hairline (0.1.19; the glyphs of
+    /// the last cell sat one device pixel short, and a coral run met the accent on a fractional point).
     func drawBar(_ bar: BarRender, x: CGFloat, y: CGFloat, ctx: CGContext) {
-        let top = y + barTop
+        let top = snap(y + barTop), bottom = snap(y + barTop + barHeight)
+        func fill(_ a: CGFloat, _ b: CGFloat) {
+            let l = snap(a), r = snap(b)
+            if r > l { NSRect(x: l, y: top, width: r - l, height: bottom - top).fill() }
+        }
         bar.trackColor.ink(isLight).setFill()
-        for r in bar.track {
-            NSRect(x: x + CGFloat(r.lowerBound) * cellWidth, y: top, width: CGFloat(r.count) * cellWidth, height: barHeight).fill()
-        }
-        // full cells run with their colour behind them too, so the hairline between blocks closes
-        var i = 0
-        while i < bar.cells.count {
-            let c = bar.cells[i]
-            if c.solid {
-                var j = i
-                while j < bar.cells.count, bar.cells[j].solid, bar.cells[j].color == c.color { j += 1 }
-                c.color.ink(isLight).setFill()
-                NSRect(x: x + CGFloat(i) * cellWidth, y: top, width: CGFloat(j - i) * cellWidth, height: barHeight).fill()
-                i = j
-            } else { i += 1 }
-        }
-        // the glyphs, as runs of one colour
-        i = 0
-        while i < bar.cells.count {
-            let c = bar.cells[i]
-            var j = i
-            var run = ""
-            while j < bar.cells.count, bar.cells[j].color == c.color { run.append(bar.cells[j].glyph); j += 1 }
-            if run.trimmingCharacters(in: .whitespaces).isEmpty == false {
-                drawRun(run, bold: false, color: c.color, x: x + CGFloat(i) * cellWidth, y: y, cells: j - i, wide: false, ctx: ctx)
-            }
-            i = j
+        for r in bar.track { fill(x + CGFloat(r.lowerBound) * cellWidth, x + CGFloat(r.upperBound) * cellWidth) }
+        // each cell on its own: two cells that meet share one snapped edge, so no seam shows between them
+        for (i, c) in bar.cells.enumerated() {
+            guard let cov = LineView.coverage(c.glyph) else { continue }
+            c.color.ink(isLight).setFill()
+            fill(x + (CGFloat(i) + CGFloat(cov.from)) * cellWidth, x + (CGFloat(i) + CGFloat(cov.to)) * cellWidth)
         }
     }
 
@@ -512,16 +578,16 @@ public final class LineView: NSView {
 
     /// A tooltip longer than the panel is wide breaks over lines at its double spaces (then at spaces), never cut.
     nonisolated public static func tipLines(_ tip: String, width: Int) -> [String] {
-        guard tip.count > width else { return [tip] }
+        guard Cells.width(tip) > width else { return [tip] }
         var out: [String] = []
         var line = ""
         for part in tip.components(separatedBy: "  ") where !part.isEmpty {
             if line.isEmpty { line = part }
-            else if line.count + 2 + part.count <= width { line += "  " + part }
+            else if Cells.width(line) + 2 + Cells.width(part) <= width { line += "  " + part }
             else { out.append(line); line = part }
         }
         if !line.isEmpty { out.append(line) }
-        return out.flatMap { $0.count > width ? Format.wrap($0, width) : [$0] }
+        return out.flatMap { Cells.width($0) > width ? Format.wrap($0, width) : [$0] }
     }
 
     func drawTip(_ tip: String, line li: Int, piece pi: Int, ctx: CGContext) {
@@ -529,7 +595,7 @@ public final class LineView: NSView {
         var px = padSide
         for k in 0..<pi { px += CGFloat(lines[li].pieces[k].cells) * cellWidth }
         let rows = LineView.tipLines(tip, width: tipCells)
-        let cells = rows.map(\.count).max() ?? 0
+        let cells = rows.map { Cells.width($0) }.max() ?? 0
         let w = CGFloat(cells + 2) * cellWidth
         let h = CGFloat(rows.count) * LineView.lineHeight
         var x = p.tipLeft ? padSide : px + CGFloat(p.cells) * cellWidth - w
@@ -540,7 +606,7 @@ public final class LineView: NSView {
         Tokens.box.ink(isLight).setFill()
         NSRect(x: x, y: y, width: w, height: h).fill()
         for (k, row) in rows.enumerated() {
-            drawRun(row, bold: false, color: Tokens.text, x: x + cellWidth, y: y + CGFloat(k) * LineView.lineHeight, cells: row.count, wide: false, ctx: ctx)
+            drawRun(row, bold: false, color: Tokens.text, x: x + cellWidth, y: y + CGFloat(k) * LineView.lineHeight, cells: Cells.width(row), wide: false, ctx: ctx)
         }
     }
 
@@ -549,11 +615,17 @@ public final class LineView: NSView {
     func hit(at point: NSPoint) -> Hit? { hits.first { $0.rect.contains(point) } }
 
     public override func mouseMoved(with event: NSEvent) {
-        let p = convert(event.locationInWindow, from: nil)
-        let li = Int((p.y - padTop) / LineView.lineHeight)
+        pointerMoved(to: convert(event.locationInWindow, from: nil))
+    }
+
+    /// The pointer over a point of the view: the row under it highlights, and a row with a readout shows its tooltip
+    /// wherever the pointer is on the row, name, bar or figure (0.1.19; only over the figure before).
+    func pointerMoved(to p: NSPoint) {
+        let li = Int(((p.y - padTop) / LineView.lineHeight).rounded(.down))
         let newLine: Int? = (li >= 0 && li < lines.count && lines[li].hover && p.x >= padSide && p.x <= bounds.width - padSide) ? li : nil
         var newTip: (Int, Int)? = nil
         if let h = hit(at: p), lines[h.line].pieces[h.piece].tip != nil { newTip = (h.line, h.piece) }
+        else if let l = newLine, let pi = lines[l].pieces.firstIndex(where: { $0.tip != nil }) { newTip = (l, pi) }
         if newLine != hoverLine || newTip?.0 != hoverTip?.line || newTip?.1 != hoverTip?.piece {
             hoverLine = newLine
             hoverTip = newTip.map { (line: $0.0, piece: $0.1) }
@@ -565,10 +637,39 @@ public final class LineView: NSView {
         if hoverLine != nil || hoverTip != nil { hoverLine = nil; hoverTip = nil; needsDisplay = true }
     }
 
-    public override func mouseDown(with event: NSEvent) {
-        if focusVisible { focusVisible = false; needsDisplay = true }
-        let p = convert(event.locationInWindow, from: nil)
-        if let h = hit(at: p), let a = lines[h.line].pieces[h.piece].action { onAction?(a) }
+    /// The control with an action under a point, by its stable key.
+    func controlKey(at p: NSPoint) -> String? {
+        controls.first { $0.action != nil && controlRect($0).contains(p) }?.key
+    }
+
+    /// A press in progress: the control it started on, and whether the pointer is still inside it.
+    var pressed: (key: String, inside: Bool)? = nil
+
+    public override func mouseDown(with event: NSEvent) { pointerDown(at: convert(event.locationInWindow, from: nil)) }
+    public override func mouseDragged(with event: NSEvent) { pointerDragged(to: convert(event.locationInWindow, from: nil)) }
+    public override func mouseUp(with event: NSEvent) { pointerUp(at: convert(event.locationInWindow, from: nil)) }
+
+    /// A control acts when the button comes up inside it, as a macOS button does: the press shows on it while the pointer
+    /// stays inside, and dragging off before letting go cancels it, so Remove, Install and Quit can be taken back (0.1.19;
+    /// they acted on the press before).
+    func pointerDown(at p: NSPoint) {
+        if focusVisible { focusVisible = false }
+        pressed = controlKey(at: p).map { ($0, true) }
+        needsDisplay = true
+    }
+
+    func pointerDragged(to p: NSPoint) {
+        guard let pr = pressed else { return }
+        let inside = controlKey(at: p) == pr.key
+        if inside != pr.inside { pressed = (pr.key, inside); needsDisplay = true }
+    }
+
+    func pointerUp(at p: NSPoint) {
+        guard let pr = pressed else { return }
+        pressed = nil
+        needsDisplay = true
+        guard controlKey(at: p) == pr.key, let c = controls.first(where: { $0.key == pr.key }), let a = c.action else { return }
+        onAction?(a)
     }
 
     public override var acceptsFirstResponder: Bool { true }

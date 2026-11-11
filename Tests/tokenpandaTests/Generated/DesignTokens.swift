@@ -20,14 +20,18 @@ enum DesignTokens {
         static let quiet = RGBA(hex: 0xb8b8b8)
         /// Used fill, selected tab, the rule under the header, the focus ring, links. Tokens.accent.
         static let accent = RGBA(hex: 0xb1b9f9)
-        /// The bar behind the fill; the fill itself when stale. Tokens.track.
-        static let track = RGBA(hex: 0x505370)
+        /// The bar behind the fill: 3 to 1 or more on the glass (0.1.19; was #505370). Tokens.track.
+        static let track = RGBA(hex: 0x65698d)
         /// The track of a stale bar, at 35% alpha. Tokens.trackStale.
-        static let trackStale = RGBA(hex: 0x505370, alpha: 0.35)
+        static let trackStale = RGBA(hex: 0x65698d, alpha: 0.35)
+        /// The fill of a stale bar: 3 to 1 or more on its faint track (0.1.19; it was the track colour). Tokens.staleFill.
+        static let staleFill = RGBA(hex: 0x7e82b0)
         /// The fill past the tick when over pace, nothing else. Tokens.coral.
         static let coral = RGBA(hex: 0xd77757)
         /// The hit mark on a week, swap cells, the Mac warning dot. Tokens.warning.
         static let warning = RGBA(hex: 0xffc107)
+        /// The Mac warning dot on the selected tab's accent ground: the other palette's warning, 3 to 1 or more there (0.1.19). Tokens.warningOnAccent.
+        static let warningOnAccent = RGBA(hex: 0x7a4e00)
         /// The tooltip ground. Tokens.box.
         static let box = RGBA(hex: 0x373737)
         /// Row hover and settings row hover, the terminal selection colour. Tokens.selection.
@@ -54,8 +58,16 @@ enum DesignTokens {
         static let blue = RGBA(hex: 0x6d96b4)
         /// Session rows, ANSI bright blue. Tokens.blue2.
         static let blue2 = RGBA(hex: 0x67b5ed)
-        /// Process rows and any model family not in the table, ANSI white. Tokens.procWhite.
+        /// Process rows, ANSI white. Tokens.procWhite.
         static let procWhite = RGBA(hex: 0xdee5eb)
+        /// A model family not in the table, the first unused hue in palette order, ANSI bright green (0.1.19). Tokens.brightGreen.
+        static let brightGreen = RGBA(hex: 0x79be7e)
+        /// A model family not in the table, the second unused hue in palette order, ANSI bright yellow (0.1.19). Tokens.brightYellow.
+        static let brightYellow = RGBA(hex: 0xe5c872)
+        /// A model family not in the table, the third unused hue in palette order, ANSI bright magenta (0.1.19). Tokens.brightMagenta.
+        static let brightMagenta = RGBA(hex: 0xd389e5)
+        /// A model family not in the table, the fourth unused hue in palette order, ANSI bright cyan (0.1.19). Tokens.brightCyan.
+        static let brightCyan = RGBA(hex: 0x84dde0)
     }
 
     /// The light palette: the light partner of each dark token (Tokens.light), and tintLight, stageLight.
@@ -72,14 +84,18 @@ enum DesignTokens {
         static let quiet = RGBA(hex: 0x525257)
         /// Used fill, selected tab, the rule under the header, the focus ring, links. Tokens.accent.
         static let accent = RGBA(hex: 0x3b46b8)
-        /// The bar behind the fill; the fill itself when stale. Tokens.track.
-        static let track = RGBA(hex: 0x9ea4c8)
+        /// The bar behind the fill: 3 to 1 or more on the glass (0.1.19; was #9ea4c8). Tokens.track.
+        static let track = RGBA(hex: 0x888dac)
         /// The track of a stale bar, at 35% alpha. Tokens.trackStale.
-        static let trackStale = RGBA(hex: 0x9ea4c8, alpha: 0.35)
+        static let trackStale = RGBA(hex: 0x888dac, alpha: 0.35)
+        /// The fill of a stale bar: 3 to 1 or more on its faint track (0.1.19; it was the track colour). Tokens.staleFill.
+        static let staleFill = RGBA(hex: 0x70748e)
         /// The fill past the tick when over pace, nothing else. Tokens.coral.
         static let coral = RGBA(hex: 0xb9502e)
         /// The hit mark on a week, swap cells, the Mac warning dot. Tokens.warning.
         static let warning = RGBA(hex: 0x7a4e00)
+        /// The Mac warning dot on the selected tab's accent ground: the other palette's warning, 3 to 1 or more there (0.1.19). Tokens.warningOnAccent.
+        static let warningOnAccent = RGBA(hex: 0xffc107)
         /// The tooltip ground. Tokens.box.
         static let box = RGBA(hex: 0xe4e4e8)
         /// Row hover and settings row hover, the terminal selection colour. Tokens.selection.
@@ -106,8 +122,16 @@ enum DesignTokens {
         static let blue = RGBA(hex: 0x2f5f86)
         /// Session rows, ANSI bright blue. Tokens.blue2.
         static let blue2 = RGBA(hex: 0x1a6fb0)
-        /// Process rows and any model family not in the table, ANSI white. Tokens.procWhite.
+        /// Process rows, ANSI white. Tokens.procWhite.
         static let procWhite = RGBA(hex: 0x3a3f45)
+        /// A model family not in the table, the first unused hue in palette order, ANSI bright green (0.1.19). Tokens.brightGreen.
+        static let brightGreen = RGBA(hex: 0x25704a)
+        /// A model family not in the table, the second unused hue in palette order, ANSI bright yellow (0.1.19). Tokens.brightYellow.
+        static let brightYellow = RGBA(hex: 0x7a5d00)
+        /// A model family not in the table, the third unused hue in palette order, ANSI bright magenta (0.1.19). Tokens.brightMagenta.
+        static let brightMagenta = RGBA(hex: 0x7b2f94)
+        /// A model family not in the table, the fourth unused hue in palette order, ANSI bright cyan (0.1.19). Tokens.brightCyan.
+        static let brightCyan = RGBA(hex: 0x006469)
     }
 
     /// The dark palette by Tokens.swift name.
@@ -120,8 +144,10 @@ enum DesignTokens {
         "accent": Dark.accent,
         "track": Dark.track,
         "trackStale": Dark.trackStale,
+        "staleFill": Dark.staleFill,
         "coral": Dark.coral,
         "warning": Dark.warning,
+        "warningOnAccent": Dark.warningOnAccent,
         "box": Dark.box,
         "selection": Dark.selection,
         "inkOnAccent": Dark.inkOnAccent,
@@ -136,6 +162,10 @@ enum DesignTokens {
         "blue": Dark.blue,
         "blue2": Dark.blue2,
         "procWhite": Dark.procWhite,
+        "brightGreen": Dark.brightGreen,
+        "brightYellow": Dark.brightYellow,
+        "brightMagenta": Dark.brightMagenta,
+        "brightCyan": Dark.brightCyan,
     ]
 
     /// The light palette by Tokens.swift name.
@@ -148,8 +178,10 @@ enum DesignTokens {
         "accent": Light.accent,
         "track": Light.track,
         "trackStale": Light.trackStale,
+        "staleFill": Light.staleFill,
         "coral": Light.coral,
         "warning": Light.warning,
+        "warningOnAccent": Light.warningOnAccent,
         "box": Light.box,
         "selection": Light.selection,
         "inkOnAccent": Light.inkOnAccent,
@@ -164,6 +196,10 @@ enum DesignTokens {
         "blue": Light.blue,
         "blue2": Light.blue2,
         "procWhite": Light.procWhite,
+        "brightGreen": Light.brightGreen,
+        "brightYellow": Light.brightYellow,
+        "brightMagenta": Light.brightMagenta,
+        "brightCyan": Light.brightCyan,
     ]
 
     /// Panel measures in points.
