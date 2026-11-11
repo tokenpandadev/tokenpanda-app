@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 tokenpanda
 # SPDX-License-Identifier: MIT
-# Weekly update offers for the pinned GitHub Actions and for Swift packages (there are none today; the entry
-# makes a new one get offers from its first day).
+# Weekly update offers for the pinned GitHub Actions, for Swift packages (there are none today; the entry
+# makes a new one get offers from its first day) and for the npm packages of the design system folder (dev only, not shipped).
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -12,6 +12,12 @@ updates:
       default-days: 7        # a new version waits a week before it is offered
   - package-ecosystem: swift
     directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7        # a new version waits a week before it is offered
+  - package-ecosystem: npm
+    directory: /design/system
     schedule:
       interval: weekly
     cooldown:
