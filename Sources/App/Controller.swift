@@ -430,9 +430,15 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let st = ScreenBuilder.item(i)
         if st != lastItem {
             lastItem = st
-            item.button?.image = ItemImage.make(st)
+            // VoiceOver names the app first, then the figures; on macOS 27 it read the image and not the button's label,
+            // so the image, the button's title and its label all say the same (0.1.19, his VoiceOver check)
+            let said = "tokenpanda, " + st.label
+            let image = ItemImage.make(st)
+            image.accessibilityDescription = said
+            item.button?.image = image
             item.button?.alphaValue = st.stale ? 0.5 : 1
-            item.button?.setAccessibilityLabel("tokenpanda, " + st.label)   // VoiceOver names the app first, then the figures
+            item.button?.setAccessibilityLabel(said)
+            item.button?.setAccessibilityTitle(said)
         }
         if popover.isShown {
             let screen = ScreenBuilder.screen(i)
