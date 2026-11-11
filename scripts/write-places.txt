@@ -3,12 +3,8 @@
 # Each write or delete call in Sources, by key (python3 -I scripts/write-places.py --list), then where it lands.
 # "data folder" = ~/Library/Application Support/dev.tokenpanda.app; anything else names its place. A test run in a
 # throwaway home must cover every place below that is not the data folder (the temp folder does not follow the home).
-9f347610d635 data folder: sessions/ at launch
 a19b15ccf776 debug flag only: --live-snapshot <folder> given on the command line
 1149e22fb687 debug flag only: --live-snapshot <folder>, live-panel.png
-a525dbcf2ed1 temp folder: the Reopen folder, mode 0700
-d7d050b6decc temp folder: one start script per session in the Reopen folder, mode 0600
-5469921c20bc data folder: restore.json when Reopen is switched off
 7acc7e92a297 debug build only: --snapshot <folder>
 e596454fde0b data folder: old sessions/<id>.json files
 9e1919e4d488 data folder: sessions/ files that are not regular files or too large
@@ -26,15 +22,22 @@ c2aea25fafab data folder: remove.sh when nothing is installed
 ffcfd02fbabd data folder: remove.sh folder
 244aa58826d8 data folder: remove.sh
 2142234466f8 data folder: sessions/ after the last Remove
-01d034f8a185 temp folder: the delete inside the Reopen cleanup (Reopen.removeLeftovers)
+01d034f8a185 temp folder (0.1.18 leftovers, at launch) or data folder reopen/: the delete inside the Reopen cleanup (Reopen.removeLeftovers)
 e057ea2b6816 data folder: restore.json folder
 7dd20ab2baa0 data folder: restore.json
 f4f0d18633b1 data folder: weeks.json folder
 c6d87d58e02e data folder: weeks.json
 6f4c4ddbf7ea test and debug only: Snapshot.writeScreen, PNGs for the snapshot tests and docs
-1d12233843b7 temp folder: deletes tokenpanda-reopen-* folders older than the age limit, at launch
-8003cefa222e temp folder: Reopen.tempFolder(), TMPDIR when set, else the system's
-355ba3606096 temp folder: deletes old tokenpanda-reopen-* folders before a Reopen
 c26f80bc83b9 temp folder: where Reopen.tempFolder() is decided (TMPDIR first)
 2b16811a56d2 temp folder: the system's, when TMPDIR is not set
-fffc8367ec7f temp folder: Reopen.removeLeftovers, deletes only tokenpanda-reopen-* folders directly in it
+fffc8367ec7f temp folder (0.1.18 leftovers, at launch) or data folder reopen/: Reopen.removeLeftovers, deletes only tokenpanda-reopen-* folders directly in the folder it is given
+f5f529986d79 data folder: reopen/, deletes tokenpanda-reopen-* folders older than the age limit, at launch
+0c3a1fe9bd49 temp folder: deletes the tokenpanda-reopen-* folders 0.1.18 and earlier left there, older than the age limit, at launch
+eaa2c0c92695 data folder: restore.json when Reopen is switched off
+8831552a641f data folder: sessions/ at launch, only while an entry is installed
+6a2bd5a1a8de data folder: reopen/, deletes old tokenpanda-reopen-* folders before a Reopen
+f8559668325e data folder: reopen/, mode 0700
+129a5259fc1d data folder: reopen/tokenpanda-reopen-<uuid>/, the Reopen folder, mode 0700
+b0a2e6cce37e data folder: reopen/tokenpanda-reopen-<uuid>/<id>.command, one start script per session, mode 0600 then 0700
+1c04cf102c14 data folder: a start script that could not be made executable, in the Reopen folder
+f0ea1bf8dbec data folder: the Reopen folder again when no script could be written into it

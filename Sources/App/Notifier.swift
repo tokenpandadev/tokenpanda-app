@@ -16,13 +16,15 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     private let reader = PermissionReader(
         read: { NotificationPermission.from(await UNUserNotificationCenter.current().notificationSettings().authorizationStatus) },
         ask: { (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert])) ?? false })
-    nonisolated static let reopenCategory = "reopen"
-    nonisolated static let reopenAction = "reopen"
-    nonisolated static let endedCategory = "ended"
-    /// Called on the main actor when the user clicks Reopen, or the restore notification itself.
+    nonisolated static let reopenCategory = NotificationClick.reopenCategory
+    nonisolated static let reopenAction = NotificationClick.reopenAction
+    nonisolated static let endedCategory = NotificationClick.endedCategory
+    /// Called on the main actor when the user clicks Reopen on the restore notification.
     var onReopen: (() -> Void)?
-    /// Called with the notification's id when the user clicks Reopen on a session's end notification, or the notification.
+    /// Called with the notification's id when the user clicks Reopen on a session's end notification.
     var onReopenEnded: ((String) -> Void)?
+    /// Called when the user clicks the restore or end notification itself: the panel opens, nothing starts.
+    var onOpenPanel: (() -> Void)?
 
     override init() {
         available = Bundle.main.bundleURL.pathExtension == "app" && Bundle.main.bundleIdentifier != nil
@@ -100,14 +102,13 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                             withCompletionHandler completionHandler: @escaping () -> Void) {
-        let category = response.notification.request.content.categoryIdentifier
-        let action = response.actionIdentifier
-        if category == Self.reopenCategory, action == Self.reopenAction || action == UNNotificationDefaultActionIdentifier {
-            Task { @MainActor in self.onReopen?() }
-        }
-        if category == Self.endedCategory, action == Self.reopenAction || action == UNNotificationDefaultActionIdentifier {
-            let id = response.notification.request.identifier
-            Task { @MainActor in self.onReopenEnded?(id) }
+        let click = NotificationClick.decide(category: response.notification.request.content.categoryIdentifier,
+                                             action: response.actionIdentifier, id: response.notification.request.identifier)
+        switch click {
+        case .reopen: Task { @MainActor in self.onReopen?() }
+        case .reopenEnded(let id): Task { @MainActor in self.onReopenEnded?(id) }
+        case .openPanel: Task { @MainActor in self.onOpenPanel?() }
+        case .nothing: break
         }
         completionHandler()
     }

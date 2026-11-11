@@ -5,7 +5,10 @@ import Darwin
 import IOKit
 import IOKit.ps
 
-// Every call is a public Mach, sysctl, IOKit or libproc call made in process. No tool is spawned, no root, no entitlement.
+// Every figure comes from a public Mach, sysctl, IOKit or libproc call made in process, with no root and no entitlement,
+// except the battery health word: for it one tool is spawned, Apple's /usr/sbin/system_profiler SPPowerDataType -json
+// (BatteryHealth.swift), with no shell, the C locale, no input, at most 1 MB of output kept, stopped when it has not
+// answered and exited within 3.9 s and killed 1 s later, at most once an hour and only while the Mac tab shows.
 // GPU utilisation depends on a key Apple does not document, and battery health on what system_profiler answers: shown when present, omitted when absent.
 
 public struct ProcessSample: Sendable, Equatable {
@@ -92,7 +95,9 @@ public actor MacSampler {
         ticksToNanos = tb.denom == 0 ? 1 : Double(tb.numer) / Double(tb.denom)
     }
 
-    /// full: the whole table (popover open). Otherwise CPU, pressure and one libproc pass for the warning rule.
+    /// full: the whole table (popover open). Otherwise CPU, pressure and one libproc pass for the warning rule, with no
+    /// process list: the names of the busiest five are looked up only for the open panel (0.1.19; until 0.1.18 every
+    /// closed 10 s sample looked them up for a list nobody saw).
     /// readHealth: the Mac tab shows, so the battery's word may be read; at most once an hour per launch, never without a
     /// battery. The sample never waits for it: it holds the last word, the next one holds the new word.
     /// The time is taken here, inside the actor: a call that waited its turn still measures its own interval.
@@ -100,7 +105,7 @@ public actor MacSampler {
         let now = now ?? Date()
         let cpu = sampleCPU()
         let (used, total, pressure, swap) = sampleMemory()
-        let procs = sampleProcesses(now: now)
+        let procs = sampleProcesses(now: now, names: full)
         var s = MacSample(cpuBusy: cpu.busy, cpuUser: cpu.user, cpuSystem: cpu.system, cores: cores, gpuUtilisation: nil,
                           memoryUsed: used, memoryTotal: total, pressureLevel: pressure, swapUsed: swap,
                           battery: nil, processes: procs.top, processError: procs.error, hogPid: procs.hog)
@@ -257,7 +262,7 @@ public actor MacSampler {
 
     // MARK: processes, libproc rusage deltas between two samples
 
-    func sampleProcesses(now: Date) -> (top: [ProcessSample], error: String?, hog: Int32?, total: Double) {
+    func sampleProcesses(now: Date, names: Bool = true) -> (top: [ProcessSample], error: String?, hog: Int32?, total: Double) {
         let n = proc_listallpids(nil, 0)
         guard n > 0 else { return ([], "proc_listallpids returned nothing", nil, 0) }
         var pids = [pid_t](repeating: 0, count: Int(n) * 2)
@@ -287,7 +292,7 @@ public actor MacSampler {
         guard ok > 0 else { return ([], "proc_pid_rusage failed for every process", nil, 0) }
         samples.sort { $0.cpuPercent > $1.cpuPercent }
         let hog = samples.first.flatMap { $0.cpuPercent > MacSampler.hogThreshold ? $0.pid : nil }
-        var top = Array(samples.prefix(5))
+        var top = names ? Array(samples.prefix(5)) : []
         for i in top.indices { top[i].name = Self.name(of: top[i].pid) }
         return (top, nil, hog, samples.reduce(0) { $0 + $1.cpuPercent })
     }

@@ -147,9 +147,12 @@ public struct Hook: Sendable {
         (try? FileManager.default.attributesOfItem(atPath: settingsURL.path))?[.modificationDate] as? Date
     }
 
-    func readSettings() -> [String: Any]? {
-        guard let d = SafeFile.read(settingsURL) else { return nil }
-        return (try? JSONSerialization.jsonObject(with: d)) as? [String: Any]
+    func readSettings() -> [String: Any]? { readSettingsText()?.settings }
+
+    /// The file's bytes and what they parse to: the bytes are what Install and Remove edit, member by member.
+    func readSettingsText() -> (data: Data, settings: [String: Any])? {
+        guard let d = SafeFile.read(settingsURL), let obj = (try? JSONSerialization.jsonObject(with: d)) as? [String: Any] else { return nil }
+        return (d, obj)
     }
 
     /// The statusLine object saved at install. nil: no backup file. .some(nil): there was no statusLine before.
@@ -181,10 +184,12 @@ public struct Hook: Sendable {
         // before anything is written: a link into a folder that does not exist fails here, with nothing left behind
         do { _ = try SettingsFile.writableTarget(settingsURL) } catch { throw HookError.cannotWriteSettings(SettingsFile.reason(error), cause: error) }
         var settings: [String: Any] = [:]
+        var original: Data? = nil
         let created = !fm.fileExists(atPath: settingsURL.path)
         if !created {
-            guard let s = readSettings() else { throw HookError.cannotReadSettings(Self.unreadable(settingsURL)) }
-            settings = s
+            guard let s = readSettingsText() else { throw HookError.cannotReadSettings(Self.unreadable(settingsURL)) }
+            settings = s.settings
+            original = s.data
         }
         let existing = settings["statusLine"] as? [String: Any]
         let existingCommand = existing?["command"] as? String
@@ -211,7 +216,7 @@ public struct Hook: Sendable {
             sl["refreshInterval"] = Hook.refreshInterval
         }
         settings["statusLine"] = sl
-        try writeSettings(settings)
+        try writeSettings(settings, original: original)
         return HookStatus(installed: true, previousCommand: previous, slowerRefresh: Self.slower(before))
     }
 
@@ -244,7 +249,8 @@ public struct Hook: Sendable {
     public func uninstall(previousCommand: String?, previousRefresh: Double? = nil, removeSessions: Bool = true) throws {
         let fm = FileManager.default
         if fm.fileExists(atPath: settingsURL.path) {
-            guard var settings = readSettings() else { throw HookError.cannotReadSettings(Self.unreadable(settingsURL)) }
+            guard let text = readSettingsText() else { throw HookError.cannotReadSettings(Self.unreadable(settingsURL)) }
+            var settings = text.settings
             let current = settings["statusLine"] as? [String: Any]
             if let cmd = current?["command"] as? String, isOurs(cmd) {
                 let created = (readBackupFile()?["createdSettings"] as? Bool) ?? false
@@ -266,7 +272,7 @@ public struct Hook: Sendable {
                     let target = (try? SettingsFile.resolve(settingsURL)) ?? settingsURL
                     do { try fm.removeItem(at: target) } catch { throw HookError.cannotWriteSettings(error.localizedDescription, cause: error) }
                 } else {
-                    try writeSettings(settings)
+                    try writeSettings(settings, original: text.data)
                 }
             }
         }
@@ -275,14 +281,206 @@ public struct Hook: Sendable {
         try? fm.removeItem(at: backupPath)
     }
 
-    /// The system JSON writer re-serialises the file: pretty printed with slashes unescaped; indentation and key order may change.
-    /// In content only the statusLine key differs. A settings.json that is a link (into a dotfiles folder) stays a link: the
-    /// file it points at is written, atomically, and keeps its mode; a new file is made owner only.
-    func writeSettings(_ settings: [String: Any]) throws {
+    /// Only the statusLine member changes: the file's other bytes stay as they were, key order, number spelling, spacing
+    /// and all (0.1.19; until 0.1.18 the system JSON writer wrote the whole file anew, audit F-52). A new file, or one the
+    /// member edit cannot place (SettingsText), is written whole by the system writer, pretty printed with slashes
+    /// unescaped. A settings.json that is a link (into a dotfiles folder) stays a link: the file it points at is written,
+    /// atomically, and keeps its mode; a new file is made owner only.
+    func writeSettings(_ settings: [String: Any], original: Data? = nil) throws {
         do {
-            let data = try JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .withoutEscapingSlashes])
+            let data = try original.flatMap { SettingsText.edit($0, to: settings) }
+                ?? JSONSerialization.data(withJSONObject: settings, options: [.prettyPrinted, .withoutEscapingSlashes])
             try SettingsFile.write(data, to: settingsURL)
         } catch { throw HookError.cannotWriteSettings(SettingsFile.reason(error), cause: error) }
+    }
+}
+
+/// settings.json changed member by member: a member whose value moved is replaced in place (an object inside it member
+/// by member too), a member that went is cut with its comma, a new one is added after the last, in the spacing of the
+/// ones before it. Every other byte stays. The result must parse to exactly the settings asked for, or nil is returned
+/// and the caller writes the file whole: a duplicate key, a member removed and added in one object, or anything the
+/// scanner does not follow.
+public enum SettingsText {
+    struct Member { var key: String; var keyStart: Int; var keyEnd: Int; var valueStart: Int; var valueEnd: Int }
+    struct Object { var open: Int; var close: Int; var members: [Member] }
+    struct Change { var range: Range<Int>; var bytes: [UInt8] }
+
+    public static func edit(_ data: Data, to target: [String: Any]) -> Data? {
+        let b = [UInt8](data)
+        guard let original = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+              let o = object(b, at: space(b, 0)), let changes = changes(b, o, from: original, to: target, indent: "") else { return nil }
+        var out = b
+        var lastStart = Int.max
+        for c in changes.sorted(by: { $0.range.lowerBound > $1.range.lowerBound }) {
+            guard c.range.upperBound <= lastStart else { return nil }   // two changes overlap
+            out.replaceSubrange(c.range, with: c.bytes)
+            lastStart = c.range.lowerBound
+        }
+        let result = Data(out)
+        guard let back = (try? JSONSerialization.jsonObject(with: result)) as? NSDictionary, back.isEqual(to: target) else { return nil }
+        return result
+    }
+
+    static func changes(_ b: [UInt8], _ o: Object, from original: [String: Any], to target: [String: Any], indent: String) -> [Change]? {
+        let keys = o.members.map(\.key)
+        guard Set(keys).count == keys.count else { return nil }
+        var out: [Change] = []
+        var removed = false
+        for (k, m) in o.members.enumerated() {
+            guard let new = target[m.key] else {
+                removed = true
+                if k > 0 { out.append(Change(range: o.members[k - 1].valueEnd..<m.valueEnd, bytes: [])) }
+                else if o.members.count > 1 { out.append(Change(range: m.keyStart..<o.members[1].keyStart, bytes: [])) }
+                else { out.append(Change(range: (o.open + 1)..<o.close, bytes: [])) }
+                continue
+            }
+            let old = original[m.key]
+            if let old, (old as AnyObject).isEqual(new) { continue }
+            let lineIndent = indentOfLine(b, m.keyStart)
+            if let oldObj = old as? [String: Any], let newObj = new as? [String: Any], let inner = object(b, at: m.valueStart),
+               let sub = changes(b, inner, from: oldObj, to: newObj, indent: lineIndent) {
+                out += sub
+            } else {
+                guard let text = render(new, indent: lineIndent) else { return nil }
+                out.append(Change(range: m.valueStart..<m.valueEnd, bytes: text))
+            }
+        }
+        let added = target.keys.filter { !keys.contains($0) }.sorted()
+        guard !added.isEmpty else { return out }
+        guard !removed else { return nil }
+        if let last = o.members.last {
+            // the gap before the last member (its comma, line break and indent) and its key to value spacing, repeated
+            let gap: [UInt8] = o.members.count > 1 ? Array(b[o.members[o.members.count - 2].valueEnd..<last.keyStart])
+                                                   : [UInt8(ascii: ",")] + Array(b[(o.open + 1)..<last.keyStart])
+            let colon = Array(b[last.keyEnd..<last.valueStart])
+            let lineIndent = indentOfLine(b, last.keyStart)
+            var text: [UInt8] = []
+            for key in added {
+                guard let k = render(key, indent: ""), let v = render(target[key] as Any, indent: lineIndent) else { return nil }
+                text += gap + k + colon + v
+            }
+            out.append(Change(range: last.valueEnd..<last.valueEnd, bytes: text))
+        } else {
+            let inner = indent + "  "
+            var parts: [String] = []
+            for key in added {
+                guard let k = render(key, indent: ""), let v = render(target[key] as Any, indent: inner) else { return nil }
+                parts.append(inner + String(decoding: k, as: UTF8.self) + ": " + String(decoding: v, as: UTF8.self))
+            }
+            out.append(Change(range: (o.open + 1)..<o.close, bytes: Array(("\n" + parts.joined(separator: ",\n") + "\n" + indent).utf8)))
+        }
+        return out
+    }
+
+    /// A value as the system writer spells it, its later lines indented to the member's line.
+    static func render(_ value: Any, indent: String) -> [UInt8]? {
+        guard let d = try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys, .fragmentsAllowed])
+        else { return nil }
+        let s = String(decoding: d, as: UTF8.self)
+        return Array((indent.isEmpty ? s : s.replacingOccurrences(of: "\n", with: "\n" + indent)).utf8)
+    }
+
+    /// The same member edit for remove.sh, in JavaScript for osascript (part of macOS): argument one the file, two the
+    /// saved statusLine as JSON or empty to remove the key. It prints the new text, or nothing when the file is not a JSON
+    /// object. When the member cannot be placed it prints the whole object, its key order kept, two spaces deep, unless
+    /// the file holds a 16 digit run (a number JavaScript would round). No single quote and no backslash in it: it sits in
+    /// single quotes in sh.
+    public static let zapScript = #"""
+    function run(a){try{
+    var t=$.NSString.stringWithContentsOfFileEncodingError(a[0],4,null).js;
+    var o=JSON.parse(t);if(o===null||typeof o!=="object"||Array.isArray(o))return "";
+    var j=a[1]?JSON.parse(a[1]):null;if(j)o.statusLine=j;else delete o.statusLine;
+    var want=JSON.stringify(o);var r=cut(t,j);
+    if(r!==null){try{if(JSON.stringify(JSON.parse(r))===want)return r}catch(e){}}
+    if(/[0-9]{16}/.test(t))return "";
+    return JSON.stringify(o,null,2)}catch(e){return ""}}
+    function sp(t,i){var c=t.charCodeAt(i);return c===32||c===9||c===10||c===13}
+    function ws(t,i){while(i<t.length&&sp(t,i))i++;return i}
+    function str(t,i){var k=i+1;while(k<t.length){var c=t.charCodeAt(k);if(c===92){k+=2;continue}if(c===34)return k+1;k++}return -1}
+    function val(t,i){var c=t.charCodeAt(i),k=i;if(c===34)return str(t,i);
+    if(c===123||c===91){var d=0;while(k<t.length){c=t.charCodeAt(k);if(c===34){k=str(t,k);if(k<0)return -1;continue}
+    if(c===123||c===91)d++;else if(c===125||c===93){d--;if(d===0)return k+1}k++}return -1}
+    while(k<t.length&&!sp(t,k)&&",}]".indexOf(t[k])<0)k++;return k>i?k:-1}
+    function cut(t,j){var i=ws(t,0);if(t.charCodeAt(i)!==123)return null;var m=[];i=ws(t,i+1);
+    while(i<t.length&&t.charCodeAt(i)!==125){if(t.charCodeAt(i)!==34)return null;var ke=str(t,i);if(ke<0)return null;
+    var v=ws(t,ke);if(t.charCodeAt(v)!==58)return null;v=ws(t,v+1);var ve=val(t,v);if(ve<0)return null;
+    m.push({k:JSON.parse(t.slice(i,ke)),s:i,v:v,e:ve});i=ws(t,ve);if(t.charCodeAt(i)===44)i=ws(t,i+1)}
+    var n=-1;for(var x=0;x<m.length;x++)if(m[x].k==="statusLine"){if(n>=0)return null;n=x}
+    if(n<0)return null;var e=m[n];
+    if(j){var ls=e.s;while(ls>0&&t.charCodeAt(ls-1)!==10)ls--;var le=ls;while(le<e.s&&(t.charCodeAt(le)===32||t.charCodeAt(le)===9))le++;
+    var nl=String.fromCharCode(10);return t.slice(0,e.v)+JSON.stringify(j,null,2).split(nl).join(nl+t.slice(ls,le))+t.slice(e.e)}
+    if(n>0)return t.slice(0,m[n-1].e)+t.slice(e.e);
+    if(m.length>1)return t.slice(0,e.s)+t.slice(m[1].s);
+    return "{}"}
+    """#
+
+    static func isSpace(_ c: UInt8) -> Bool { c == 0x20 || c == 0x09 || c == 0x0a || c == 0x0d }
+
+    static func space(_ b: [UInt8], _ i: Int) -> Int { var i = i; while i < b.count, isSpace(b[i]) { i += 1 }; return i }
+
+    /// The spaces and tabs that start the line `at` is on.
+    static func indentOfLine(_ b: [UInt8], _ at: Int) -> String {
+        var start = at
+        while start > 0, b[start - 1] != 0x0a { start -= 1 }
+        var end = start
+        while end < at, b[end] == 0x20 || b[end] == 0x09 { end += 1 }
+        return String(decoding: b[start..<end], as: UTF8.self)
+    }
+
+    /// The end of the string that starts at i (after its closing quote).
+    static func string(_ b: [UInt8], _ i: Int) -> Int? {
+        guard i < b.count, b[i] == 0x22 else { return nil }
+        var j = i + 1
+        while j < b.count {
+            if b[j] == 0x5c { j += 2; continue }
+            if b[j] == 0x22 { return j + 1 }
+            j += 1
+        }
+        return nil
+    }
+
+    /// The end of the value that starts at i.
+    static func value(_ b: [UInt8], _ i: Int) -> Int? {
+        guard i < b.count else { return nil }
+        switch b[i] {
+        case 0x22: return string(b, i)
+        case 0x7b, 0x5b:
+            var depth = 0
+            var j = i
+            while j < b.count {
+                let c = b[j]
+                if c == 0x22 { guard let e = string(b, j) else { return nil }; j = e; continue }
+                if c == 0x7b || c == 0x5b { depth += 1 } else if c == 0x7d || c == 0x5d { depth -= 1; if depth == 0 { return j + 1 } }
+                j += 1
+            }
+            return nil
+        default:
+            var j = i
+            while j < b.count, !isSpace(b[j]), b[j] != 0x2c, b[j] != 0x7d, b[j] != 0x5d { j += 1 }
+            return j > i ? j : nil
+        }
+    }
+
+    /// The members of the object that starts at `start`.
+    static func object(_ b: [UInt8], at start: Int) -> Object? {
+        guard start < b.count, b[start] == 0x7b else { return nil }
+        var members: [Member] = []
+        var i = space(b, start + 1)
+        while i < b.count {
+            if b[i] == 0x7d { return Object(open: start, close: i, members: members) }   // also after a trailing comma
+            guard let keyEnd = string(b, i),
+                  let key = (try? JSONSerialization.jsonObject(with: Data(b[i..<keyEnd]), options: .fragmentsAllowed)) as? String else { return nil }
+            var j = space(b, keyEnd)
+            guard j < b.count, b[j] == 0x3a else { return nil }
+            j = space(b, j + 1)
+            guard let valueEnd = value(b, j) else { return nil }
+            members.append(Member(key: key, keyStart: i, keyEnd: keyEnd, valueStart: j, valueEnd: valueEnd))
+            j = space(b, valueEnd)
+            guard j < b.count else { return nil }
+            if b[j] == 0x2c { j = space(b, j + 1) } else if b[j] != 0x7d { return nil }
+            i = j
+        }
+        return nil
     }
 }
 
@@ -420,7 +618,32 @@ public enum ConfigFolders {
         folders(home: home, environment: environment, projectsCount: true)
     }
 
-    static func folders(home: URL, environment: [String: String], projectsCount: Bool) -> [URL] {
+    /// CLAUDE_CONFIG_DIR as one path, as Claude Code reads it, a leading ~ expanded: a comma is part of the name (until
+    /// 0.1.18 the value was split at commas, audit F-66). nil when unset or blank.
+    public static func environmentFolder(_ environment: [String: String]) -> URL? {
+        guard let dir = environment["CLAUDE_CONFIG_DIR"], !dir.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+        return URL(fileURLWithPath: (dir as NSString).expandingTildeInPath, isDirectory: true)
+    }
+
+    /// Both lists from one listing of the home folder: the install targets and the transcript folders.
+    public static func scan(home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                            environment: [String: String] = ProcessInfo.processInfo.environment) -> (install: [URL], transcripts: [URL]) {
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: home.path)) ?? []
+        return (folders(home: home, environment: environment, projectsCount: false, listing: names),
+                folders(home: home, environment: environment, projectsCount: true, listing: names))
+    }
+
+    /// The transcript roots: the usual places and the projects folder of each transcript folder, in that order.
+    public static func transcriptRoots(usual: [URL], folders: [URL]) -> [URL] {
+        var roots = usual
+        for f in folders {
+            let r = f.appendingPathComponent("projects", isDirectory: true)
+            if !roots.contains(r) { roots.append(r) }
+        }
+        return roots
+    }
+
+    static func folders(home: URL, environment: [String: String], projectsCount: Bool, listing: [String]? = nil) -> [URL] {
         let fm = FileManager.default
         func isDir(_ u: URL) -> Bool { var d: ObjCBool = false; return fm.fileExists(atPath: u.path, isDirectory: &d) && d.boolValue }
         let primary = home.appendingPathComponent(".claude", isDirectory: true)
@@ -430,13 +653,8 @@ public enum ConfigFolders {
         }
         let xdg = home.appendingPathComponent(".config/claude", isDirectory: true)
         if qualifies(xdg) { candidates.append(xdg) }
-        if let dirs = environment["CLAUDE_CONFIG_DIR"] {
-            for d in dirs.split(separator: ",") {
-                let t = (d.trimmingCharacters(in: .whitespaces) as NSString).expandingTildeInPath
-                if !t.isEmpty { candidates.append(URL(fileURLWithPath: t, isDirectory: true)) }
-            }
-        }
-        let names = ((try? fm.contentsOfDirectory(atPath: home.path)) ?? []).filter { $0.hasPrefix(".claude-") || $0.hasPrefix(".claude_") }.sorted()
+        if let env = environmentFolder(environment) { candidates.append(env) }
+        let names = (listing ?? ((try? fm.contentsOfDirectory(atPath: home.path)) ?? [])).filter { $0.hasPrefix(".claude-") || $0.hasPrefix(".claude_") }.sorted()
         for n in names {
             let u = home.appendingPathComponent(n, isDirectory: true)
             if qualifies(u) { candidates.append(u) }
@@ -481,6 +699,21 @@ public enum ConfigFolders {
     }
 }
 
+/// When a feed scan looks in the home folder for a settings folder made since launch: at most once a minute, and at
+/// each open of the panel (forced). Until 0.1.18 every scan listed the home folder, every 5 s and up to once a second
+/// while sessions write (review).
+public struct FolderClock: Sendable, Equatable {
+    public static let every: TimeInterval = 60
+    public private(set) var last: Date?
+    public init() {}
+    /// true when a look is due now, and counts it.
+    public mutating func due(now: Date, force: Bool = false) -> Bool {
+        if !force, let l = last, now.timeIntervalSince(l) < Self.every, now >= l { return false }
+        last = now
+        return true
+    }
+}
+
 /// The status line entry across every settings folder: one Hook each, sharing the data folder and the sessions folder.
 public struct HookSet: Sendable {
     public let hooks: [Hook]
@@ -505,6 +738,27 @@ public struct HookSet: Sendable {
 
     /// One date that moves when any settings.json moves, appears or goes.
     public func settingsModified() -> [Date?] { hooks.map { $0.settingsModified() } }
+
+    /// What each feed tick compares to read the status again: every settings.json's time and whether each script is
+    /// there. Until 0.1.18 only the times, so a script deleted while the app ran was not noticed (review).
+    public struct Stamp: Sendable, Equatable {
+        public var settings: [Date?]
+        public var scripts: [Bool]
+    }
+
+    public func stamp() -> Stamp {
+        Stamp(settings: settingsModified(), scripts: hooks.map { FileManager.default.isExecutableFile(atPath: $0.hookPath.path) })
+    }
+
+    /// The sessions folder, made at launch only while an entry is installed somewhere: after Remove deleted it, a launch
+    /// does not make it again (review; until 0.1.18 every launch did). True when it is there afterwards.
+    @discardableResult
+    public func prepareSessionsFolder() -> Bool {
+        guard let dir = hooks.first?.sessionsDir else { return false }
+        guard hooks.contains(where: { $0.status().installed }) else { return FileManager.default.fileExists(atPath: dir.path) }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return FileManager.default.fileExists(atPath: dir.path)
+    }
 
     /// Installs into every folder that does not have the entry yet. Stops at the first error and says which folder.
     /// The remove script is rewritten either way, for what got installed.
@@ -531,12 +785,20 @@ public struct HookSet: Sendable {
         # tokenpanda's Remove without the app, written by the app at Install and Remove. brew uninstall --zap runs it
         # before it trashes this folder. For each settings.json: only while its statusLine still runs tokenpanda's script,
         # put back the entry saved at install, or remove the key; delete the file if Install created it and it is empty.
+        # Only the statusLine member is changed, the rest of the file kept as it is, by the JavaScript below (osascript,
+        # part of macOS); plutil, which writes the whole file on one line in its own key order, only when that fails.
+        EDIT='\(SettingsText.zapScript)'
         restore() {
           S="$1"; OURS="$2"; B="$3"
           [ -f "$S" ] || return 0
           cmd=$(/usr/bin/plutil -extract statusLine.command raw -o - "$S" 2>/dev/null) || return 0
           [ "$cmd" = "$OURS" ] || return 0
-          if [ -f "$B" ] && J=$(/usr/bin/plutil -extract statusLine json -o - "$B" 2>/dev/null); then
+          J=""
+          if [ -f "$B" ]; then J=$(/usr/bin/plutil -extract statusLine json -o - "$B" 2>/dev/null) || J=""; fi
+          T=$(/usr/bin/readlink -f "$S" 2>/dev/null) || T="$S"
+          if OUT=$(/usr/bin/osascript -l JavaScript -e "$EDIT" "$T" "$J" 2>/dev/null) && [ -n "$OUT" ]; then
+            printf '%s\\n' "$OUT" > "$T"
+          elif [ -n "$J" ]; then
             /usr/bin/plutil -replace statusLine -json "$J" "$S"
           else
             /usr/bin/plutil -remove statusLine "$S"

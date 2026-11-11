@@ -66,11 +66,35 @@ public final class PermissionReader {
     public func authorize(now: Date = Date()) async {
         lastRead = now
         ticket += 1
-        state = await read()
+        let mine = ticket
+        let read = await read()
+        // a refresh that started later and answered first is newer: this read is dropped (0.1.19, review; spec 9)
+        if mine == ticket { state = read }
         guard state == .undecided else { return }
         let ok = await ask()
         ticket += 1   // the answer is newer than any read that started while the prompt was up
         state = ok ? .allowed : .denied
+    }
+}
+
+/// What a click on one of the app's notifications does. Only the Reopen button starts sessions; a click on the
+/// notification itself opens the panel, as README, the privacy page and Settings say (0.1.19, audit F-50: until 0.1.18
+/// the body click started the sessions too).
+public enum NotificationClick: Sendable, Equatable {
+    case reopen                    // Reopen on the restart notice
+    case reopenEnded(String)       // Reopen on a session's end notice, with that notice's id
+    case openPanel                 // the notification itself
+    case nothing                   // dismissed, or a notification without a click of its own (the nudges)
+
+    public static let reopenCategory = "reopen"
+    public static let reopenAction = "reopen"
+    public static let endedCategory = "ended"
+
+    public static func decide(category: String, action: String, id: String) -> NotificationClick {
+        guard category == reopenCategory || category == endedCategory else { return .nothing }
+        if action == reopenAction { return category == reopenCategory ? .reopen : .reopenEnded(id) }
+        if action == UNNotificationDefaultActionIdentifier { return .openPanel }
+        return .nothing
     }
 }
 

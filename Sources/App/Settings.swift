@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 tokenpanda
 // SPDX-License-Identifier: MIT
 import Foundation
+import Feed
 import Text
 import UI
 
@@ -50,4 +51,6 @@ enum Paths {
     }
     static var weeksFile: URL { dataDir.appendingPathComponent("weeks.json") }
     static var restoreFile: URL { dataDir.appendingPathComponent("restore.json") }
+    /// The Reopen folders, under the data folder so the zap's trash takes a leftover with it (0.1.19, audit F-54).
+    static var reopenDir: URL { Reopen.baseFolder(dataDir: dataDir) }
 }
