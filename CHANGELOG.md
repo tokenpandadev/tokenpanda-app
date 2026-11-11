@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.19, unreleased
+
+- Old figures no longer show as live: when a session sits idle, its last plan figures count as stale an hour after the last reply, as they should.
+- Token figures are no longer counted twice when ~/.config/claude links to ~/.claude, or when a second settings folder links to the first.
+- Reopen brings back sessions from a second settings folder too, and says so in a notification when a session cannot be opened (its folder is gone).
+- Only the Reopen button starts sessions; a click on the notification opens the panel.
+- Install and Remove change only the statusLine entry in settings.json and leave every other line exactly as it was.
+- Start options that carry inline JSON (a --settings or --mcp-config value) are no longer saved.
+- The Reopen scripts live in tokenpanda's own folder, so uninstalling removes them.
+- The panel: long, Chinese, Japanese and emoji names fit and line up; big figures stay in their column; a blank line between open sessions; totals for today, 7 days and 30 days at the end of the token section; "limit reached" at 100%; the price chip shows cents under USD 10; tooltips show on the whole row; buttons act when you let go, so a click can be taken back by dragging off; the warning dot and the bar tracks are easier to see.
+- A minor model release such as Opus 5.1 is no longer named and priced as Opus 5.
+- Less work in the background: fewer file writes and folder checks while sessions run.
+
 ## 0.1.18, 2026-11-11
 
 - Lighter with a long Claude Code history: while the panel is open and sessions are working, each update of the weekly token figures takes about a quarter of the time it did. The figures are unchanged.
