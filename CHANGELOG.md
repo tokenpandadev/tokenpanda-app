@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.19, unreleased
+## 0.1.19, 2026-11-11
 
 - Old figures no longer show as live: when a session sits idle, its plan figures count as stale an hour after the last reply.
 - Token figures are counted once: a linked ~/.config/claude, a second settings folder that links to the first, a backup copy such as ~/.claude-backup, or a resumed session no longer doubles them.
