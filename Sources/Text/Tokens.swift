@@ -19,7 +19,7 @@ public enum Tokens {
     public static let dimmer = RGBA(hex: 0x949494)    // free cells in the memory grid: 3 to 1 even over white (0.1.14, was 888888)
     public static let quiet = RGBA(hex: 0xb8b8b8)     // key hints in the foot: 4.5 to 1 or more even over a white desktop
     public static let accent = RGBA(hex: 0xb1b9f9)    // used fill, selected tab, the rule
-    // the bar behind the fill. Back at its 0.1.18 value in 0.1.19 (owner, 11.11): the lifted 65698d reached 3 to 1 on the
+    // the bar behind the fill. Back at its 0.1.18 value in 0.1.19 (chosen on 11.11): the lifted 65698d reached 3 to 1 on the
     // glass but cut the accent fill to 2.8 and the coral over pace segment to 1.7 against it; here they keep 4.0 and 2.4
     public static let track = RGBA(hex: 0x505370)
     public static let trackStale = RGBA(hex: 0x505370, alpha: 0.35)

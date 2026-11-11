@@ -328,7 +328,7 @@ struct PanelFitTests {
 
     /// The stale fill on its faint track, dark and light, over the glass of the style guide's measurement (#111424 to
     /// #202030, and the tint over the stage) and the light glass over white and the light stage. The track itself stays
-    /// at its 0.1.18 value, under 3 to 1 on the glass, the owner's choice of 11.11: the accent fill and the coral keep
+    /// at its 0.1.18 value, under 3 to 1 on the glass, chosen on 11.11: the accent fill and the coral keep
     /// their contrast to it.
     @Test func theStaleFillReachesThreeToOneOnItsTrack() {
         let dark = [RGBA(hex: 0x111424), RGBA(hex: 0x202030), over(Tokens.tint, Tokens.stage)]

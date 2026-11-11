@@ -531,7 +531,7 @@ public enum Grammar {
     /// Copy a problem report: one click puts plain text on the clipboard for an issue or a mail. The dim line is its help.
     public static func reportRow(copied: Bool?) -> [Line] {
         let label = "Copy a problem report"
-        // a copy mark in front, as the owner asked (0.1.19); VoiceOver reads the label without it
+        // a copy mark in front, asked for in 0.1.19; VoiceOver reads the label without it
         var out = [Line([sp(" "), Piece("\u{29C9} " + label, .text, action: .copyReport, label: label)], hover: true, label: label, help: reportHelp)]
         out += dimLines(reportHelp, indent: 5).map(\.silent)
         if let copied { out += dimLines(copied ? reportCopied : reportFailed, indent: 5) }
