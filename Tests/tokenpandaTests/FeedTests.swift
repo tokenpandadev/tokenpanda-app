@@ -43,6 +43,15 @@ struct FeedTests {
         #expect(s.contextUsedPercentage == nil)
     }
 
+    @Test func aFractionalCountIsIgnoredNotRounded() throws {
+        let raw = Data(#"{"session_id":"s","context_window":{"context_window_size":12.5,"current_usage":{"input_tokens":10.4,"output_tokens":3}},"cost":{"total_lines_added":2.5,"total_lines_removed":4.0}}"#.utf8)
+        let s = try #require(SnapshotParser.parse(raw, writtenAt: Date()))
+        #expect(s.contextWindowSize == nil)
+        #expect(s.currentUsageTokens == 3)     // the fractional count is left out, as if absent
+        #expect(s.linesAdded == nil)
+        #expect(s.linesRemoved == 4)           // 4.0 is a whole number
+    }
+
     @Test func garbageIsNil() {
         #expect(SnapshotParser.parse(Data("not json".utf8), writtenAt: Date()) == nil)
         #expect(SnapshotParser.parse(Data("{\"no\":\"session\"}".utf8), writtenAt: Date()) == nil)

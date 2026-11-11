@@ -92,8 +92,9 @@ public enum SnapshotParser {
     static let maxEpoch = 1e10
 
     static func count(_ v: Any?) -> Int? {
-        guard let d = number(v), d >= 0, d <= Double(maxCount) else { return nil }
-        return Int(exactly: d.rounded())
+        // a fraction is not a count: ignored as if absent, never rounded (12.5 is no context window size)
+        guard let d = number(v), d >= 0, d <= Double(maxCount), d == d.rounded() else { return nil }
+        return Int(exactly: d)
     }
 
     static func percent(_ v: Any?) -> Double? {
