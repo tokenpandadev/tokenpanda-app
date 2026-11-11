@@ -17,10 +17,13 @@ public enum Cells {
     public static func width(_ ch: Character) -> Int {
         let scalars = ch.unicodeScalars
         guard let first = scalars.first else { return 0 }
+        // asked to show as an emoji by the variation selector U+FE0F, or a keycap (U+20E3): two cells, also for a first
+        // scalar under U+1100 (1 and # of a keycap, copyright and registered), which the fast path below counted one
+        // until the second review of 0.1.19
+        if scalars.contains(where: { $0.value == 0xFE0F || $0.value == 0x20E3 }) { return 2 }
         if first.value < 0x1100 { return 1 }   // Latin, Greek, Cyrillic and the rest: one cell, the fast path
-        // an emoji: shown as an emoji by default, or asked to by the variation selector U+FE0F
+        // an emoji shown as an emoji by default
         if first.properties.isEmojiPresentation { return 2 }
-        if first.properties.isEmoji, scalars.contains(where: { $0.value == 0xFE0F }) { return 2 }
         let v = first.value
         for r in wide where r.contains(v) { return 2 }
         return 1
