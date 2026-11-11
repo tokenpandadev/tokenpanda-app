@@ -43,7 +43,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var hookError: String? = nil { didSet { if hookError == nil { faults.hook = nil } } }
     var faults = FaultState()   // the same errors in the problem report's fixed words: codes, never text
     var removeScriptError: String? = nil   // remove.sh could not be written, shown under the status line row
-    var settingsModified: [Date?] = []   // the settings.json files are read again only when one of these moves
+    var hookStamp: HookSet.Stamp? = nil   // the settings.json times and the scripts there: the status is read again only when it moves
+    var folderClock = FolderClock()       // the home folder is looked at for new settings folders at most once a minute
     let log = Logger(subsystem: Paths.bundleId, category: "hook")
     let restoreLog = Logger(subsystem: Paths.bundleId, category: "restore")
     var tokens: TokenSummary? = nil
@@ -67,7 +68,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var login = LoginItem.off                    // the system's status, read when the popover opens and while Settings shows
     var loginError: String? = nil                // the last register or unregister error
     var restore: RestoreRecord? = nil            // the sessions open now, kept on disk only while the setting is on
-    var restoreSaved: [String] = []              // the sessions last written (id, name, options), so the file is written only when they change
+    var restoreSaved: [String] = []              // the sessions last written (id, name, options, settings folder)
+    var restoreSavedAt: Date? = nil              // the last scan written: with no change the file is written again every few minutes
+    var offerRepeat = OfferRepeat()              // the restart notice, said once more at the first panel open
+    var offer: (title: String, body: String, id: String)? = nil   // the restart notice as posted, for that repeat
     var pendingReopen: [RestoreRecord.Entry] = []   // the sessions the restart notification offers
     var sessionNames: [String: String] = [:]   // the open sessions' names, read at each scan, for the Open sessions rows
     var launches: [Int32: (id: String, launch: RestoreRecord.Launch)] = [:]   // by process: how each running session was started
@@ -87,22 +91,22 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var liveSessions = LiveSessionCache()       // Claude Code's session files, parsed again only when one changes
     let queue = DispatchQueue(label: "dev.tokenpanda.timers", qos: .utility)
     var transcriptsBusy = false
+    var transcriptOrder = RefreshOrder()        // an older pass's summary never replaces a newer one
 
     override init() {
         feed = FeedReader(dataDir: Paths.dataDir)
-        folders = ConfigFolders.find()
+        let found = ConfigFolders.scan()   // one listing of the home folder for both lists
+        folders = found.install
         hook = HookSet(folders: folders, dataDir: Paths.dataDir)
         // the transcripts of every settings folder found, besides the usual places
-        var roots = TranscriptLocator.roots()
-        for f in ConfigFolders.transcriptFolders() { let r = f.appendingPathComponent("projects", isDirectory: true); if !roots.contains(r) { roots.append(r) } }
-        store = TranscriptStore(roots: roots)
+        store = TranscriptStore(roots: ConfigFolders.transcriptRoots(usual: TranscriptLocator.roots(), folders: found.transcripts))
         super.init()
+        _ = folderClock.due(now: Date())   // the look just made counts: the next one a minute on
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Settings.register()
         weeks = WeekRecords.load(from: Paths.weeksFile)
-        try? FileManager.default.createDirectory(at: feed.sessionsDir, withIntermediateDirectories: true)
 
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.target = self
@@ -148,12 +152,16 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         lineView.onAction = { [weak self] a in self?.perform(a) }
 
         readHookStatus()
+        // only while an entry is installed: after Remove deleted the folder, a launch leaves it deleted (0.1.19)
+        hook.prepareSessionsFolder()
         // an entry installed by an earlier version gets its remove script now, so brew's zap needs no click first
         noteRemoveScript(hook.writeRemoveScriptError())
         hook.refreshScripts()   // an entry installed by an earlier version gets the current script, its chained command kept
         notifier.onReopen = { [weak self] in self?.reopen() }
         notifier.onReopenEnded = { [weak self] id in self?.reopenEnded(id) }
-        Reopen.removeLeftovers(in: Reopen.tempFolder(), now: Date())   // scripts a cancelled prompt left
+        notifier.onOpenPanel = { [weak self] in self?.openPanelFromNotification() }
+        Reopen.removeLeftovers(in: Paths.reopenDir, now: Date())        // scripts a cancelled prompt left
+        Reopen.removeLeftovers(in: Reopen.tempFolder(), now: Date())    // and those of 0.1.18 and earlier, in the temporary folder
         offerRestore(now: Date())   // before the first scan, which writes this boot's record over the last one
         notifier.refreshState()   // no prompt at launch: the first nudge that is due asks
         startFeedWatch()
@@ -239,8 +247,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         sessionNames = Dictionary(live.compactMap { s in s.name.map { (s.sessionId, $0) } }, uniquingKeysWith: { a, _ in a })
         updateAwake(now: now)
         recordSessions(now: now, live: live)
-        refreshFolders()
-        if hook.settingsModified() != settingsModified { readHookStatus() }
+        if folderClock.due(now: now) { refreshFolders() }
+        if hook.stamp() != hookStamp { readHookStatus() }
         if let l = feedState.limits, let w = l.windows["seven_day"] {
             var ws = weeks
             ws.apply(LimitWindow(key: "seven_day", usedPercentage: w.used, resetsAt: w.resetsAt), at: l.asOf)
@@ -260,30 +268,38 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let day = Calendar.current.startOfDay(for: now)
         let plan = TokenRefresh.plan(lastDay: tokensDay, today: day, haveTokens: tokens != nil, now: now, nextEdge: tokens?.nextEdge)
         let result = await store.refresh(now: now, onlyIfChanged: plan.onlyIfChanged)
-        transcriptsBusy = false
         transcriptsRootsExist = result.rootsExist
         transcriptsError = result.error; faults.transcripts = result.error == nil ? nil : ReportFaults.transcripts(result.cause)
         if TokenRefresh.rebuild(plan: plan, versionMoved: result.version != transcriptsVersion) {
-            transcriptsVersion = result.version
-            tokensDay = day
             let records = result.records
-            tokens = await Task.detached(priority: .utility) { Aggregator.summarize(records, now: now) }.value
+            let summary = await Task.detached(priority: .utility) { Aggregator.summarize(records, now: now) }.value
+            // a pass that ran before the one on screen never replaces it (0.1.19)
+            if transcriptOrder.accept(result.sequence) {
+                transcriptsVersion = result.version
+                tokensDay = day
+                tokens = summary
+            }
         }
+        transcriptsBusy = false   // only after the summary is in: a pass started meanwhile is not built on the old one
         render()
     }
 
-    /// A settings folder made since launch (a second account with CLAUDE_CONFIG_DIR) joins the set; Install then offers it.
+    /// A settings folder made since launch (a second account with CLAUDE_CONFIG_DIR) joins the set; Install then offers it,
+    /// and its transcripts are counted from the next pass on (0.1.19). Looked for at most once a minute and at each open.
     func refreshFolders() {
-        let now = ConfigFolders.find()
-        guard now != folders else { return }
-        folders = now
-        hook = HookSet(folders: now, dataDir: Paths.dataDir)
+        let found = ConfigFolders.scan()
+        let roots = ConfigFolders.transcriptRoots(usual: TranscriptLocator.roots(), folders: found.transcripts)
+        Task { if await store.setRoots(roots) { await refreshTranscripts() } }
+        guard found.install != folders else { return }
+        folders = found.install
+        hook = HookSet(folders: found.install, dataDir: Paths.dataDir)
         readHookStatus()
     }
 
-    /// settings.json, the one statusLine key, read at launch and again only when the file's modification time moves.
+    /// settings.json, the one statusLine key, read at launch and again only when a file's modification time moves or a
+    /// script comes or goes.
     func readHookStatus() {
-        settingsModified = hook.settingsModified()
+        hookStamp = hook.stamp()
         hookStatus = hook.status()
     }
 
@@ -391,10 +407,28 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             await notifier.authorize()
             restoreLog.info("restore: posting the offer")
             let app = ReopenApp.current.title
-            notifier.post(title: "\(n) Claude Code session\(n == 1 ? " was" : "s were") open before the restart",
-                          body: "\(names). Reopen opens \(n == 1 ? "it" : "each") in \(app) as \(n == 1 ? "it was" : "they were") started.", id: "reopen-\(Int(boot.timeIntervalSince1970))",
-                          category: Notifier.reopenCategory)
+            let o = (title: "\(n) Claude Code session\(n == 1 ? " was" : "s were") open before the restart",
+                     body: "\(names). Reopen opens \(n == 1 ? "it" : "each") in \(app) as \(n == 1 ? "it was" : "they were") started.",
+                     id: "reopen-\(Int(boot.timeIntervalSince1970))")
+            offer = o
+            notifier.post(title: o.title, body: o.body, id: o.id, category: Notifier.reopenCategory)
+            offerRepeat.didPost()
         }
+    }
+
+    /// The first open of the panel after the restart notice: said once more, with the same id, so a notice that went under
+    /// macOS's "Login Item Added" banner at login comes up again while the user looks (0.1.19, flow test 11.2).
+    func repeatOfferIfDue() {
+        guard offerRepeat.panelOpened(pending: !pendingReopen.isEmpty), let o = offer else { return }
+        restoreLog.info("restore: the offer once more, at the first panel open")
+        notifier.post(title: o.title, body: o.body, id: o.id, category: Notifier.reopenCategory)
+    }
+
+    /// A click on the restore or end notification itself: the panel opens, nothing starts (only Reopen starts sessions).
+    func openPanelFromNotification() {
+        NSApp.activate()
+        _ = offerRepeat.panelOpened(pending: true)   // the notice was just seen and clicked: no repeat of it now
+        if !popover.isShown { togglePopover() }
     }
 
     /// Whether an interface other than loopback is up, running and has an address, read with getifaddrs.
@@ -440,9 +474,12 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         var r = restore ?? RestoreRecord(lastScan: now)
         r.apply(feedState.sessions, launches: byId, now: now)
         restore = r
-        // written when a session comes or goes, or a name or the options change
-        let key = r.entries.map { [$0.id, $0.name ?? "", ($0.options ?? []).joined(separator: "\u{1}")].joined(separator: "\u{2}") }
-        if key != restoreSaved { restoreSaved = key; r.save(to: Paths.restoreFile) }
+        // written when a session comes or goes, or a name, the options or the settings folder change, and every few
+        // minutes for the last scan alone, which the offer after a restart goes by
+        let key = r.saveKey
+        if RestoreRecord.shouldSave(key: key, savedKey: restoreSaved, lastScan: r.lastScan, savedScan: restoreSavedAt) {
+            restoreSaved = key; restoreSavedAt = r.lastScan; r.save(to: Paths.restoreFile)
+        }
         watchEnds(live, now: now, launchesBefore: before)
     }
 
@@ -453,9 +490,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         for s in live {
             var options = launches[s.pid]?.launch.options
             if launches[s.pid]?.id != s.sessionId || options == nil {
-                options = ProcessTable.arguments(of: s.pid).flatMap { LaunchOptions.kept(fromArguments: $0) }
+                let read = ProcessTable.arguments(of: s.pid).flatMap { LaunchOptions.keptNoting(fromArguments: $0) }
+                options = read?.options
+                // an inline JSON value can hold a key or a token: never kept, only its option's name is logged
+                if let d = read?.dropped, !d.isEmpty {
+                    restoreLog.info("restore: left out \(d.count, privacy: .public) start options given as inline JSON (\(d.joined(separator: " "), privacy: .public))")
+                }
             }
-            next[s.pid] = (s.sessionId, RestoreRecord.Launch(name: s.name, options: options))
+            next[s.pid] = (s.sessionId, RestoreRecord.Launch(name: s.name, options: options, configDir: s.settingsFolder))
         }
         launches = next
     }
@@ -470,7 +512,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             guard var e = entry else { continue }
             // a session that ended before its first status line write is not in the record yet: its start options come
             // from the process read of the last scan (VM test 05.11: it came back with its name only)
-            if e.options == nil, let l = launchesBefore.values.first(where: { $0.id == w.sessionId }) { e.options = l.launch.options }
+            if let l = launchesBefore.values.first(where: { $0.id == w.sessionId }) {
+                if e.options == nil { e.options = l.launch.options }
+                if e.configDir == nil { e.configDir = l.launch.configDir }
+            }
             if let n = w.name { e.name = n }
             Task { @MainActor in
                 // a closed window takes its shell with it a moment later; a shutdown closes them all
@@ -496,9 +541,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         openSessions([e])
     }
 
-    /// Reopen: one .command file per session in a private folder, opened in the picked app (Terminal, iTerm or Ghostty)
-    /// through Launch Services so no Automation permission is needed. Each file deletes itself when it runs, the last
-    /// one its folder; a folder left over is deleted after ten minutes, at the next Reopen or launch.
+    /// Reopen: one .command file per session in a private folder under the data folder, opened in the picked app
+    /// (Terminal, iTerm or Ghostty) through Launch Services so no Automation permission is needed. Each file deletes
+    /// itself when it runs, the last one its folder; a folder left over is deleted after ten minutes, at the next Reopen
+    /// or launch, and by the zap with the data folder.
     func reopen() {
         // a session already open again, from a terminal window or an earlier click, is not opened a second time
         let openNow = Set(feedState.sessions.map(\.snapshot.sessionId)).union(LiveSession.read(settingsFolders: folders).map(\.sessionId))
@@ -510,22 +556,19 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// One .command file per session, each starting the session with its name and options, opened in the picked app.
+    /// A session it cannot write a script for is logged with its code; when none is left, one notification says so.
     func openSessions(_ entries: [RestoreRecord.Entry]) {
-        let fm = FileManager.default
-        let temp = Reopen.tempFolder()
-        Reopen.removeLeftovers(in: temp, now: Date())
-        let dir = temp.appendingPathComponent(Reopen.folderPrefix + UUID().uuidString, isDirectory: true)
-        guard (try? fm.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])) != nil else { return }
-        var files: [URL] = []
-        for e in entries {
-            guard let text = Reopen.script(id: e.id, folder: e.folder, name: e.name, options: e.options,
-                                           remoteControl: Reopen.hadRemoteControl(transcript: e.transcript)) else { continue }
-            let url = dir.appendingPathComponent(e.id + ".command")
-            guard fm.createFile(atPath: url.path, contents: Data(text.utf8), attributes: [.posixPermissions: 0o600]) else { continue }
-            try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
-            files.append(url)
+        let done = ReopenWrite.write(entries, into: Paths.reopenDir, now: Date())
+        for s in done.skipped { restoreLog.error("reopen: skipped a session: \(s.code.rawValue, privacy: .public)") }
+        if !done.skipped.isEmpty {
+            restoreLog.error("reopen: \(done.skipped.count, privacy: .public) of \(entries.count, privacy: .public) sessions skipped (\(done.counts, privacy: .public))")
         }
+        if let notice = done.nothingOpened() {
+            notifier.postAsking(title: notice.title, body: notice.body, id: "reopen-failed-\(Int(Date().timeIntervalSince1970))")
+        }
+        let files = done.files
         guard !files.isEmpty else { return }
+        restoreLog.info("reopen: \(files.count, privacy: .public) start scripts written")
         Task { @MainActor in
             // Remote Control connects once, when a session starts, so the sessions wait for the network; without one they still open
             await Self.waitForNetwork(timeout: Rules.restoreNetworkWait)
@@ -659,7 +702,10 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if key == Settings.keepAwake || key == Settings.keepAwakeWhileOpen { updateAwake(now: Date()) }
             if key == Settings.restoreSessions {
                 if Settings.bool(key) { notifier.requestIfNeeded(); recordSessions(now: Date()) }
-                else { restore = nil; restoreSaved = []; launches = [:]; sessionWatch = SessionWatch(); try? FileManager.default.removeItem(at: Paths.restoreFile) }
+                else {
+                    restore = nil; restoreSaved = []; restoreSavedAt = nil; launches = [:]; sessionWatch = SessionWatch()
+                    try? FileManager.default.removeItem(at: Paths.restoreFile)
+                }
             }
         case .install:
             do {
@@ -723,6 +769,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if popover.isShown { popover.performClose(nil); return }
         guard let button = item.button else { return }
         login = Self.loginStatus()
+        if folderClock.due(now: Date(), force: true) { refreshFolders() }   // a settings folder made since the last look
+        repeatOfferIfDue()
         notifier.refreshState { [weak self] in self?.render() }   // a change in System Settings shows at once
         let screen = ScreenBuilder.screen(input)
         lastScreen = screen

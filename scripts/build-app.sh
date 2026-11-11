@@ -12,8 +12,10 @@ BUNDLE_ID="dev.tokenpanda.app"
 BUILD="build"
 APP="$BUILD/$NAME.app"
 
-# -S leaves the debug map out: without it the binary lists every object file with the folder it was built in (audit F-18).
-swift build -c release -Xlinker -S 2>&1 | grep -v "ld: warning: search path" || true
+# No debug information at all: with it the binary's debug map lists every object file with the folder it was built in
+# (audit F-18). Until 0.1.18 the linker's -S left the map out, and dsymutil then warned "no debug symbols in executable"
+# at every release build (audit F-64); with -debug-info-format none there is nothing to map, so neither appears.
+swift build -c release -debug-info-format none 2>&1 | grep -v "ld: warning: search path" || true
 BIN=".build/release/$NAME"
 [ -x "$BIN" ] || { echo "release binary missing"; exit 1; }
 

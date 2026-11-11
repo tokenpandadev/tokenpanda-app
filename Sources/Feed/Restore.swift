@@ -14,8 +14,13 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
         public var lastSeen: Date
         public var name: String?          // the session's name (-n or /rename), when it has one
         public var options: [String]?     // the start options a reopen keeps; nil when they could not be read
-        public init(id: String, folder: String, transcript: String?, lastSeen: Date, name: String? = nil, options: [String]? = nil) {
+        /// The settings folder the session ran under (CLAUDE_CONFIG_DIR for a second account). nil reads as ~/.claude,
+        /// also in a restore.json written before 0.1.19, which did not keep it.
+        public var configDir: String?
+        public init(id: String, folder: String, transcript: String?, lastSeen: Date, name: String? = nil, options: [String]? = nil,
+                    configDir: String? = nil) {
             self.id = id; self.folder = folder; self.transcript = transcript; self.lastSeen = lastSeen; self.name = name; self.options = options
+            self.configDir = configDir
         }
         /// What the notifications call the session: its name, or its folder's name when it has none.
         public var label: String { name ?? (folder as NSString).lastPathComponent }
@@ -25,7 +30,8 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
     public struct Launch: Sendable, Equatable {
         public var name: String?
         public var options: [String]?
-        public init(name: String?, options: [String]?) { self.name = name; self.options = options }
+        public var configDir: String?   // the settings folder whose sessions folder holds the session's file
+        public init(name: String?, options: [String]?, configDir: String? = nil) { self.name = name; self.options = options; self.configDir = configDir }
     }
     public var entries: [Entry]
     public var lastScan: Date
@@ -47,8 +53,10 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
             let id = s.snapshot.sessionId
             let old = byId[id]
             let launch = launches[id]
+            // the settings folder: from Claude Code's session file, else the one kept, else the one the transcript lies in
+            let config = launch?.configDir ?? old?.configDir ?? Reopen.configDir(fromTranscript: s.snapshot.transcriptPath)
             byId[id] = Entry(id: id, folder: folder, transcript: s.snapshot.transcriptPath, lastSeen: now,
-                             name: launch.map { $0.name } ?? old?.name, options: launch?.options ?? old?.options)
+                             name: launch.map { $0.name } ?? old?.name, options: launch?.options ?? old?.options, configDir: config)
         }
         entries = byId.values.sorted { $0.id < $1.id }
         lastScan = now
@@ -60,10 +68,32 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
         return entries.filter { lastScan.timeIntervalSince($0.lastSeen) <= Self.keepFor && Reopen.isSessionId($0.id) }
     }
 
+    /// A record written before 0.1.19 may hold an inline JSON value of --settings or --mcp-config: it is dropped here,
+    /// so it is never in a script and goes from the file at the next save.
     public static func load(from url: URL) -> RestoreRecord? {
         guard let d = SafeFile.read(url) else { return nil }
         let dec = JSONDecoder(); dec.dateDecodingStrategy = .secondsSince1970
-        return try? dec.decode(RestoreRecord.self, from: d)
+        guard var r = try? dec.decode(RestoreRecord.self, from: d) else { return nil }
+        for i in r.entries.indices { r.entries[i].options = r.entries[i].options.map { LaunchOptions.withoutInlineJSON($0).options } }
+        return r
+    }
+
+    /// The file is written when a session comes or goes or a name, the options or the settings folder change, and
+    /// otherwise when only the last scan moved, at most this often: the offer after a restart judges the record's last
+    /// scan, and a record written only on a change kept the time of the last change, so sessions open unchanged for
+    /// over seven days were never offered (0.1.19, review).
+    public static let scanSaveEvery: TimeInterval = 5 * 60
+
+    /// Whether this scan writes the file: the sessions changed, or the last scan is scanSaveEvery past the one written.
+    public static func shouldSave(key: [String], savedKey: [String], lastScan: Date, savedScan: Date?) -> Bool {
+        if key != savedKey { return true }
+        guard let saved = savedScan else { return true }
+        return lastScan.timeIntervalSince(saved) >= scanSaveEvery
+    }
+
+    /// What tells a change of the sessions for shouldSave: id, name, options and settings folder of each.
+    public var saveKey: [String] {
+        entries.map { [$0.id, $0.name ?? "", ($0.options ?? []).joined(separator: "\u{1}"), $0.configDir ?? ""].joined(separator: "\u{2}") }
     }
 
     /// Written owner only. A failure is logged and returned.
@@ -80,6 +110,22 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
             FileLog.failed(url.lastPathComponent, error)
             return error
         }
+    }
+}
+
+/// The restart notice said once more at the first open of the panel, when it was posted and the sessions are still
+/// waiting: right after a login macOS shows its own "Login Item Added" banner, and the notice can go under it and be
+/// found only in Notification Center (flow test 11.2, 0.1.18). Once per launch, never before the notice was posted.
+public struct OfferRepeat: Sendable, Equatable {
+    public private(set) var posted = false
+    public private(set) var repeated = false
+    public init() {}
+    public mutating func didPost() { posted = true }
+    /// true once: the panel opened after the notice was posted while its sessions still wait for Reopen.
+    public mutating func panelOpened(pending: Bool) -> Bool {
+        guard posted, !repeated, pending else { return false }
+        repeated = true
+        return true
     }
 }
 

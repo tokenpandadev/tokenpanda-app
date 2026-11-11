@@ -16,8 +16,12 @@ public struct LiveSession: Sendable, Equatable {
     public var folder: String?
     public var name: String?          // set by the user with -n or /rename; nil for an unnamed session
     public var procStart: Date?       // when the process started, as Claude Code wrote it; nil in older files
-    public init(pid: Int32, sessionId: String, folder: String?, name: String?, procStart: Date? = nil) {
+    /// The settings folder whose sessions folder holds the file: the CLAUDE_CONFIG_DIR the session ran under. Set by
+    /// read, not by parse.
+    public var settingsFolder: String?
+    public init(pid: Int32, sessionId: String, folder: String?, name: String?, procStart: Date? = nil, settingsFolder: String? = nil) {
         self.pid = pid; self.sessionId = sessionId; self.folder = folder; self.name = name; self.procStart = procStart
+        self.settingsFolder = settingsFolder
     }
 
     /// Parses one <pid>.json. Only an interactive session started from the command line counts: print runs, the SDK
@@ -78,8 +82,9 @@ public struct LiveSession: Sendable, Equatable {
             for n in names where n.hasSuffix(".json") {
                 // the size is checked before the read: a session file is a few hundred bytes
                 guard let d = SafeFile.read(dir.appendingPathComponent(n), maxBytes: 64 * 1024 - 1),
-                      let s = parse(d), !seen.contains(s.pid), s.isRunning() else { continue }
+                      var s = parse(d), !seen.contains(s.pid), s.isRunning() else { continue }
                 seen.insert(s.pid)
+                s.settingsFolder = f.path
                 out.append(s)
             }
         }
@@ -123,8 +128,9 @@ public struct LiveSessionCache: Sendable {
                     parseCount += 1
                     session = SafeFile.read(url, maxBytes: 64 * 1024 - 1).flatMap(LiveSession.parse)
                 }
-                guard let s = session, !seen.contains(s.pid), s.isRunning() else { continue }
+                guard var s = session, !seen.contains(s.pid), s.isRunning() else { continue }
                 seen.insert(s.pid)
+                s.settingsFolder = f.path
                 out.append(s)
             }
         }
@@ -229,14 +235,31 @@ public enum LaunchOptions {
                                             "-h", "--help", "-v", "--version"]
 
     /// The options to start the reopened session with, from the process arguments (argv[0] first). Nil when the session
-    /// cannot be reopened from them, or when argv[0] is not claude.
-    public static func kept(fromArguments argv: [String]) -> [String]? {
+    /// cannot be reopened from them, or when argv[0] is not claude. An option whose value is inline JSON is left out.
+    public static func kept(fromArguments argv: [String]) -> [String]? { keptNoting(fromArguments: argv)?.options }
+
+    /// A value given as JSON text rather than as a path: --settings '{"apiKeyHelper": ...}' or --mcp-config '{"mcpServers":
+    /// ...}' can carry a key or a token, and restore.json and the Reopen scripts would keep it in plain text (audit F-51).
+    public static func isInlineJSON(_ value: String) -> Bool {
+        guard let c = value.first(where: { !$0.isWhitespace }) else { return false }
+        return c == "{" || c == "["
+    }
+
+    /// Stored options run through the same rule, for a restore.json written before 0.1.19 and for each script.
+    public static func withoutInlineJSON(_ options: [String]) -> (options: [String], dropped: [String]) {
+        keptNoting(fromArguments: ["claude"] + options) ?? (options.filter { !isInlineJSON($0) }, [])
+    }
+
+    /// kept, and the names of the options left out because their value was inline JSON, for the log. An option stays only
+    /// when its value is a path (or any other text that is not JSON); a variadic one keeps its values that are not JSON.
+    public static func keptNoting(fromArguments argv: [String]) -> (options: [String], dropped: [String])? {
         guard let first = argv.first else { return nil }
         var i = 1
         // the npm install runs as node with the CLI script as its first argument
         if (first as NSString).lastPathComponent == "node", argv.count > 1, argv[1].contains("claude") { i = 2 }
         else if (first as NSString).lastPathComponent != "claude" { return nil }
         var out: [String] = []
+        var dropped: [String] = []
         var optionsEnded = false
         while i < argv.count {
             let a = argv[i]
@@ -258,21 +281,36 @@ public enum LaunchOptions {
                 }
                 return v
             }
-            if let k = keep[name] { out.append(a); out += values(k) }
+            if inline, let eq = a.firstIndex(of: "="), isInlineJSON(String(a[a.index(after: eq)...])) {
+                dropped.append(name)                                                 // --settings={...}, known or not
+                continue
+            }
+            if let k = keep[name] {
+                let v = values(k)
+                let paths = v.filter { !isInlineJSON($0) }
+                if paths.count < v.count { dropped.append(name) }
+                if !v.isEmpty, paths.isEmpty { continue }                            // its only value was JSON: the option goes
+                out.append(a); out += paths
+            }
             else if let k = drop[name] { _ = values(k) }
             else if a.hasPrefix("--") { out.append(a) }                             // unknown: kept alone
         }
-        return out
+        return (out, dropped)
     }
 }
 
 extension Reopen {
-    /// The folders Reopen writes its scripts into, one per click, in the app's own temporary folder.
+    /// The folders Reopen writes its scripts into, one per click. From 0.1.19 under the data folder (baseFolder), so the
+    /// zap's trash of the data folder takes a leftover with it; until 0.1.18 in the temporary folder (audit F-54).
     public static let folderPrefix = "tokenpanda-reopen-"
     /// A folder older than this is left over: a script that never ran (a cancelled Ghostty prompt, an app that did not open).
     public static let leftoverAge: TimeInterval = 10 * 60
 
-    /// The temporary folder Reopen writes into and cleans: TMPDIR when it is set (a test run points it into its
+    /// Where the Reopen folders go: <data folder>/reopen, made owner only.
+    public static func baseFolder(dataDir: URL) -> URL { dataDir.appendingPathComponent("reopen", isDirectory: true) }
+
+    /// The temporary folder Reopen wrote into until 0.1.18, still cleaned at launch for the folders an older version
+    /// left: TMPDIR when it is set (a test run points it into its
     /// throwaway home), else the system's. FileManager.temporaryDirectory ignores TMPDIR on macOS, so a test in a
     /// throwaway home would clean the user's real folder (05.11.2026). A normal launch sets TMPDIR to that same folder.
     public static func tempFolder(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
@@ -312,11 +350,14 @@ extension Reopen {
     /// If that start fails within a few seconds, the same without Remote Control, then a plain resume. When the session
     /// ends, the window keeps a shell, as a window where claude was typed does, so an end on its own is told apart from
     /// a closed window.
-    public static func script(id: String, folder: String, name: String?, options: [String]?, remoteControl: Bool) -> String? {
+    /// configDir: the settings folder the session ran under; any other than ~/.claude is set as CLAUDE_CONFIG_DIR on each
+    /// claude line, or Claude Code looks for the session in ~/.claude and finds none (0.1.19, review).
+    public static func script(id: String, folder: String, name: String?, options: [String]?, remoteControl: Bool,
+                              configDir: String? = nil, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> String? {
         var isDir: ObjCBool = false
         guard isSessionId(id), FileManager.default.fileExists(atPath: folder, isDirectory: &isDir), isDir.boolValue else { return nil }
         let plain = ["claude", "--resume", id]
-        var full = plain + (options ?? [])
+        var full = plain + LaunchOptions.withoutInlineJSON(options ?? []).options
         if let n = name { full += ["--name", n] }
         var tries: [[String]] = []
         if remoteControl { tries.append(full + ["--remote-control"]) }
@@ -325,15 +366,121 @@ extension Reopen {
         // the file deletes itself, and the last one its folder too (rmdir leaves a folder that still holds a file)
         var s = "#!/bin/zsh -l\nrm -f -- \"$0\"\nrmdir -- \"${0:h}\" 2>/dev/null\ncd " + quote(folder) + " || exit 1\n"
         var depth = 0
+        let env = configPrefix(configDir, home: home)
         for (k, t) in tries.enumerated() {
             let pad = String(repeating: "  ", count: depth)
-            let line = t.map(quote).joined(separator: " ")
+            let line = env + t.map(quote).joined(separator: " ")
             if k == tries.count - 1 { s += pad + line + "\n"; break }
             s += pad + "t=$SECONDS\n" + pad + line + "\n" + pad + "if (( $? != 0 && SECONDS - t < \(fallbackWithin) )); then\n"
             depth += 1
         }
         while depth > 0 { depth -= 1; s += String(repeating: "  ", count: depth) + "fi\n" }
         return s + "exec \"${SHELL:-/bin/zsh}\" -l\n"
+    }
+
+    /// "CLAUDE_CONFIG_DIR='<folder>' " for a settings folder other than ~/.claude, else nothing.
+    public static func configPrefix(_ configDir: String?, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> String {
+        guard let c = configDir, !c.isEmpty else { return "" }
+        let path = URL(fileURLWithPath: c, isDirectory: true).standardizedFileURL.path
+        guard path != home.appendingPathComponent(".claude", isDirectory: true).standardizedFileURL.path else { return "" }
+        return "CLAUDE_CONFIG_DIR=" + quote(path) + " "
+    }
+
+    /// The settings folder a transcript lies in: <folder>/projects/<project>/<session>.jsonl. nil for any other shape.
+    public static func configDir(fromTranscript transcript: String?) -> String? {
+        guard let t = transcript, t.hasPrefix("/"), t.hasSuffix(".jsonl") else { return nil }
+        let projects = URL(fileURLWithPath: t).deletingLastPathComponent().deletingLastPathComponent()
+        guard projects.lastPathComponent == "projects" else { return nil }
+        let folder = projects.deletingLastPathComponent().path
+        return folder == "/" ? nil : folder
+    }
+}
+
+/// What one Reopen click wrote: the scripts to open, and each session it could not write one for, with a fixed code for
+/// the log. Until 0.1.18 a skipped session left no trace, so a click whose sessions all lost their folder (a folder
+/// under /tmp after the restart, VM test 11.3) made an empty folder and did nothing at all (audit F-53).
+public struct ReopenWrite: Sendable, Equatable {
+    public enum Code: String, Sendable, Equatable, CaseIterable {
+        case badId = "bad-id"              // not of the UUID shape
+        case folderGone = "folder-gone"    // the session's folder is not there any more
+        case folderWrite = "folder-write"  // the Reopen folder could not be made
+        case scriptWrite = "script-write"  // the script could not be written
+    }
+    public struct Skip: Sendable, Equatable {
+        public var id: String
+        public var label: String
+        public var code: Code
+        public init(id: String, label: String, code: Code) { self.id = id; self.label = label; self.code = code }
+    }
+    public var folder: URL?
+    public var files: [URL] = []
+    public var skipped: [Skip] = []
+
+    /// "folder-gone 2, script-write 1", for the log line.
+    public var counts: String {
+        Code.allCases.compactMap { c in
+            let n = skipped.filter { $0.code == c }.count
+            return n == 0 ? nil : "\(c.rawValue) \(n)"
+        }.joined(separator: ", ")
+    }
+
+    /// Writes one script per session into a new owner only folder in `base`, after deleting the leftovers there. No
+    /// folder is made when no session has a script to write.
+    public static func write(_ entries: [RestoreRecord.Entry], into base: URL, now: Date,
+                             home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                             remoteControl: (String?) -> Bool = Reopen.hadRemoteControl(transcript:)) -> ReopenWrite {
+        var out = ReopenWrite()
+        Reopen.removeLeftovers(in: base, now: now)
+        var texts: [(RestoreRecord.Entry, String)] = []
+        for e in entries {
+            if let text = Reopen.script(id: e.id, folder: e.folder, name: e.name, options: e.options,
+                                        remoteControl: remoteControl(e.transcript), configDir: e.configDir, home: home) {
+                texts.append((e, text))
+            } else {
+                out.skipped.append(Skip(id: e.id, label: e.label, code: Reopen.isSessionId(e.id) ? .folderGone : .badId))
+            }
+        }
+        guard !texts.isEmpty else { return out }
+        let fm = FileManager.default
+        let dir = base.appendingPathComponent(Reopen.folderPrefix + UUID().uuidString, isDirectory: true)
+        do {
+            try fm.createDirectory(at: base, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: base.path)   // also when it was there already
+            try fm.createDirectory(at: dir, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        } catch {
+            FileLog.failed("the Reopen folder", error)
+            out.skipped += texts.map { Skip(id: $0.0.id, label: $0.0.label, code: .folderWrite) }
+            return out
+        }
+        for (e, text) in texts {
+            let url = dir.appendingPathComponent(e.id + ".command")
+            guard fm.createFile(atPath: url.path, contents: Data(text.utf8), attributes: [.posixPermissions: 0o600]),
+                  (try? fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)) != nil else {
+                try? fm.removeItem(at: url)
+                out.skipped.append(Skip(id: e.id, label: e.label, code: .scriptWrite))
+                continue
+            }
+            out.files.append(url)
+        }
+        if out.files.isEmpty { try? fm.removeItem(at: dir) } else { out.folder = dir }
+        return out
+    }
+
+    /// The one notification when no session could be opened, in the restore notices' words. nil when one was.
+    public func nothingOpened() -> (title: String, body: String)? {
+        guard files.isEmpty, !skipped.isEmpty else { return nil }
+        let n = skipped.count
+        let codes = Set(skipped.map(\.code))
+        let gone = codes == [.folderGone]
+        let written = codes.isSubset(of: [.folderWrite, .scriptWrite])
+        if n == 1 {
+            let body = gone ? "Its folder is gone." : written ? "Its start script could not be written to tokenpanda's data folder."
+                                                               : "Its session id is not valid."
+            return ("\(skipped[0].label) did not reopen", body)
+        }
+        let body = gone ? "Their folders are gone." : written ? "Their start scripts could not be written to tokenpanda's data folder."
+                                                              : "Some folders are gone or their start scripts could not be written."
+        return ("\(n) sessions did not reopen", body)
     }
 }
 
