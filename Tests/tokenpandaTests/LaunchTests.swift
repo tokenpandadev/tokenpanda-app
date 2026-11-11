@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 import Testing
 import Foundation
-import Feed
+@testable import Feed
 
 /// How a session was started: Claude Code's session files, the process arguments, which options a reopen keeps,
 /// when a session counts as ended, and the names the notifications list.

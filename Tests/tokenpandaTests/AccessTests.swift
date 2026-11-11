@@ -5,7 +5,7 @@ import UserNotifications
 import Foundation
 import AppKit
 import Text
-import Feed
+@testable import Feed
 import Pace
 @testable import UI
 
@@ -431,9 +431,9 @@ struct AccessTests {
         #expect(found.map { ConfigFolders.display($0, home: home) } == ["~/.claude", "~/elsewhere/cc", "~/.claude-work"])
         let ids = found.map { ConfigFolders.id(for: $0, home: home) }
         #expect(ids[0] == nil && ids[1]?.hasPrefix("elsewhere-cc-") == true && ids[2]?.hasPrefix("claude-work-") == true)
-        // its transcripts are still counted
+        // nor are its transcripts counted: they are copies of ~/.claude's (second audit, F-70)
         #expect(ConfigFolders.transcriptFolders(home: home, environment: env).map { ConfigFolders.display($0, home: home) }
-                == ["~/.claude", "~/elsewhere/cc", "~/.claude-backup", "~/.claude-work"])
+                == ["~/.claude", "~/elsewhere/cc", "~/.claude-work"])
         // only a CLAUDE_CONFIG_DIR folder: ~/.claude is not created for it
         let home2 = try tempDir()
         try fm.createDirectory(at: home2.appendingPathComponent("cfg"), withIntermediateDirectories: true)

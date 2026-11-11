@@ -235,8 +235,9 @@ public enum LaunchOptions {
                                             "-h", "--help", "-v", "--version"]
 
     /// The options to start the reopened session with, from the process arguments (argv[0] first). Nil when the session
-    /// cannot be reopened from them, or when argv[0] is not claude. An option whose value is inline JSON is left out.
-    public static func kept(fromArguments argv: [String]) -> [String]? { keptNoting(fromArguments: argv)?.options }
+    /// cannot be reopened from them, or when argv[0] is not claude. An option whose value is inline JSON is left out. For
+    /// the tests; the app calls keptNoting, which also names what it left out.
+    static func kept(fromArguments argv: [String]) -> [String]? { keptNoting(fromArguments: argv)?.options }
 
     /// A value given as JSON text rather than as a path: --settings '{"apiKeyHelper": ...}' or --mcp-config '{"mcpServers":
     /// ...}' can carry a key or a token, and restore.json and the Reopen scripts would keep it in plain text (audit F-51).
@@ -470,17 +471,32 @@ public struct ReopenWrite: Sendable, Equatable {
     public func nothingOpened() -> (title: String, body: String)? {
         guard files.isEmpty, !skipped.isEmpty else { return nil }
         let n = skipped.count
+        return (n == 1 ? "\(skipped[0].label) did not reopen" : "\(n) sessions did not reopen", reason)
+    }
+
+    /// The one notification for a click that skipped sessions: nothingOpened when none opened, and also when some did,
+    /// naming how many were skipped and why and how many reopened (second audit of 0.1.19, F-73: until then a partial
+    /// skip left only log lines). nil when nothing was skipped.
+    public func notice() -> (title: String, body: String)? {
+        guard !skipped.isEmpty else { return nil }
+        if files.isEmpty { return nothingOpened() }
+        let n = skipped.count, k = files.count
+        let title = n == 1 ? "\(skipped[0].label) did not reopen" : "\(n) of \(n + k) sessions did not reopen"
+        let others = k == 1 ? "The other session reopened." : "The other \(k) sessions reopened."
+        return (title, reason + " " + others)
+    }
+
+    /// Why the skipped sessions did not reopen, one sentence.
+    var reason: String {
         let codes = Set(skipped.map(\.code))
         let gone = codes == [.folderGone]
         let written = codes.isSubset(of: [.folderWrite, .scriptWrite])
-        if n == 1 {
-            let body = gone ? "Its folder is gone." : written ? "Its start script could not be written to tokenpanda's data folder."
-                                                               : "Its session id is not valid."
-            return ("\(skipped[0].label) did not reopen", body)
+        if skipped.count == 1 {
+            return gone ? "Its folder is gone." : written ? "Its start script could not be written to tokenpanda's data folder."
+                                                          : "Its session id is not valid."
         }
-        let body = gone ? "Their folders are gone." : written ? "Their start scripts could not be written to tokenpanda's data folder."
-                                                              : "Some folders are gone or their start scripts could not be written."
-        return ("\(n) sessions did not reopen", body)
+        return gone ? "Their folders are gone." : written ? "Their start scripts could not be written to tokenpanda's data folder."
+                                                          : "Some folders are gone or their start scripts could not be written."
     }
 }
 

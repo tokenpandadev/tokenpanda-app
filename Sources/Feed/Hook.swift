@@ -299,16 +299,36 @@ public struct Hook: Sendable {
 /// by member too), a member that went is cut with its comma, a new one is added after the last, in the spacing of the
 /// ones before it. Every other byte stays. The result must parse to exactly the settings asked for, or nil is returned
 /// and the caller writes the file whole: a duplicate key, a member removed and added in one object, or anything the
-/// scanner does not follow.
+/// scanner does not follow. A leading byte order mark stays, and what is inserted takes the file's line ending (CRLF when
+/// its first line break is one) and the key to value spacing of the members beside it (second review of 0.1.19: the BOM
+/// made the whole file be written anew, and inserted values came with LF and the system writer's "key" : value).
 public enum SettingsText {
     struct Member { var key: String; var keyStart: Int; var keyEnd: Int; var valueStart: Int; var valueEnd: Int }
     struct Object { var open: Int; var close: Int; var members: [Member] }
     struct Change { var range: Range<Int>; var bytes: [UInt8] }
+    /// How the file spells what is inserted: its line break and its key to value spacing.
+    struct Style { var newline: String; var colon: String = ": " }
+
+    static let bom: [UInt8] = [0xEF, 0xBB, 0xBF]
+
+    /// CRLF when the file's first line break is one, else LF.
+    static func newline(_ b: [UInt8]) -> String {
+        guard let i = b.firstIndex(of: 0x0a) else { return "\n" }
+        return i > 0 && b[i - 1] == 0x0d ? "\r\n" : "\n"
+    }
+
+    /// A member's key to value spacing ("": "", " : "), unless it spans a line break: then the usual ": ".
+    static func colon(_ b: [UInt8], _ m: Member) -> String {
+        let c = b[m.keyEnd..<m.valueStart]
+        return c.contains(0x0a) || c.contains(0x0d) ? ": " : String(decoding: c, as: UTF8.self)
+    }
 
     public static func edit(_ data: Data, to target: [String: Any]) -> Data? {
         let b = [UInt8](data)
+        let start = b.starts(with: bom) ? bom.count : 0   // a byte order mark stays where it is
         guard let original = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              let o = object(b, at: space(b, 0)), let changes = changes(b, o, from: original, to: target, indent: "") else { return nil }
+              let o = object(b, at: space(b, start)),
+              let changes = changes(b, o, from: original, to: target, indent: "", newline: newline(b)) else { return nil }
         var out = b
         var lastStart = Int.max
         for c in changes.sorted(by: { $0.range.lowerBound > $1.range.lowerBound }) {
@@ -321,7 +341,8 @@ public enum SettingsText {
         return result
     }
 
-    static func changes(_ b: [UInt8], _ o: Object, from original: [String: Any], to target: [String: Any], indent: String) -> [Change]? {
+    static func changes(_ b: [UInt8], _ o: Object, from original: [String: Any], to target: [String: Any], indent: String,
+                        newline: String) -> [Change]? {
         let keys = o.members.map(\.key)
         guard Set(keys).count == keys.count else { return nil }
         var out: [Change] = []
@@ -338,10 +359,10 @@ public enum SettingsText {
             if let old, (old as AnyObject).isEqual(new) { continue }
             let lineIndent = indentOfLine(b, m.keyStart)
             if let oldObj = old as? [String: Any], let newObj = new as? [String: Any], let inner = object(b, at: m.valueStart),
-               let sub = changes(b, inner, from: oldObj, to: newObj, indent: lineIndent) {
+               let sub = changes(b, inner, from: oldObj, to: newObj, indent: lineIndent, newline: newline) {
                 out += sub
             } else {
-                guard let text = render(new, indent: lineIndent) else { return nil }
+                guard let text = render(new, indent: lineIndent, style: Style(newline: newline, colon: colon(b, m))) else { return nil }
                 out.append(Change(range: m.valueStart..<m.valueEnd, bytes: text))
             }
         }
@@ -354,46 +375,83 @@ public enum SettingsText {
                                                    : [UInt8(ascii: ",")] + Array(b[(o.open + 1)..<last.keyStart])
             let colon = Array(b[last.keyEnd..<last.valueStart])
             let lineIndent = indentOfLine(b, last.keyStart)
+            let style = Style(newline: newline, colon: Self.colon(b, last))
             var text: [UInt8] = []
             for key in added {
-                guard let k = render(key, indent: ""), let v = render(target[key] as Any, indent: lineIndent) else { return nil }
+                guard let k = render(key, indent: "", style: style), let v = render(target[key] as Any, indent: lineIndent, style: style)
+                else { return nil }
                 text += gap + k + colon + v
             }
             out.append(Change(range: last.valueEnd..<last.valueEnd, bytes: text))
         } else {
             let inner = indent + "  "
+            let style = Style(newline: newline)
             var parts: [String] = []
             for key in added {
-                guard let k = render(key, indent: ""), let v = render(target[key] as Any, indent: inner) else { return nil }
-                parts.append(inner + String(decoding: k, as: UTF8.self) + ": " + String(decoding: v, as: UTF8.self))
+                guard let k = render(key, indent: "", style: style), let v = render(target[key] as Any, indent: inner, style: style)
+                else { return nil }
+                parts.append(inner + String(decoding: k, as: UTF8.self) + style.colon + String(decoding: v, as: UTF8.self))
             }
-            out.append(Change(range: (o.open + 1)..<o.close, bytes: Array(("\n" + parts.joined(separator: ",\n") + "\n" + indent).utf8)))
+            let nl = newline
+            out.append(Change(range: (o.open + 1)..<o.close, bytes: Array((nl + parts.joined(separator: "," + nl) + nl + indent).utf8)))
         }
         return out
     }
 
-    /// A value as the system writer spells it, its later lines indented to the member's line.
-    static func render(_ value: Any, indent: String) -> [UInt8]? {
-        guard let d = try? JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .withoutEscapingSlashes, .sortedKeys, .fragmentsAllowed])
-        else { return nil }
-        let s = String(decoding: d, as: UTF8.self)
-        return Array((indent.isEmpty ? s : s.replacingOccurrences(of: "\n", with: "\n" + indent)).utf8)
+    /// A value pretty printed two spaces deep, keys sorted, its later lines indented to the member's line, in the file's
+    /// line break and key to value spacing. Strings and numbers are spelled by the system writer.
+    static func render(_ value: Any, indent: String, style: Style) -> [UInt8]? {
+        text(value, indent: indent, style: style).map { Array($0.utf8) }
+    }
+
+    static func text(_ value: Any, indent: String, style: Style) -> String? {
+        let inner = indent + "  ", nl = style.newline
+        if let d = value as? [String: Any] {
+            if d.isEmpty { return "{}" }
+            var parts: [String] = []
+            for k in d.keys.sorted() {
+                guard let key = text(k, indent: inner, style: style), let v = d[k], let t = text(v, indent: inner, style: style) else { return nil }
+                parts.append(inner + key + style.colon + t)
+            }
+            return "{" + nl + parts.joined(separator: "," + nl) + nl + indent + "}"
+        }
+        if let a = value as? [Any] {
+            if a.isEmpty { return "[]" }
+            var parts: [String] = []
+            for v in a {
+                guard let t = text(v, indent: inner, style: style) else { return nil }
+                parts.append(inner + t)
+            }
+            return "[" + nl + parts.joined(separator: "," + nl) + nl + indent + "]"
+        }
+        guard value is String || value is NSNumber || value is NSNull,
+              let d = try? JSONSerialization.data(withJSONObject: value, options: [.withoutEscapingSlashes, .fragmentsAllowed]) else { return nil }
+        return String(decoding: d, as: UTF8.self)
     }
 
     /// The same member edit for remove.sh, in JavaScript for osascript (part of macOS): argument one the file, two the
-    /// saved statusLine as JSON or empty to remove the key. It prints the new text, or nothing when the file is not a JSON
-    /// object. When the member cannot be placed it prints the whole object, its key order kept, two spaces deep, unless
-    /// the file holds a 16 digit run (a number JavaScript would round). No single quote and no backslash in it: it sits in
-    /// single quotes in sh.
+    /// saved statusLine as JSON or empty to remove the key. It prints the new text followed by one x, which sh strips, so
+    /// that a missing or doubled final line break survives the command substitution; or nothing when the file is not a
+    /// JSON object. When the member cannot be placed it prints the whole object, its key order kept, two spaces deep (a
+    /// final line break when the file had one), unless the file holds a 16 digit run (a number JavaScript would round).
+    /// An entry put back is placed member by member, as the app's Remove does (a member that moved replaced in place, one
+    /// that went cut, a new one added after the last), in the file's line ending and spacing (second audit, F-72); the
+    /// result is compared to the settings asked for with keys in any order, as plutil gives the saved entry sorted. No
+    /// single quote and no backslash in it: it sits in single quotes in sh.
     public static let zapScript = #"""
-    function run(a){try{
-    var t=$.NSString.stringWithContentsOfFileEncodingError(a[0],4,null).js;
+    function run(a){var r=go(a);return r?r+"x":""}
+    function go(a){try{
+    var t=$.NSString.stringWithContentsOfFileEncodingError(a[0],4,null).js;if(t.charCodeAt(0)===65279)t=t.slice(1);
     var o=JSON.parse(t);if(o===null||typeof o!=="object"||Array.isArray(o))return "";
     var j=a[1]?JSON.parse(a[1]):null;if(j)o.statusLine=j;else delete o.statusLine;
-    var want=JSON.stringify(o);var r=cut(t,j);
-    if(r!==null){try{if(JSON.stringify(JSON.parse(r))===want)return r}catch(e){}}
+    var want=cn(o);var r=cut(t,j);
+    if(r!==null){try{if(cn(JSON.parse(r))===want)return r}catch(e){}}
     if(/[0-9]{16}/.test(t))return "";
-    return JSON.stringify(o,null,2)}catch(e){return ""}}
+    return JSON.stringify(o,null,2)+(t.charCodeAt(t.length-1)===10?LF:"")}catch(e){return ""}}
+    var LF=String.fromCharCode(10),CR=String.fromCharCode(13);
+    function cn(v){if(v===null||typeof v!=="object")return JSON.stringify(v);if(Array.isArray(v))return "["+v.map(cn).join(",")+"]";
+    return "{"+Object.keys(v).sort().map(function(k){return JSON.stringify(k)+":"+cn(v[k])}).join(",")+"}"}
+    function isObj(v){return v!==null&&typeof v==="object"&&!Array.isArray(v)}
     function sp(t,i){var c=t.charCodeAt(i);return c===32||c===9||c===10||c===13}
     function ws(t,i){while(i<t.length&&sp(t,i))i++;return i}
     function str(t,i){var k=i+1;while(k<t.length){var c=t.charCodeAt(k);if(c===92){k+=2;continue}if(c===34)return k+1;k++}return -1}
@@ -401,17 +459,44 @@ public enum SettingsText {
     if(c===123||c===91){var d=0;while(k<t.length){c=t.charCodeAt(k);if(c===34){k=str(t,k);if(k<0)return -1;continue}
     if(c===123||c===91)d++;else if(c===125||c===93){d--;if(d===0)return k+1}k++}return -1}
     while(k<t.length&&!sp(t,k)&&",}]".indexOf(t[k])<0)k++;return k>i?k:-1}
-    function cut(t,j){var i=ws(t,0);if(t.charCodeAt(i)!==123)return null;var m=[];i=ws(t,i+1);
+    function obj(t,i){var m=[],seen={};i=ws(t,i+1);
     while(i<t.length&&t.charCodeAt(i)!==125){if(t.charCodeAt(i)!==34)return null;var ke=str(t,i);if(ke<0)return null;
     var v=ws(t,ke);if(t.charCodeAt(v)!==58)return null;v=ws(t,v+1);var ve=val(t,v);if(ve<0)return null;
-    m.push({k:JSON.parse(t.slice(i,ke)),s:i,v:v,e:ve});i=ws(t,ve);if(t.charCodeAt(i)===44)i=ws(t,i+1)}
-    var n=-1;for(var x=0;x<m.length;x++)if(m[x].k==="statusLine"){if(n>=0)return null;n=x}
-    if(n<0)return null;var e=m[n];
-    if(j){var ls=e.s;while(ls>0&&t.charCodeAt(ls-1)!==10)ls--;var le=ls;while(le<e.s&&(t.charCodeAt(le)===32||t.charCodeAt(le)===9))le++;
-    var nl=String.fromCharCode(10);return t.slice(0,e.v)+JSON.stringify(j,null,2).split(nl).join(nl+t.slice(ls,le))+t.slice(e.e)}
+    var k=JSON.parse(t.slice(i,ke));if(seen["#"+k])return null;seen["#"+k]=1;
+    m.push({k:k,s:i,ke:ke,v:v,e:ve});i=ws(t,ve);if(t.charCodeAt(i)===44)i=ws(t,i+1)}
+    return i<t.length?{m:m,c:i}:null}
+    function ind(t,at){var ls=at;while(ls>0&&t.charCodeAt(ls-1)!==10)ls--;var le=ls;
+    while(le<at&&(t.charCodeAt(le)===32||t.charCodeAt(le)===9))le++;return t.slice(ls,le)}
+    function col(t,x){var c=t.slice(x.ke,x.v);return c.indexOf(LF)<0&&c.indexOf(CR)<0?c:": "}
+    function lay(v,i,br,c){var n=i+"  ",p=[];
+    if(Array.isArray(v)){if(!v.length)return "[]";for(var a=0;a<v.length;a++)p.push(n+lay(v[a],n,br,c));return "["+br+p.join(","+br)+br+i+"]"}
+    if(isObj(v)){var ks=Object.keys(v);if(!ks.length)return "{}";for(var b=0;b<ks.length;b++)p.push(n+JSON.stringify(ks[b])+c+lay(v[ks[b]],n,br,c));
+    return "{"+br+p.join(","+br)+br+i+"}"}
+    return JSON.stringify(v)}
+    function sub(t,st,j,br){var O=obj(t,st);if(!O)return null;var m=O.m,out=[],rm=false,have={};
+    for(var x=0;x<m.length;x++){var e=m[x];have["#"+e.k]=1;
+    if(!Object.prototype.hasOwnProperty.call(j,e.k)){rm=true;
+    if(x>0)out.push({a:m[x-1].e,b:e.e,x:""});else if(m.length>1)out.push({a:e.s,b:m[1].s,x:""});else out.push({a:st+1,b:O.c,x:""});continue}
+    var w=j[e.k];if(cn(JSON.parse(t.slice(e.v,e.e)))===cn(w))continue;
+    var r=t.charCodeAt(e.v)===123&&isObj(w)?sub(t,e.v,w,br):null;
+    out=out.concat(r||[{a:e.v,b:e.e,x:lay(w,ind(t,e.s),br,col(t,e))}])}
+    var add=Object.keys(j).filter(function(k){return !have["#"+k]});if(!add.length)return out;if(rm)return null;
+    var txt="";if(m.length){var l=m[m.length-1],gap=m.length>1?t.slice(m[m.length-2].e,l.s):","+t.slice(st+1,l.s),c=t.slice(l.ke,l.v);
+    for(var y=0;y<add.length;y++)txt+=gap+JSON.stringify(add[y])+c+lay(j[add[y]],ind(t,l.s),br,col(t,l));out.push({a:l.e,b:l.e,x:txt});return out}
+    var i0=ind(t,st),p=[];for(var z=0;z<add.length;z++)p.push(i0+"  "+JSON.stringify(add[z])+": "+lay(j[add[z]],i0+"  ",br,": "));
+    out.push({a:st+1,b:O.c,x:br+p.join(","+br)+br+i0});return out}
+    function apply(t,ch){ch.sort(function(p,q){return q.a-p.a});var last=t.length+1;
+    for(var x=0;x<ch.length;x++){if(ch[x].b>last)return null;t=t.slice(0,ch[x].a)+ch[x].x+t.slice(ch[x].b);last=ch[x].a}return t}
+    function cut(t,j){var i=ws(t,0);if(t.charCodeAt(i)!==123)return null;
+    var f=t.indexOf(LF),br=f>0&&t.charCodeAt(f-1)===13?CR+LF:LF;
+    if(j){var O=obj(t,i);if(!O)return null;
+    var cur=null;for(var x=0;x<O.m.length;x++)if(O.m[x].k==="statusLine")cur=O.m[x];if(!cur)return null;
+    var r=t.charCodeAt(cur.v)===123&&isObj(j)?sub(t,cur.v,j,br):null;
+    return apply(t,r||[{a:cur.v,b:cur.e,x:lay(j,ind(t,cur.s),br,col(t,cur))}])}
+    var P=obj(t,i);if(!P)return null;var m=P.m,n=-1;for(var y=0;y<m.length;y++)if(m[y].k==="statusLine")n=y;if(n<0)return null;var e=m[n];
     if(n>0)return t.slice(0,m[n-1].e)+t.slice(e.e);
     if(m.length>1)return t.slice(0,e.s)+t.slice(m[1].s);
-    return "{}"}
+    return t.slice(0,i+1)+t.slice(P.c)}
     """#
 
     static func isSpace(_ c: UInt8) -> Bool { c == 0x20 || c == 0x09 || c == 0x0a || c == 0x0d }
@@ -604,17 +689,19 @@ public enum SettingsFile {
 /// CLAUDE_CONFIG_DIR pattern for a second account). Only names are read here.
 ///
 /// Install goes only where Claude Code already keeps settings: ~/.claude, a CLAUDE_CONFIG_DIR folder, and the others
-/// only when they hold a settings.json. A copy that holds only transcripts (a ~/.claude-backup) is read for its
-/// transcripts and left alone; making a settings.json in a folder is how a user opts it in.
+/// only when they hold a settings.json. A ~/.claude-something folder that holds only transcripts (a ~/.claude-backup) is
+/// left out for transcripts too, as the README says: until the second audit of 0.1.19 (F-70) its copies were counted a
+/// second time. Making a settings.json in a folder is how a user opts it in.
 public enum ConfigFolders {
     public static func find(home: URL = FileManager.default.homeDirectoryForCurrentUser,
                             environment: [String: String] = ProcessInfo.processInfo.environment) -> [URL] {
         folders(home: home, environment: environment, projectsCount: false)
     }
 
-    /// Every folder with transcripts to count: the install targets and the folders that hold only a projects folder.
-    public static func transcriptFolders(home: URL = FileManager.default.homeDirectoryForCurrentUser,
-                                         environment: [String: String] = ProcessInfo.processInfo.environment) -> [URL] {
+    /// Every folder with transcripts to count: the install targets and ~/.config/claude or the CLAUDE_CONFIG_DIR folder when
+    /// it holds only a projects folder. For the tests; the app takes both lists from one listing (scan).
+    static func transcriptFolders(home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                                  environment: [String: String] = ProcessInfo.processInfo.environment) -> [URL] {
         folders(home: home, environment: environment, projectsCount: true)
     }
 
@@ -656,8 +743,9 @@ public enum ConfigFolders {
         if let env = environmentFolder(environment) { candidates.append(env) }
         let names = (listing ?? ((try? fm.contentsOfDirectory(atPath: home.path)) ?? [])).filter { $0.hasPrefix(".claude-") || $0.hasPrefix(".claude_") }.sorted()
         for n in names {
+            // a .claude-something folder counts only with a settings.json: one with only projects is a backup copy
             let u = home.appendingPathComponent(n, isDirectory: true)
-            if qualifies(u) { candidates.append(u) }
+            if fm.fileExists(atPath: u.appendingPathComponent("settings.json").path) { candidates.append(u) }
         }
         var seen = Set<String>()
         var out: [URL] = []
@@ -786,8 +874,11 @@ public struct HookSet: Sendable {
         # before it trashes this folder. For each settings.json: only while its statusLine still runs tokenpanda's script,
         # put back the entry saved at install, or remove the key; delete the file if Install created it and it is empty.
         # Only the statusLine member is changed, the rest of the file kept as it is, by the JavaScript below (osascript,
-        # part of macOS); plutil, which writes the whole file on one line in its own key order, only when that fails.
+        # part of macOS), written to a temporary file next to it and renamed over it (a link stays a link: the file it
+        # points at is written); plutil, which writes the whole file on one line in its own key order, only when that
+        # fails. When the entry is still there afterwards it says so and the script exits 1.
         EDIT='\(SettingsText.zapScript)'
+        FAIL=0
         restore() {
           S="$1"; OURS="$2"; B="$3"
           [ -f "$S" ] || return 0
@@ -796,12 +887,35 @@ public struct HookSet: Sendable {
           J=""
           if [ -f "$B" ]; then J=$(/usr/bin/plutil -extract statusLine json -o - "$B" 2>/dev/null) || J=""; fi
           T=$(/usr/bin/readlink -f "$S" 2>/dev/null) || T="$S"
+          ok=""
           if OUT=$(/usr/bin/osascript -l JavaScript -e "$EDIT" "$T" "$J" 2>/dev/null) && [ -n "$OUT" ]; then
-            printf '%s\\n' "$OUT" > "$T"
-          elif [ -n "$J" ]; then
-            /usr/bin/plutil -replace statusLine -json "$J" "$S"
-          else
-            /usr/bin/plutil -remove statusLine "$S"
+            OUT=${OUT%x}
+            # the JavaScript drops a byte order mark (JSON.parse refuses one): put it back
+            if [ "$(/usr/bin/head -c 3 "$T" | /usr/bin/od -An -tx1 | /usr/bin/tr -d ' \\n')" = "efbbbf" ]; then
+              BOM=$(printf '\\357\\273\\277')
+              case "$OUT" in "$BOM"*) ;; *) OUT="$BOM$OUT" ;; esac
+            fi
+            N="$(/usr/bin/dirname "$T")/.$(/usr/bin/basename "$T").tokenpanda-$$"
+            M=$(/usr/bin/stat -f %Lp "$T" 2>/dev/null) || M=600
+            if (set -C; umask 077; printf '%s' "$OUT" > "$N") 2>/dev/null && /bin/chmod "$M" "$N" 2>/dev/null \\
+               && /bin/mv -f "$N" "$T" 2>/dev/null; then
+              ok=1
+            else
+              /bin/rm -f "$N" 2>/dev/null
+            fi
+          fi
+          if [ -z "$ok" ]; then
+            if [ -n "$J" ]; then
+              /usr/bin/plutil -replace statusLine -json "$J" "$T" >/dev/null 2>&1 && ok=1
+            else
+              /usr/bin/plutil -remove statusLine "$T" >/dev/null 2>&1 && ok=1
+            fi
+          fi
+          now=$(/usr/bin/plutil -extract statusLine.command raw -o - "$S" 2>/dev/null) || now=""
+          if [ -z "$ok" ] || [ "$now" = "$OURS" ]; then
+            echo "tokenpanda: could not write $S, its status line entry is still there" >&2
+            FAIL=1
+            return 0
           fi
           if [ -f "$B" ] && [ "$(/usr/bin/plutil -extract createdSettings raw -o - "$B" 2>/dev/null)" = "true" ] \\
              && [ "$(/usr/bin/plutil -convert json -o - "$S" 2>/dev/null)" = "{}" ]; then
@@ -813,7 +927,7 @@ public struct HookSet: Sendable {
 
         """
         for h in hooks { out += "restore \(q(h.settingsURL.path)) \(q(h.hookCommand)) \(q(h.backupPath.path))\n" }
-        return out + "exit 0\n"
+        return out + "exit $FAIL\n"
     }
 
     /// Every installed script brought to the current template (see Hook.refreshScript).

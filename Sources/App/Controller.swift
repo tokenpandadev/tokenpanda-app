@@ -91,7 +91,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var pacer = FeedPacer()                     // folds a burst of folder events into one scan now and one trailing scan
     var liveSessions = LiveSessionCache()       // Claude Code's session files, parsed again only when one changes
     let queue = DispatchQueue(label: "dev.tokenpanda.timers", qos: .utility)
-    var transcriptsBusy = false
+    var transcriptGate = PassGate()             // one transcript pass at a time; one asked for meanwhile runs after it
     var transcriptOrder = RefreshOrder()        // an older pass's summary never replaces a newer one
 
     override init() {
@@ -260,9 +260,13 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         render()
     }
 
+    /// One pass now, or, while one runs, one more when it ends (PassGate).
     func refreshTranscripts() async {
-        guard !transcriptsBusy else { return }
-        transcriptsBusy = true
+        guard transcriptGate.begin() else { return }
+        repeat { await transcriptPass() } while transcriptGate.end()
+    }
+
+    func transcriptPass() async {
         let now = Date()
         // the aggregate moves with new records, a new day (the "today" window) and a record crossing the 7 or 30 day
         // edge (0.1.15). Then the records are needed even when no transcript changed: an unchanged pass returns none,
@@ -282,8 +286,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 tokens = summary
             }
         }
-        transcriptsBusy = false   // only after the summary is in: a pass started meanwhile is not built on the old one
-        render()
+        render()   // the gate opens only after the summary is in: a pass started meanwhile is not built on the old one
     }
 
     /// A settings folder made since launch (a second account with CLAUDE_CONFIG_DIR) joins the set; Install then offers it,

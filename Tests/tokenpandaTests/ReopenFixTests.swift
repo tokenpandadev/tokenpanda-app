@@ -328,6 +328,8 @@ struct ReopenFixTests {
         #expect(await store.setRoots(ConfigFolders.transcriptRoots(usual: [], folders: first.transcripts)) == false)
         // a second account is set up while the app runs
         try FileManager.default.createDirectory(at: home.appendingPathComponent(".claude-work/projects"), withIntermediateDirectories: true)
+        // its settings.json makes it an account and not a backup copy (second audit, F-70)
+        try "{}".write(to: home.appendingPathComponent(".claude-work/settings.json"), atomically: true, encoding: .utf8)
         let later = ConfigFolders.scan(home: home, environment: [:])
         let roots = ConfigFolders.transcriptRoots(usual: [], folders: later.transcripts)
         #expect(roots.map(\.path).contains(home.appendingPathComponent(".claude-work/projects").path))

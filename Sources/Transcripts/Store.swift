@@ -40,15 +40,39 @@ public struct RefreshOrder: Sendable, Equatable {
     }
 }
 
+/// One transcript pass at a time, and none lost: a pass asked for while one runs (the one promised when a new settings
+/// folder joins the roots, or a timer's) is remembered and run once when the running one ends. Until the second review of
+/// 0.1.19 it was dropped at the busy guard, and the new folder's tokens waited for the next timer pass, up to 300 s.
+public struct PassGate: Sendable, Equatable {
+    public private(set) var busy = false
+    public private(set) var pending = false
+    public init() {}
+    /// true when a pass may start now; false when one runs, which then runs once more when it ends.
+    public mutating func begin() -> Bool {
+        if busy { pending = true; return false }
+        busy = true
+        return true
+    }
+    /// The running pass ended: true when one was asked for meanwhile, to be run now (the gate stays closed for it).
+    public mutating func end() -> Bool {
+        if pending { pending = false; return true }
+        busy = false
+        return false
+    }
+}
+
 /// Reads transcripts incrementally: every file remembers its byte offset and the message ids it has seen.
 /// A file that shrank is read again from the start. Nothing is ever loaded whole. Files are kept by device and inode,
-/// so a file reached through a linked folder is read once (0.1.19).
+/// so a file reached through a linked folder is read once (0.1.19). A message id is counted once across the whole store:
+/// a copy of a transcript in another folder (a ~/.claude-backup) or a resumed session that carries earlier replies never
+/// counts them twice (second audit of 0.1.19, F-70: ids were kept per file, and a backup copy doubled every figure).
 public actor TranscriptStore {
     struct FileState {
         var url: URL? = nil          // the path it was read through; another path for the same id starts over
         var offset: UInt64 = 0
         var ids: Set<String> = []
         var records: [UsageRecord] = []
+        var recordIds: [String] = []  // the message id of each record, for the count across files
         var skipping = false      // inside a line past maxLine: dropped up to its newline, also across reads
     }
 
@@ -112,8 +136,25 @@ public actor TranscriptStore {
         fileCount = found.count
         let unchanged = onlyIfChanged && version == lastReportedVersion
         lastReportedVersion = version
-        let all = unchanged ? [] : files.values.flatMap(\.records)
+        let all = unchanged ? [] : counted()
         return Result(records: all, fileCount: found.count, rootsExist: rootsExist, error: error, cause: cause, version: version, sequence: sequence)
+    }
+
+    /// Every record kept, each message id once: the files of the first root first (the usual places come first), then by
+    /// path, so the same copy wins every pass.
+    func counted() -> [UsageRecord] {
+        func rank(_ st: FileState) -> Int {
+            guard let p = st.url?.path else { return roots.count }
+            return roots.firstIndex { p.hasPrefix($0.path.hasSuffix("/") ? $0.path : $0.path + "/") } ?? roots.count
+        }
+        let ordered = files.values.map { (rank($0), $0.url?.path ?? "", $0) }.sorted { ($0.0, $0.1) < ($1.0, $1.1) }
+        var seen = Set<String>()
+        var out: [UsageRecord] = []
+        out.reserveCapacity(files.values.reduce(0) { $0 + $1.records.count })
+        for (_, _, st) in ordered {
+            for (i, r) in st.records.enumerated() where seen.insert(st.recordIds[i]).inserted { out.append(r) }
+        }
+        return out
     }
 
     func read(_ f: TranscriptFile, into st: inout FileState, chunk: Int, maxLine: Int) throws {
@@ -179,6 +220,7 @@ public actor TranscriptStore {
         guard !st.ids.contains(p.messageId) else { return }
         st.ids.insert(p.messageId)
         st.records.append(p.record)
+        st.recordIds.append(p.messageId)
         version += 1
     }
 }

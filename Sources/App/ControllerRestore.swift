@@ -188,14 +188,15 @@ extension Controller {
     }
 
     /// One .command file per session, each starting the session with its name and options, opened in the picked app.
-    /// A session it cannot write a script for is logged with its code; when none is left, one notification says so.
+    /// A session it cannot write a script for is logged with its code, and one notification says how many were skipped
+    /// and why, also when others opened.
     func openSessions(_ entries: [RestoreRecord.Entry]) {
         let done = ReopenWrite.write(entries, into: Paths.reopenDir, now: Date())
         for s in done.skipped { restoreLog.error("reopen: skipped a session: \(s.code.rawValue, privacy: .public)") }
         if !done.skipped.isEmpty {
             restoreLog.error("reopen: \(done.skipped.count, privacy: .public) of \(entries.count, privacy: .public) sessions skipped (\(done.counts, privacy: .public))")
         }
-        if let notice = done.nothingOpened() {
+        if let notice = done.notice() {
             notifier.postAsking(title: notice.title, body: notice.body, id: "reopen-failed-\(Int(Date().timeIntervalSince1970))")
         }
         let files = done.files
