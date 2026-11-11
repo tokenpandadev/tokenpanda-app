@@ -72,7 +72,8 @@ public actor TranscriptStore {
         var offset: UInt64 = 0
         var ids: Set<String> = []
         var records: [UsageRecord] = []
-        var recordIds: [String] = []  // the message id of each record, for the count across files
+        var recordIds: [Int] = []     // the hash of each record's message id, for the count across files: a set of
+                                      // numbers per pass, where a set of 150,000 strings took most of a pass (0.1.19)
         var skipping = false      // inside a line past maxLine: dropped up to its newline, also across reads
     }
 
@@ -148,7 +149,8 @@ public actor TranscriptStore {
             return roots.firstIndex { p.hasPrefix($0.path.hasSuffix("/") ? $0.path : $0.path + "/") } ?? roots.count
         }
         let ordered = files.values.map { (rank($0), $0.url?.path ?? "", $0) }.sorted { ($0.0, $0.1) < ($1.0, $1.1) }
-        var seen = Set<String>()
+        var seen = Set<Int>()
+        seen.reserveCapacity(files.values.reduce(0) { $0 + $1.recordIds.count })
         var out: [UsageRecord] = []
         out.reserveCapacity(files.values.reduce(0) { $0 + $1.records.count })
         for (_, _, st) in ordered {
@@ -220,7 +222,7 @@ public actor TranscriptStore {
         guard !st.ids.contains(p.messageId) else { return }
         st.ids.insert(p.messageId)
         st.records.append(p.record)
-        st.recordIds.append(p.messageId)
+        st.recordIds.append(p.messageId.hashValue)
         version += 1
     }
 }

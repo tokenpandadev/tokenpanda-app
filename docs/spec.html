@@ -725,6 +725,7 @@ from Claude Code's own status feed on this Mac.</pre>
 <li>24.65 The list price chip, the subagent chip and the totals line are key figures the keyboard stops on, so VoiceOver users moving with Down hear them; they were skipped (his VoiceOver check of 11.11).</li>
 <li>24.66 The Open sessions in pop-up is labelled with its choice, "Open sessions in iTerm": VoiceOver said only "pop up button" and not the value (his VoiceOver check of 11.11; thePopUpIsOneControlWithItsValue).</li>
 <li>24.67 Copy a problem report has a copy mark in front, U+29C9, part of the same button; VoiceOver reads the label without it (his ask, 11.11).</li>
+<li>24.68 The count across files keeps a hash of each message id, not the id's text: the set of 150,000 strings built on every pass took a transcript pass from 54 to 92 ms; with numbers it is 61 ms (scripts/transcript-load-test.sh, 3.07% of one core at the test's 2 s rate).</li>
 </ol>
 <div class="foot">Overview  Style guide  Spec  Privacy</div>
 </main>
