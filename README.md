@@ -18,8 +18,9 @@ Every time I looked at a usage percentage I did the same sum in my head. It is T
 - Tokens by model, project and session, counted from the transcripts already on the Mac, with the list price equivalent and week over week.
 - The Mac on a second tab: CPU, GPU, memory with pressure and swap, battery, the busiest processes.
 - A switch in Settings, off by default, keeps the Mac from idle sleep while a Claude Code session is working, and says so while it does. A second switch under it keeps it awake while any session is open, idle ones too, so a session stays reachable through Remote Control from the phone. It prevents idle sleep only: a closed lid on battery still sleeps the Mac.
+- Two nudges, one notification each, once per window: when the week reaches 80%, and in the 15 minutes before the 5h window ends. The Nudge switch in Settings turns them off, and Notifications must be allowed for tokenpanda in System Settings.
 - Open at login, the first row in Settings, off by default. The box shows what macOS says, so if you remove the app in System Settings, General, Login Items, it shows that too.
-- Reopen sessions after a restart, a switch in Settings, off by default. When the Mac comes back, one notification names the Claude Code sessions that were open before (by their name, or their folder when they have none). Reopen opens each one in Terminal, iTerm or Ghostty, as picked under "Open sessions in", as it was started: `claude --resume` with its name and its start options (extra folders, appended system prompt, model, permission mode and the rest), and with Remote Control again for sessions that had it. A start prompt typed after the options is not sent again. If that start fails within a few seconds, a plain `claude --resume` follows. It waits for the network first, so Remote Control can connect. With the switch on, a session that ends while its window stays open (it quit on its own, or you quit it there) gets one notification with its name and a Reopen button; a closed window or a shutdown gets none. One thing tokenpanda cannot stop: if "Reopen windows when logging back in" is ticked in the macOS restart dialog, macOS also brings back the old terminal windows, empty. Untick it once, and only the reopened sessions come back.
+- Reopen sessions after a restart, a switch in Settings, off by default. When the Mac comes back, one notification names the Claude Code sessions that were open before (by their name, or their folder when they have none). Reopen opens each one in Terminal, iTerm or Ghostty, as picked under "Open sessions in", as it was started: `claude --resume` with its name and its start options (extra folders, appended system prompt, model, permission mode and the rest), and with Remote Control again for sessions that had it. A start prompt typed after the options is not sent again. If that start fails within 20 seconds, the same without Remote Control follows, then a plain `claude --resume`. It waits for the network first, so Remote Control can connect. Only the Reopen button starts sessions; a click on the notification opens the panel. With the switch on, a session that ends while its window stays open (it quit on its own, or you quit it there) gets one notification with its name and a Reopen button; a closed window or a shutdown gets none. One thing tokenpanda cannot stop: if "Reopen windows when logging back in" is ticked in the macOS restart dialog, macOS also brings back the old terminal windows, empty. Untick it once, and only the reopened sessions come back.
 
 <img src="docs/shots/item-states.png" width="609" alt="The menu bar item in five states: ahead, stale, cpu warning, no feed yet, closed">
 
@@ -45,16 +46,15 @@ shasum -a 256 -c tokenpanda-<version>.zip.sha256
 
 It should print `OK`. Unzip it and move `tokenpanda.app` to Applications.
 
-The first launch, said plainly: the app is signed ad hoc, not notarised, so macOS blocks it the first time. Try to open it, then open System Settings, click Privacy & Security, scroll down and click Open Anyway. The warning comes back once more; click Open Anyway and enter your Mac password or use Touch ID. From then on it opens normally. On macOS 26 and later, if the item does not show in the menu bar, allow it in System Settings under Menu Bar.
+The app is signed ad hoc, not notarised, so macOS blocks it the first time. Open System Settings, Privacy & Security, scroll down and click Open Anyway. The warning comes back once more: click Open Anyway again and enter your Mac password or use Touch ID. From then on it opens normally. On macOS 26 and later, if the item does not show in the menu bar, allow it in System Settings under Menu Bar.
 
-With Homebrew. Homebrew loads casks from taps outside its own only after you trust them, so trust this one cask first:
+With Homebrew, from my tap:
 
 ```sh
-brew trust --cask tokenpandadev/tap/tokenpanda
 brew install --cask tokenpandadev/tap/tokenpanda
 ```
 
-The Open Anyway step applies after a Homebrew install too.
+Homebrew trusts a cask installed by its full name, and only that one, so there is no trust step. The Open Anyway steps above apply after a Homebrew install too.
 
 On first launch the Claude tab offers one button, Install the status line entry. Click it, start a Claude Code session, and the figures arrive after the first reply. If you already have a status line, it keeps working.
 
@@ -86,23 +86,23 @@ tokenpanda never checks for updates itself. With Homebrew: `brew upgrade --cask 
 - The token figures come from the transcripts Claude Code keeps on the Mac in `~/.claude/projects`. Counts, model and time. Never what was written.
 - No login. No token. No endpoint. No network at all.
 
-The honest consequence: the plan figures are as fresh as the last running session. Between sessions the popover shows the last figures with the time they were read.
+The plan figures are as fresh as the last running session. Between sessions the popover shows the last figures with the time they were read.
 
 ## Privacy
 
 Nothing leaves your Mac. In five rules:
 
 1. The app makes no network calls and works offline: no analytics, no telemetry, no update check, no price fetch.
-2. From a transcript line it keeps the time, the ids, the model, the working directory name and the token counts. Not what you wrote, not what Claude answered.
+2. From a transcript line it keeps the line type, the time, the ids, the model, the working directory name and the token counts. Not what you wrote, not what Claude answered, not what the tools returned.
 3. It never opens `memory/` or `tool-results/`, never reads the Keychain, a token or a cookie, and never asks you to sign in.
-4. It touches `~/.claude/settings.json` (and each other settings folder's) only when you click, and only its `statusLine` key. "Remove the status line entry" in Settings puts your previous entry back exactly.
+4. It writes files only in its own folder in Application Support and in its preferences. It touches `settings.json` in `~/.claude` (and in each other settings folder) only when you click, and only its `statusLine` key. "Remove the status line entry" in Settings puts your previous entry back exactly. The privacy page lists every file.
 5. Check it. The source is public; search it for URLSession. Run nettop on the app for an hour: zero connections.
 
 With keep awake on, the app holds a power assertion only while a session is working, or with the second switch while a session is open, and `pmset -g assertions` shows it. With Open at login on, macOS lists the app in System Settings, General, Login Items; the app keeps no setting of its own for it. To show each open session by its name, the app reads Claude Code's own small session files (`~/.claude/sessions/<process id>.json`, and the same in each other settings folder: session id, folder, name). With Reopen sessions on, the app keeps a small list of the open sessions (id, folder, transcript path) in Application Support, and starts Terminal, iTerm or Ghostty only when you click Reopen.
 
-The [privacy page](docs/privacy.html) names every file it reads and writes. Anthropic documents the status line feed as input for any script you configure. It has written nothing either way about a local tool reading the transcripts on your own Mac. That is silence, not permission, and I would rather say so than claim more.
+The [privacy page](docs/privacy.html) names every file it reads and writes. Anthropic documents the status line feed as input for any script you configure. It has written nothing either way about a local tool reading the transcripts on your own Mac. That is silence, not permission.
 
-The [audit report](https://tokenpanda.dev/audit) is our own audit, run with AI agents against OWASP ASVS 5.0.0 Level 2, not an outside audit; it names the version it checked and every finding.
+The [audit report](https://tokenpanda.dev/audit) is my own audit, run with AI agents against OWASP ASVS 5.0.0 Level 2, not an outside audit; it names the version it checked and every finding.
 
 ## Build from source
 
@@ -111,7 +111,7 @@ You need a Mac on macOS 14 or later with the Command Line Tools or Xcode. Swift 
 ```sh
 swift build
 swift test -Xswiftc -plugin-path -Xswiftc /Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing
-scripts/build-app.sh 0.1.18
+scripts/build-app.sh 0.1.19
 open build/tokenpanda.app
 ```
 
@@ -119,21 +119,14 @@ The plugin flag is for the Command Line Tools, which ship swift-testing without 
 
 The documentation is plain HTML in `docs/`: an overview, the style guide, the spec, the privacy page, and the manual VoiceOver and keyboard test in `docs/testing.html`. Changes per version are in [CHANGELOG.md](CHANGELOG.md).
 
-## Good tools that came first
+## Tools that came first
 
-Plenty of good tools came before this one, and I learned from all of them.
-
-- [Headroom](https://github.com/sandrich/headroom): Mac stats and the Claude Code limits in one small menu bar item, in Swift, MIT. It is the reason I started.
-- [Pacer](https://github.com/EricAndrechek/Pacer): pace gauges for the 5h window, the week and each model, in a native Mac app. MIT.
-- [TokenPace](https://github.com/artem-from-ua/tokenpace): coloured pacing bars for the Claude Code limits in the menu bar, so the pace is a glance.
-- [Usage Pacer](https://github.com/liammday/usage-pacer-releases): a notarised menu bar app that draws a pace line for Claude subscription usage. MIT.
-- [ccusage](https://github.com/ccusage/ccusage): the command line tool that started the token counting; one npx and the figures are there.
-- [CodexBar](https://github.com/steipete/CodexBar): usage for Codex, Claude Code and many other providers in one menu bar item. Swift, MIT.
-- [CCSeva](https://github.com/Iamshankhadeep/ccseva): a native Swift popover with a live view, burn rate, projection and weekly history.
-- [claude-hud](https://github.com/jarrodwatts/claude-hud): a status line inside Claude Code itself: context use, the active tool, running agents, todo progress.
+I learned from the tools that came before this one. They are credited on [tokenpanda.dev/tools](https://tokenpanda.dev/tools).
 
 ## Licence and coffee
 
 MIT, see [LICENSE](LICENSE). Issues and ideas welcome.
 
 If it saved you a limit once, a coffee on [Ko-fi](https://ko-fi.com/tokenpanda) is welcome, never required. GitHub Sponsors follows once GitHub approves it.
+
+Made by halftone
