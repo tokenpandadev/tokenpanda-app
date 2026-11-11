@@ -51,6 +51,24 @@ struct PricesTests {
         #expect(PriceTable.row(forModel: "claude-opus-55") == nil)
     }
 
+    @Test func aMinorReleaseIsNeverPricedOrNamedAsItsParent() {
+        // a minor release that shipped after its parent (as claude-opus-4-1 after claude-opus-4) has no row of its own
+        for id in ["claude-opus-5-1", "claude-opus-5-1-20270101", "claude-sonnet-5-1-20270101", "claude-haiku-4-5-1",
+                   "claude-fable-5-1-1", "claude-opus-5-latest", "claude-opus-5-2027010", "claude-opus-5-202701011"] {
+            #expect(PriceTable.row(forModel: id) == nil, "\(id)")
+            #expect(PriceTable.cost(model: id, usage: u) == nil, "\(id)")
+        }
+        #expect(PriceTable.displayName(forModel: "claude-opus-5-1") == "Opus 5.1")
+        #expect(PriceTable.displayName(forModel: "claude-sonnet-5-1-20270101") == "Sonnet 5.1")
+        // every row matches its own id, bare and with a date suffix, and names it
+        for row in PriceTable.rows {
+            #expect(PriceTable.row(forModel: row.idPrefix) == row)
+            #expect(PriceTable.row(forModel: row.idPrefix + "-20261001") == row)
+            #expect(PriceTable.displayName(forModel: row.idPrefix) == row.name)
+            #expect(PriceTable.displayName(forModel: row.idPrefix + "-20261001") == row.name)
+        }
+    }
+
     @Test func displayNames() {
         #expect(PriceTable.displayName(forModel: "claude-fable-5-1") == "Fable 5.1")
         #expect(PriceTable.displayName(forModel: "claude-haiku-4-5-20251001") == "Haiku 4.5")

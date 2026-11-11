@@ -70,10 +70,17 @@ public enum PriceTable {
         PriceRow(name: "Haiku 4.5", idPrefix: "claude-haiku-4-5", input: 1, cacheWrite5m: 1.25, cacheWrite1h: 2, cacheRead: 0.10, output: 5, idVerified: true),
     ]
 
-    /// Longest prefix wins, so claude-opus-5-5 is never taken for claude-opus-5.
+    /// A row matches its id exactly or followed by a date suffix ("-20251001", eight digits) and nothing else, so a
+    /// minor release such as claude-opus-5-1 is never named or priced as claude-opus-5: it has no row until it gets one.
     public static func row(forModel id: String) -> PriceRow? {
-        rows.filter { id == $0.idPrefix || id.hasPrefix($0.idPrefix + "-") }
-            .max { $0.idPrefix.count < $1.idPrefix.count }
+        rows.first { r in
+            guard id.hasPrefix(r.idPrefix) else { return false }
+            let rest = id.dropFirst(r.idPrefix.count)
+            if rest.isEmpty { return true }
+            guard rest.first == "-" else { return false }
+            let date = rest.dropFirst()
+            return date.count == 8 && date.allSatisfy { ("0"..."9").contains($0) }
+        }
     }
 
     /// nil when the model has no row: counted in tokens, skipped in cost.
