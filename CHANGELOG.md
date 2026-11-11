@@ -6,7 +6,7 @@
 - Token figures are counted once: a linked ~/.config/claude, a second settings folder that links to the first, a backup copy such as ~/.claude-backup, or a resumed session no longer doubles them.
 - Reopen brings back sessions from a second settings folder too. When a session cannot be opened (its folder is gone), a notification names how many did not reopen and why.
 - Only the Reopen button starts sessions; a click on the notification opens the panel. If macOS covers the restart notice at login, it comes once more when you first open the panel.
-- Install, Remove and uninstalling change only the statusLine entry in settings.json; the rest of the file keeps its bytes, line endings and layout. If uninstalling cannot write the file, it says so and leaves the entry working.
+- Install, Remove and uninstalling change only the statusLine entry in settings.json; the rest of the file keeps its bytes, line endings and layout. If uninstalling cannot write the file, it says so.
 - Start options that carry inline JSON (a --settings or --mcp-config value) are no longer saved. The Reopen scripts live in tokenpanda's own folder, so uninstalling removes them.
 - The panel: long, Chinese, Japanese and emoji names fit and line up; big figures stay in their column; a blank line between open sessions; totals for today, 7 days and 30 days; "limit reached" at 100%; the price chip shows cents under USD 10; tooltips show on the whole row and never cover it; buttons act when you let go; the warning dot on the selected Mac tab is easy to see.
 - A minor model release such as Opus 5.1 is no longer named and priced as Opus 5, and a renamed feed field now says the feed format changed.
