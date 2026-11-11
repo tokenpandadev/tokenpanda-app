@@ -142,7 +142,7 @@ def pmark(line, n=1, cell=0, cells=48):
 # ---------- Tokens.swift (dark), the colours every popover line uses ----------
 
 TOK = dict(text='#e0e0e0', bold='#ededed', dim='#b3b3b3', dimmer='#949494', quiet='#b8b8b8', accent='#b1b9f9',
-           track='#65698d', trackStale='rgba(101,105,141,.35)', staleFill='#7e82b0', coral='#d77757', warning='#ffc107', box='#373737',
+           track='#505370', trackStale='rgba(80,83,112,.35)', staleFill='#7e82b0', coral='#d77757', warning='#ffc107', box='#373737',
            magenta='#bd7bcd', yellow='#c4ac62', cyan='#7ccbcd', green='#6caa71', blue='#6d96b4', blue2='#67b5ed',
            procWhite='#dee5eb')
 MODEL_HUES = [TOK['magenta'], TOK['yellow'], TOK['cyan'], TOK['green']]   # Fable, Opus, Sonnet, Haiku
