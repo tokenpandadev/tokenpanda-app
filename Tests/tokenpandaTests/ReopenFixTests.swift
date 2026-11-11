@@ -87,13 +87,13 @@ struct ReopenFixTests {
 
     @Test func theSettingsFolderIsKeptPerEntryAndAnOldRecordReadsAsTheDefault() throws {
         var r = RestoreRecord(lastScan: t0)
-        r.apply([open(id, folder: "/p", transcript: "/Users/u/.claude-work/projects/-p/\(id).jsonl"), open(id2, folder: "/q")],
-                launches: [id2: RestoreRecord.Launch(name: nil, options: nil, configDir: "/Users/u/.claude-other")], now: t0)
-        #expect(r.entries.first { $0.id == id }?.configDir == "/Users/u/.claude-work")      // from the transcript's place
-        #expect(r.entries.first { $0.id == id2 }?.configDir == "/Users/u/.claude-other")    // from Claude Code's session file
+        r.apply([open(id, folder: "/p", transcript: "/Users/someone/.claude-work/projects/-p/\(id).jsonl"), open(id2, folder: "/q")],
+                launches: [id2: RestoreRecord.Launch(name: nil, options: nil, configDir: "/Users/someone/.claude-other")], now: t0)
+        #expect(r.entries.first { $0.id == id }?.configDir == "/Users/someone/.claude-work")      // from the transcript's place
+        #expect(r.entries.first { $0.id == id2 }?.configDir == "/Users/someone/.claude-other")    // from Claude Code's session file
         // kept when the next scan has no launch for it
         r.apply([open(id2, folder: "/q")], now: t0.addingTimeInterval(5))
-        #expect(r.entries.first { $0.id == id2 }?.configDir == "/Users/u/.claude-other")
+        #expect(r.entries.first { $0.id == id2 }?.configDir == "/Users/someone/.claude-other")
         // restore.json of 0.1.18: no configDir key
         let url = try dir("old").appendingPathComponent("restore.json")
         try Data("{\"entries\":[{\"id\":\"\(id)\",\"folder\":\"/p\",\"lastSeen\":1800000000}],\"lastScan\":1800000000}".utf8).write(to: url)
@@ -178,11 +178,11 @@ struct ReopenFixTests {
 
     @Test func inlineJSONOptionValuesAreNeverKept() throws {
         let argv = ["claude", "--settings", "{\"apiKeyHelper\":\"echo sk-secret\"}", "--model", "opus",
-                    "--mcp-config", "/Users/u/mcp.json", "{\"mcpServers\":{\"x\":{\"env\":{\"TOKEN\":\"t\"}}}}",
+                    "--mcp-config", "/Users/someone/mcp.json", "{\"mcpServers\":{\"x\":{\"env\":{\"TOKEN\":\"t\"}}}}",
                     "--mcp-config={\"mcpServers\":{}}", "--agents", "[{\"name\":\"a\"}]", "--unknown={\"k\":1}",
-                    "--settings", "/Users/u/settings.local.json"]
+                    "--settings", "/Users/someone/settings.local.json"]
         let k = try #require(LaunchOptions.keptNoting(fromArguments: argv))
-        #expect(k.options == ["--model", "opus", "--mcp-config", "/Users/u/mcp.json", "--settings", "/Users/u/settings.local.json"])
+        #expect(k.options == ["--model", "opus", "--mcp-config", "/Users/someone/mcp.json", "--settings", "/Users/someone/settings.local.json"])
         #expect(k.dropped == ["--settings", "--mcp-config", "--mcp-config", "--agents", "--unknown"])
         #expect(!k.options.joined().contains("{") && !k.options.joined().contains("secret"))
         // a restore.json of 0.1.18 holding one: dropped when read, never in a script
