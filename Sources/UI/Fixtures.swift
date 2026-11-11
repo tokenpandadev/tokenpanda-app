@@ -91,14 +91,108 @@ public enum Fixtures {
     }
 
     public static func input(weekly: Double = 61, stale: Bool = false, feedState: FeedState? = nil, hook: HookStatus = HookStatus(installed: true, previousCommand: nil),
-                             warn: Bool = false, tab: Int = 0, section: Int = 0, health: BatteryHealth? = .normal) -> LiveInput {
+                             warn: Bool = false, tab: Int = 0, section: Int = 0, health: BatteryHealth? = .normal, hog: Bool = false) -> LiveInput {
         let feed = feedState ?? FeedState(limits: limits(weekly: weekly, asOf: stale ? date(2026, 10, 15, 13, 5) : now.addingTimeInterval(-60)),
                                           sessions: stale ? [] : openSessions, lastWriteAt: stale ? date(2026, 10, 15, 13, 5) : now.addingTimeInterval(-2))
         var w = weeks
         w.records[3].lastUsed = weekly
         return LiveInput(feed: feed, hook: hook, tokens: tokens, transcriptsRootsExist: true, transcriptsError: nil,
-                         mac: mac(health: health), weeks: w, macInBar: false, nudges: true, listPrice: true, nudgeNote: nil,
+                         mac: mac(health: health, hog: hog), weeks: w, macInBar: false, nudges: true, listPrice: true, nudgeNote: nil,
                          warn: warn, tab: tab, section: section, now: now, timeZone: timeZone, calendar: calendar)
+    }
+
+    /// The version of the bundle the snapshot runs in: tokenpanda's own, never a number written here (0.1.19; the
+    /// fixture said 0.1.15 in every later build). nil in a bare debug binary and in the tests, as in the app.
+    public static var bundleVersion: String? {
+        guard Bundle.main.bundleIdentifier == "dev.tokenpanda.app" else { return nil }
+        return Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+    }
+
+    /// Inputs past the sample's edges, for the width tests and a look: long, wide (CJK, emoji) and huge figures. Invented.
+    public static func stress() -> [(String, LiveInput)] {
+        let long = "an-extremely-long-project-folder-name-that-goes-on-and-on"
+        let cjk = "日本語のプロジェクト名前テスト"
+        let emoji = "emoji\u{1F43C}panda"
+        let longModel = "Opus 5.5 with an unusually long display name of fifty"
+        var names = [
+            snapshot("a0000000-0000-4000-8000-000000000001", project: long, model: "Fable 5.1", modelId: "claude-fable-5-1",
+                     tokens: 999_960, used: 99.6, cost: 1234.5, added: 12_345, removed: 6789),
+            snapshot("a0000000-0000-4000-8000-000000000002", project: "tooling", model: longModel, modelId: "claude-opus-5-5",
+                     tokens: 405_600, used: 41, cost: 1.498, added: 3, removed: 1),
+            snapshot("a0000000-0000-4000-8000-000000000003", project: cjk, model: "Zeta 1", modelId: "claude-zeta-1",
+                     tokens: 88_400, used: 9, cost: 0.4, added: 0, removed: 0),
+            snapshot("a0000000-0000-4000-8000-000000000004", project: emoji, model: "Sonnet 5.5", modelId: "claude-sonnet-5-5",
+                     tokens: 1_000_000, used: 100, cost: 6.1, added: 0, removed: 0),
+            snapshot("a0000000-0000-4000-8000-000000000005", project: "x", model: String(repeating: "\u{6A21}", count: 30), modelId: "other-model",
+                     tokens: 12_000, used: 1, cost: 0, added: 0, removed: 0),
+        ]
+        names[0].contextWindowSize = 999_600
+        let open = names.map { OpenSession(snapshot: $0) } + (6...9).map { k in
+            OpenSession(snapshot: snapshot("b000000\(k)-0000-4000-8000-00000000000\(k)", project: "more", model: "Haiku 4.5", modelId: "claude-haiku-4-5",
+                                           tokens: 1000, used: 0.1, cost: 0, added: 0, removed: 0)) }
+        let big = TokenSummary(
+            byModel7d: [TokenGroup(name: "Fable 5.1", key: "claude-fable-5-1", tokens: 123_456_000_000, share: 91),
+                        TokenGroup(name: "Opus 5.5", key: "claude-opus-5-5", tokens: 10_000_000_000, share: 7),
+                        TokenGroup(name: "Zeta 1", key: "claude-zeta-1", tokens: 3_000_000, share: 0),
+                        TokenGroup(name: "Unpriced thing with a long name", key: "gpt-x", tokens: 999_999_999, share: 1),
+                        TokenGroup(name: "other", key: "other", tokens: 4_000, share: 0)],
+            byProject7d: [TokenGroup(name: cjk, key: cjk, tokens: 999_999_999, share: 60),
+                          TokenGroup(name: emoji, key: emoji, tokens: 99_960, share: 30),
+                          TokenGroup(name: long, key: long, tokens: 999_950, share: 10)],
+            bySessionToday: [TokenGroup(name: "a0000000", key: "a0000000-0000-4000-8000-000000000001", tokens: 31_200_000, share: 50),
+                             TokenGroup(name: "a0000000", key: "a0000000-0000-4000-8000-000000000003", tokens: 18_000_000, share: 30),
+                             TokenGroup(name: "c91e0a44", key: "c91e0a44-0000-4000-8000-000000000003", tokens: 12_600_000, share: 20)],
+            agentShare7d: 100, listPrice7d: 1.498, unpricedModels: 2,
+            tokensToday: 999_999_999, tokens7d: 133_459_003_999, tokens30d: 9_999_999_999_999, total7d: 0, totalToday: 0)
+        var lim = limits(weekly: 100, five: 99.5)
+        lim.windows["seven_day_opus_extra_long_key_that_runs_well_past_the_panel_edge"] = .init(used: 12, resetsAt: weeklyReset)
+        var wide = input(feedState: FeedState(limits: lim, sessions: open, lastWriteAt: now.addingTimeInterval(-2)))
+        wide.tokens = big
+        wide.sessionNames = ["a0000000-0000-4000-8000-000000000002": "renamed " + cjk + " " + emoji]
+        var m = mac()
+        m.memoryUsed = m.memoryTotal; m.swapUsed = 12 * 1_073_741_824
+        m.processes = [ProcessSample(pid: 1, name: cjk, cpuPercent: 1000.5, footprint: 40 * 1_073_741_824),
+                       ProcessSample(pid: 2, name: emoji, cpuPercent: 123.4, footprint: 1),
+                       ProcessSample(pid: 3, name: long, cpuPercent: 99.96, footprint: 512)]
+        m.processTotalCPU = 1224
+        wide.mac = m
+        var huge = wide
+        huge.tokens = TokenSummary(
+            byModel7d: [TokenGroup(name: "Fable 5.1", key: "claude-fable-5-1", tokens: Int.max, share: 100),
+                        TokenGroup(name: "Opus 5.5", key: "claude-opus-5-5", tokens: 1, share: 0)],
+            byProject7d: [TokenGroup(name: long, key: long, tokens: Int.max / 3, share: 100)],
+            bySessionToday: [TokenGroup(name: "a0000000", key: "a0000000", tokens: Int.max, share: 100)],
+            agentShare7d: 0, listPrice7d: 123_456_789.5, unpricedModels: 12,
+            tokensToday: Int.max, tokens7d: Int.max, tokens30d: Int.max, total7d: 0, totalToday: 0)
+        var hugeSessions = open
+        hugeSessions[0].snapshot.currentUsageTokens = Int.max
+        hugeSessions[0].snapshot.contextWindowSize = Int.max
+        hugeSessions[0].snapshot.contextUsedPercentage = 1e300
+        huge.feed.sessions = hugeSessions
+        var planless = input(feedState: FeedState(limits: Limits(asOf: now.addingTimeInterval(-60), planless: true),
+                                                  sessions: openSessions, lastWriteAt: now.addingTimeInterval(-2)))
+        planless.weeks = WeekRecords()
+        var none = input()
+        none.transcriptsRootsExist = false
+        none.transcriptFolders = ["~/.claude/projects", "~/.config/claude/projects", "~/.claude-work/projects", "/Volumes/Some Disk/claude/" + long + "/projects"]
+        var failed = input()
+        failed.tokens = nil
+        failed.transcriptsError = "The file \u{201C}projects\u{201D} couldn\u{2019}t be opened because you don\u{2019}t have permission to view it."
+        failed.transcriptFolders = none.transcriptFolders
+        var sampling = input(tab: 1)
+        sampling.mac = nil
+        var procError = input(tab: 1)
+        procError.mac?.processes = []
+        procError.mac?.processError = "The process list could not be read: an error that is long enough to run past the panel edge twice over"
+        var priceOff = input()
+        priceOff.listPrice = false
+        return [
+            ("stress-wide", wide), ("stress-wide-projects", { var i = wide; i.section = 1; return i }()),
+            ("stress-wide-sessions", { var i = wide; i.section = 2; return i }()), ("stress-wide-mac", { var i = wide; i.tab = 1; return i }()),
+            ("stress-huge", huge), ("stress-huge-mac", { var i = huge; i.tab = 1; return i }()),
+            ("stress-planless", planless), ("stress-no-transcripts", none), ("stress-transcripts-error", failed),
+            ("stress-sampling", sampling), ("stress-process-error", procError), ("stress-price-off", priceOff),
+        ]
     }
 
     /// Every state the docs show, by the shot names in docs/shots/app.
@@ -118,7 +212,7 @@ public enum Fixtures {
         settings.keepAwake = true; settings.awake = .working(2)   // the sample's two open sessions, both working
         settings.login = .on
         settings.restoreSessions = true
-        settings.version = "0.1.15"
+        settings.version = bundleVersion
         // the first call: two sessions open, neither has replied, no rate_limits yet
         let waitingSnap = openSessions.map { var o = $0; o.snapshot.rateLimits = nil; o.snapshot.currentUsageTokens = nil; o.snapshot.totalCostUSD = 0; return o }
         let firstReply = input(feedState: FeedState(limits: nil, sessions: waitingSnap, lastWriteAt: now.addingTimeInterval(-2)))
@@ -149,6 +243,7 @@ public enum Fixtures {
             ("claude-sessions", input(section: 2)),
             ("mac", input(tab: 1)),
             ("mac-warning", input(warn: true, tab: 1)),
+            ("mac-pressure-warn", input(warn: true, tab: 1, hog: true)),   // memory pressure warn, as pop-mac-warning.html draws it
             ("mac-no-health", input(tab: 1, health: nil)),
             ("mac-health-other", input(tab: 1, health: .other)),
             ("settings", settings),

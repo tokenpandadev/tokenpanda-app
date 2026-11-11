@@ -55,7 +55,7 @@ public enum Bar {
     public static func render(width n: Int, used u: Double, elapsed e: Double?, options o: BarOptions = BarOptions()) -> BarRender {
         let base = glyphs(width: n, used: u)
         let t = e.map { tick(width: n, elapsed: $0) }
-        let fillColor = o.color ?? (o.stale ? Tokens.track : Tokens.accent)
+        let fillColor = o.color ?? (o.stale ? Tokens.staleFill : Tokens.accent)
         let pastColor = (o.over && !o.stale) ? Tokens.coral : fillColor
         let markColor = o.stale ? Tokens.dim : Tokens.bold
         var cells: [BarCell] = []
@@ -84,18 +84,19 @@ public enum Bar {
 public enum Format {
     /// Text broken into lines of at most w cells at spaces, never cut: a word longer than w is split. Text that fits stays
     /// as it is, double spaces and all; a break eats the spaces at it. Double spaces part the figures of a line, so a break
-    /// falls there first, and a figure stays whole when it fits a line of its own.
+    /// falls there first, and a figure stays whole when it fits a line of its own. Widths are cells: a wide character
+    /// counts two (0.1.19).
     public static func wrap(_ s: String, _ w: Int) -> [String] {
-        guard s.count > w else { return [s] }
+        guard Cells.width(s) > w else { return [s] }
         let parts = s.components(separatedBy: "  ").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
         guard parts.count > 1 else { return wrapWords(s, w) }
         var out: [String] = []
         var line = ""
         for part in parts {
             if line.isEmpty { line = part }
-            else if line.count + 2 + part.count <= w { line += "  " + part; continue }
+            else if Cells.width(line) + 2 + Cells.width(part) <= w { line += "  " + part; continue }
             else { out.append(line.trimmingCharacters(in: .whitespaces)); line = part }
-            if line.count > w {
+            if Cells.width(line) > w {
                 let rows = wrapWords(line, w)
                 out += rows.dropLast()
                 line = rows.last ?? ""
@@ -106,17 +107,19 @@ public enum Format {
     }
 
     private static func wrapWords(_ s: String, _ w: Int) -> [String] {
-        guard s.count > w else { return [s] }
+        guard Cells.width(s) > w else { return [s] }
         var out: [String] = []
         var line = ""
         for word in s.split(separator: " ", omittingEmptySubsequences: false).map(String.init) {
             var word = word
-            while word.count > w {
+            while Cells.width(word) > w {
                 if !line.isEmpty { out.append(line); line = "" }
-                out.append(String(word.prefix(w))); word = String(word.dropFirst(w))
+                var head = Cells.prefix(word, w)
+                if head.isEmpty { head = String(word.prefix(1)) }   // one character wider than the line: it stands alone
+                out.append(head); word = String(word.dropFirst(head.count))
             }
             if line.isEmpty { line = word }
-            else if line.count + 1 + word.count <= w { line += " " + word }
+            else if Cells.width(line) + 1 + Cells.width(word) <= w { line += " " + word }
             else { out.append(line.trimmingCharacters(in: .whitespaces)); line = word }
         }
         line = line.trimmingCharacters(in: .whitespaces)
@@ -124,52 +127,112 @@ public enum Format {
         return out.filter { !$0.isEmpty }
     }
 
-    /// A name cut to a column: w - 1 characters and the ellipsis, or padded to w.
+    /// A name cut to a column: what fits in w - 1 cells and the ellipsis, padded to w cells.
     public static func col(_ s: String, _ w: Int) -> String {
-        if s.count > w { return String(s.prefix(w - 1)) + "\u{2026}" }
-        return s + String(repeating: " ", count: w - s.count)
+        let c = cut(s, w)
+        return c + String(repeating: " ", count: max(0, w - Cells.width(c)))
+    }
+
+    /// A text cut to w cells with the ellipsis, not padded.
+    public static func cut(_ s: String, _ w: Int) -> String {
+        guard w > 0 else { return "" }
+        guard Cells.width(s) > w else { return s }
+        return Cells.prefix(s, w - 1) + "\u{2026}"
     }
 
     public static func rcol(_ s: String, _ w: Int) -> String {
-        if s.count >= w { return s }
-        return String(repeating: " ", count: w - s.count) + s
+        let c = Cells.width(s)
+        if c >= w { return s }
+        return String(repeating: " ", count: w - c) + s
     }
 
-    /// Tokens: "72.4M", "1.02B", "31.2M", "0.13B"; fits five cells.
+    /// The units of a token figure, in order.
+    static let units: [(div: Double, suffix: String)] = [(1e3, "k"), (1e6, "M"), (1e9, "B"), (1e12, "T")]
+
+    /// One figure in one unit: k and M with one decimal under 100 and none from 100 up, B and T with two decimals.
+    /// nil when the figure rounds to 1000 or more in that unit: then it takes the next one.
+    static func inUnit(_ d: Double, _ u: Int) -> String? {
+        let v = d / units[u].div
+        let s = units[u].suffix
+        if u >= 2 {
+            if (v * 100).rounded() / 100 < 1000 || u == units.count - 1 { return String(format: "%.2f", v) + s }
+            return nil
+        }
+        if (v * 10).rounded() / 10 < 100 { return String(format: "%.1f", v) + s }
+        if v.rounded() < 1000 { return String(format: "%.0f", v) + s }
+        return nil
+    }
+
+    /// Tokens: "72.4M", "1.02B", "31.2M", "100k". The unit is picked after rounding, so 99,960 is "100k" (never
+    /// "100.0k"), 999,950 is "1.0M" (never "1000k") and 999,999,999 is "1.00B" (never "1000M") (0.1.19).
     public static func tokens(_ n: Int) -> String {
+        if n < 1000 { return String(n) }
         let d = Double(n)
-        if d >= 1e9 { return String(format: "%.2fB", d / 1e9) }
-        if d >= 100e6 { return String(format: "%.0fM", d / 1e6) }
-        if d >= 1e6 { return String(format: "%.1fM", d / 1e6) }
-        if d >= 100e3 { return String(format: "%.0fk", d / 1e3) }
-        if d >= 1e3 { return String(format: "%.1fk", d / 1e3) }
+        for u in units.indices { if let s = inUnit(d, u) { return s } }
         return String(n)
     }
 
-    /// A column of figures shares one unit, set by its largest: "1.02B" above "0.71B", never "710M".
-    public enum TokenScale { case billions, millions, thousands, units }
+    /// A column of figures shares one unit, set by its largest: "1.02B" above "0.71B", never "710M". The unit is the
+    /// one the largest figure takes after rounding.
+    public enum TokenScale: Sendable { case trillions, billions, millions, thousands, units }
     public static func tokenScale(_ n: Int) -> TokenScale {
-        n >= 1_000_000_000 ? .billions : n >= 1_000_000 ? .millions : n >= 1_000 ? .thousands : .units
+        if n < 1000 { return .units }
+        let d = Double(n)
+        for u in units.indices where inUnit(d, u) != nil { return [TokenScale.thousands, .millions, .billions, .trillions][u] }
+        return .trillions
     }
     public static func tokens(_ n: Int, scale: TokenScale) -> String {
-        let d = Double(n)
+        let u: Int
         switch scale {
-        case .billions: return String(format: "%.2fB", d / 1e9)
-        case .millions: return d >= 100e6 ? String(format: "%.0fM", d / 1e6) : String(format: "%.1fM", d / 1e6)
-        case .thousands: return d >= 100e3 ? String(format: "%.0fk", d / 1e3) : String(format: "%.1fk", d / 1e3)
         case .units: return String(n)
+        case .thousands: u = 0
+        case .millions: u = 1
+        case .billions: u = 2
+        case .trillions: u = 3
         }
+        if n <= 0 { return String(n) }
+        let d = Double(n)
+        let v = d / units[u].div
+        let s = units[u].suffix
+        // a small group in a column of large ones never reads 0.00B or 0.0M beside its bar
+        if u >= 2 {
+            if (v * 100).rounded() == 0 { return "<0.01" + s }
+            return String(format: "%.2f", v) + s
+        }
+        if (v * 10).rounded() == 0 { return "<0.1" + s }
+        return (v * 10).rounded() / 10 < 100 ? String(format: "%.1f", v) + s : String(format: "%.0f", v) + s
     }
 
-    /// Context figures: "405.6k", "88.4k", "1.2M"; the window size without a decimal: "1M", "200k".
+    /// Context figures: "405.6k", "88.4k", "1.2M"; the window size without a decimal: "1M", "200k". A figure that rounds
+    /// to 1000 in its unit takes the next one: 999,960 is "1M", never "1000k" (0.1.19).
     public static func contextTokens(_ n: Int, decimal: Bool = true) -> String {
         let d = Double(n)
-        if d >= 1e6 { return decimal ? trim(String(format: "%.1fM", d / 1e6)) : String(format: "%.0fM", d / 1e6) }
-        if d >= 1e3 { return decimal ? trim(String(format: "%.1fk", d / 1e3)) : String(format: "%.0fk", d / 1e3) }
+        if d < 1e3 { return String(n) }
+        for (i, u) in [(1e3, "k"), (1e6, "M")].enumerated() {
+            let v = d / u.0
+            let last = i == 1
+            if decimal {
+                let r = (v * 10).rounded() / 10
+                if r < 1000 || last { return trim(String(format: "%.1f", v) + u.1) }
+            } else if v.rounded() < 1000 || last {
+                return String(format: "%.0f", v) + u.1
+            }
+        }
         return String(n)
     }
 
     private static func trim(_ s: String) -> String { s.replacingOccurrences(of: ".0", with: "") }
+
+    /// The used percent as the panel writes it: rounded, but never 100 before the window is full. 99.5 reads 99 while a
+    /// projection still runs; only a raw 100 reads 100 (0.1.19).
+    public static func percentUsed(_ u: Double) -> Int {
+        u >= 100 ? Int(u.rounded()) : min(99, Int(u.rounded()))
+    }
+
+    /// A process's CPU: "6.1%", and without the decimal from 100% up, so "123%" and "1000%" stay in the column (0.1.19).
+    public static func cpu(_ p: Double) -> String {
+        (p * 10).rounded() / 10 >= 100 ? String(format: "%.0f%%", p) : String(format: "%.1f%%", p)
+    }
 
     /// "USD 1,140" for the chip; "USD 38.20" in a tooltip.
     public static func usd(_ v: Double, cents: Bool) -> String {

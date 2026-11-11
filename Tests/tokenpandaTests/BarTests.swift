@@ -42,7 +42,7 @@ struct BarTests {
     @Test func staleYieldsNoCoral() {
         let r = Bar.render(width: 36, used: 61, elapsed: 55, options: BarOptions(over: true, stale: true))
         #expect(!(r.cells.contains { $0.color == Tokens.coral }))
-        #expect(r.cells[0].color == Tokens.track)
+        #expect(r.cells[0].color == Tokens.staleFill)   // the stale fill, 3 to 1 on its faint track (0.1.19)
         #expect(r.cells[20].color == Tokens.dim)        // the mark goes dim
         #expect(r.trackColor == Tokens.trackStale)
     }
@@ -254,15 +254,19 @@ struct BarTests {
         }
     }
 
-    /// A small week never reads USD 0 beside real tokens (audit F-21): cents under USD 1, whole dollars from there.
-    @Test func thePriceChipShowsCentsUnderOneDollar() {
+    /// A small week never reads USD 0 beside real tokens (audit F-21): cents under USD 10 (0.1.19: 1.498 read USD 1), whole
+    /// dollars from there.
+    @Test func thePriceChipShowsCentsUnderTenDollars() {
         func chip(_ usd: Double) -> String? {
             var input = Fixtures.input(tab: 0)
             input.tokens?.listPrice7d = usd
             return ScreenBuilder.tokensView(input).priceChip
         }
         #expect(chip(0.318) == "[list price equivalent  USD 0.32]")
-        #expect(chip(1) == "[list price equivalent  USD 1]")
+        #expect(chip(1) == "[list price equivalent  USD 1.00]")
+        #expect(chip(1.498) == "[list price equivalent  USD 1.50]")
+        #expect(chip(9.994) == "[list price equivalent  USD 9.99]")
+        #expect(chip(10) == "[list price equivalent  USD 10]")
         #expect(chip(1140) == "[list price equivalent  USD 1,140]")
     }
 
