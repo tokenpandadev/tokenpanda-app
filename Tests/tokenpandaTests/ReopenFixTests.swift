@@ -370,4 +370,14 @@ struct ReopenFixTests {
         let v12 = o.panelOpened(pending: true); #expect(v12)
         let v13 = o.panelOpened(pending: true); #expect(!v13)     // once
     }
+
+    /// The record from before a restart stays while its offer is unanswered, at most an hour (flow test, second full pass).
+    @Test func theRecordStaysWhileTheRestartOfferIsUnanswered() {
+        let t = Date(timeIntervalSince1970: 1_794_300_000)
+        #expect(RestoreRecord.holdForOffer(pending: true, offeredAt: t, now: t.addingTimeInterval(20)))
+        #expect(RestoreRecord.holdForOffer(pending: true, offeredAt: t, now: t.addingTimeInterval(3599)))
+        #expect(!RestoreRecord.holdForOffer(pending: true, offeredAt: t, now: t.addingTimeInterval(3600)))
+        #expect(!RestoreRecord.holdForOffer(pending: false, offeredAt: t, now: t.addingTimeInterval(20)))
+        #expect(!RestoreRecord.holdForOffer(pending: true, offeredAt: nil, now: t))
+    }
 }

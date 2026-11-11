@@ -74,6 +74,7 @@ final class Controller: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var offerRepeat = OfferRepeat()              // the restart notice, said once more at the first panel open
     var offer: (title: String, body: String, id: String)? = nil   // the restart notice as posted, for that repeat
     var pendingReopen: [RestoreRecord.Entry] = []   // the sessions the restart notification offers
+    var restoreOfferedAt: Date?                      // when that offer was made, for RestoreRecord.holdForOffer
     var sessionNames: [String: String] = [:]   // the open sessions' names, read at each scan, for the Open sessions rows
     var launches: [Int32: (id: String, launch: RestoreRecord.Launch)] = [:]   // by process: how each running session was started
     var sessionWatch = SessionWatch()           // the running sessions by process, to tell when one ends

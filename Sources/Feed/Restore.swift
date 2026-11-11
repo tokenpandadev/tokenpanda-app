@@ -85,6 +85,16 @@ public struct RestoreRecord: Sendable, Equatable, Codable {
     public static let scanSaveEvery: TimeInterval = 5 * 60
 
     /// Whether this scan writes the file: the sessions changed, or the last scan is scanSaveEvery past the one written.
+    /// While the restart offer is unanswered the record from before the restart stays on disk, so a relaunch before the
+    /// answer offers the same sessions again; at most an hour, so an offer nobody took does not come back days later
+    /// (0.1.19, flow test of the second full pass: the first scan after a restart wrote an empty record within 20 s).
+    public static let holdWhileOffered: TimeInterval = 3600
+
+    public static func holdForOffer(pending: Bool, offeredAt: Date?, now: Date) -> Bool {
+        guard pending, let at = offeredAt else { return false }
+        return now.timeIntervalSince(at) < holdWhileOffered
+    }
+
     public static func shouldSave(key: [String], savedKey: [String], lastScan: Date, savedScan: Date?) -> Bool {
         if key != savedKey { return true }
         guard let saved = savedScan else { return true }

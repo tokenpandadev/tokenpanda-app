@@ -28,6 +28,7 @@ extension Controller {
         let record = RestoreRecord.load(from: Paths.restoreFile)
         guard let boot = Self.bootTime(), let lost = record?.lost(bootTime: boot, now: now), !lost.isEmpty else { return }
         pendingReopen = lost
+        restoreOfferedAt = now
         restoreLog.info("restore: \(lost.count, privacy: .public) sessions were open before this boot")
         let n = lost.count
         let names = SessionNames.list(lost.map(\.label), named: Set(lost.compactMap(\.name)))
@@ -109,7 +110,8 @@ extension Controller {
         // written when a session comes or goes, or a name, the options or the settings folder change, and every few
         // minutes for the last scan alone, which the offer after a restart goes by
         let key = r.saveKey
-        if RestoreRecord.shouldSave(key: key, savedKey: restoreSaved, lastScan: r.lastScan, savedScan: restoreSavedAt) {
+        if !RestoreRecord.holdForOffer(pending: !pendingReopen.isEmpty, offeredAt: restoreOfferedAt, now: now),
+           RestoreRecord.shouldSave(key: key, savedKey: restoreSaved, lastScan: r.lastScan, savedScan: restoreSavedAt) {
             restoreSaved = key; restoreSavedAt = r.lastScan; r.save(to: Paths.restoreFile)
         }
         watchEnds(live, now: now, launchesBefore: before)
