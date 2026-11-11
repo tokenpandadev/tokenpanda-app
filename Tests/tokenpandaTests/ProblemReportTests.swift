@@ -182,7 +182,7 @@ struct ProblemReportTests {
     @Test func theRowSaysCopiedOnlyAfterAClick() {
         let before = Grammar.reportRow(copied: nil).map(\.plain)
         let after = Grammar.reportRow(copied: true).map(\.plain)
-        #expect(before.first == " Copy a problem report")
+        #expect(before.first == " \u{29C9} Copy a problem report")
         #expect(!before.contains { $0.contains(Grammar.reportCopied) })
         #expect(after.last == "     copied")
         // the help line is said once, as the button's help, not again as text

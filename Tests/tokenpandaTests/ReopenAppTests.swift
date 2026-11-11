@@ -94,7 +94,7 @@ struct ReopenAppTests {
         #expect(pops.count == 1)
         let pop = try #require(pops.first)
         #expect(pop.action == .pickReopenApp)
-        #expect(pop.label == "Open sessions in")
+        #expect(pop.label == "Open sessions in iTerm")   // the choice is said in the label (0.1.19)
         #expect(pop.value == "iTerm")
         #expect(pop.cells == "Open sessions in iTerm \u{25BE}".count)
     }
@@ -106,7 +106,7 @@ struct ReopenAppTests {
         v.lines = Grammar.settingsTab(settings(restore: true, app: .ghostty))
         let kids = try #require(v.accessibilityChildren() as? [NSAccessibilityElement])
         let pop = try #require(kids.first { $0.accessibilityRole() == .popUpButton })
-        #expect(pop.accessibilityLabel() == "Open sessions in")
+        #expect(pop.accessibilityLabel() == "Open sessions in Ghostty")
         #expect(pop.accessibilityValue() as? String == "Ghostty")
         #expect(pop.accessibilityHelp() == "Ghostty asks before it runs each one")
         #expect(pop.accessibilityPerformPress())

@@ -142,7 +142,7 @@ struct BarTests {
         #expect(s[9] == "     started, and says when one ends on its own")
         #expect(s[11] == " Install the status line entry")
         #expect(s[12] == "     one entry in ~/.claude/settings.json")
-        #expect(s[14] == " Copy a problem report")
+        #expect(s[14] == " \u{29C9} Copy a problem report")
         #expect(s[15] == "     versions, switches and errors to paste into")
         #expect(s[16] == "     an issue or a mail, sends nothing")
         #expect(s[18] == " This app makes no network calls. Usage comes")

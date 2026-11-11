@@ -347,11 +347,11 @@ public enum Grammar {
         // second line stands one cell in, under the text after the bracket, so the bracket reads as one chip (0.1.19).
         for chip in [t.priceChip, t.agentChip].compactMap({ $0 }) {
             let rows = Cells.width(chip) <= popCells - 1 ? [chip] : Format.wrap(chip, popCells - 2)
-            out += spoken(rows.enumerated().map { k, r in L(sp(k == 0 ? " " : "  "), sp(r, .dim)) }, label: Spoken.chip(chip))
+            out += spoken(rows.enumerated().map { k, r in L(sp(k == 0 ? " " : "  "), sp(r, .dim)) }, label: Spoken.chip(chip), focusable: true)
         }
         // the totals of spec 5, one dim line at the end of the section (0.1.19)
         if let totals = t.totals {
-            out += spoken(Format.wrap(totals, popCells - 1).map { L(sp(" "), sp($0, .dim)) }, label: Spoken.words(totals))
+            out += spoken(Format.wrap(totals, popCells - 1).map { L(sp(" "), sp($0, .dim)) }, label: Spoken.words(totals), focusable: true)
         }
         return out
     }
@@ -531,7 +531,8 @@ public enum Grammar {
     /// Copy a problem report: one click puts plain text on the clipboard for an issue or a mail. The dim line is its help.
     public static func reportRow(copied: Bool?) -> [Line] {
         let label = "Copy a problem report"
-        var out = [Line([sp(" "), Piece(label, .text, action: .copyReport)], hover: true, label: label, help: reportHelp)]
+        // a copy mark in front, as the owner asked (0.1.19); VoiceOver reads the label without it
+        var out = [Line([sp(" "), Piece("\u{29C9} " + label, .text, action: .copyReport, label: label)], hover: true, label: label, help: reportHelp)]
         out += dimLines(reportHelp, indent: 5).map(\.silent)
         if let copied { out += dimLines(copied ? reportCopied : reportFailed, indent: 5) }
         return out
@@ -549,8 +550,10 @@ public enum Grammar {
     public static func reopenAppRow(_ app: TerminalApp) -> [Line] {
         let label = "Open sessions in"
         let asks: String? = app == .ghostty ? ghosttyAsks : app == .iterm ? itermAsks : nil
-        var out = [Line([sp("     "), Piece(label + " " + app.title + " \u{25BE}", .text, action: .pickReopenApp, label: label, value: app.title)],
-                        hover: true, label: label, help: asks)]
+        // the chosen app is in the label too: VoiceOver said "pop up button" without it, as it did not read the value (0.1.19)
+        let said = label + " " + app.title
+        var out = [Line([sp("     "), Piece(said + " \u{25BE}", .text, action: .pickReopenApp, label: said, value: app.title)],
+                        hover: true, label: said, help: asks)]
         if let asks { out += dimLines(asks, indent: 9).map(\.silent) }
         return out
     }

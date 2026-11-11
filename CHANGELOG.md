@@ -11,6 +11,7 @@
 - The panel: long, Chinese, Japanese and emoji names fit and line up; big figures stay in their column; a blank line between open sessions; totals for today, 7 days and 30 days; "limit reached" at 100%; the price chip shows cents under USD 10; tooltips show on the whole row and never cover it; buttons act when you let go; the warning dot on the selected Mac tab is easy to see.
 - A minor model release such as Opus 5.1 is no longer named and priced as Opus 5, and a renamed feed field now says the feed format changed.
 - Less work in the background: fewer file writes and folder checks while sessions run.
+- VoiceOver: moving with the arrow keys now reaches the list price, the subagent share and the totals, and the Open sessions in menu says which app is chosen. Copy a problem report has a copy mark.
 
 ## 0.1.18, 2026-11-11
 
