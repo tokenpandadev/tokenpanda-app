@@ -34,6 +34,8 @@ struct PanelSnapshotTests {
         case sessions = "sessions"
         case rowsAndChips = "rows-and-chips"
         case rowHoverTooltip = "row-hover-tooltip"
+        case sessionHoverTooltip = "session-hover-tooltip"
+        case tabPressedSelected = "tab-pressed-selected"
         case weeks = "weeks"
         case memoryGrid = "memory-grid"
         case macBars = "mac-bars"
@@ -81,6 +83,16 @@ struct PanelSnapshotTests {
             let row = try #require(lines.firstIndex { $0.hover })
             let piece = try #require(lines[row].pieces.lastIndex { $0.tip != nil })
             return (lines, { v in v.hoverLine = row; v.hoverTip = (line: row, piece: piece) })
+        case .sessionHoverTooltip:
+            // the pointer on the second session's name line: both lines highlight, the tooltip clears the row (0.1.19)
+            let lines = Grammar.sessionRows(claude.claude.sessions, more: claude.claude.moreSessions)
+            let name = try #require(lines.lastIndex { $0.joinsNext })
+            return (lines, { v in v.pointerMoved(to: NSPoint(x: v.padSide + 3 * v.cellWidth, y: v.lineY(name) + 8)) })
+        case .tabPressedSelected:
+            // a press held on the selected tab: its ink at a quarter on the accent (0.1.19)
+            return (Grammar.header(line: claude.headerLine, tab: 0, warn: false), { v in
+                if let c = v.controls.first(where: { $0.action == .tab(0) }) { let r = v.controlRect(c); v.pointerDown(at: NSPoint(x: r.midX, y: r.midY)) }
+            })
         case .weeks: return (claude.claude.weeks.map(Grammar.week), none)
         case .memoryGrid: return (Grammar.memGrid(try #require(try screen("mac").mac.memory)), none)
         case .macBars: return (Grammar.macTab(try screen("mac").mac), none)

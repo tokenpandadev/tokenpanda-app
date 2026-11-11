@@ -64,6 +64,8 @@ public struct Line: Sendable {
     public var hidden: Bool         // not an element of its own: decoration, or already said by the line that labels its group
     public var image: Bool          // spoken as an image with a description (the memory grid)
     public var focusable = false    // a key figure (Weekly, 5h, CPU, GPU, memory, battery): the keyboard ring stops on it too
+    /// This line and the next are one row for hover and tooltip: an open session's name line and its bar line (0.1.19).
+    public var joinsNext = false
 
     public init(_ pieces: [Piece] = [], hover: Bool = false, label: String? = nil, help: String? = nil, hidden: Bool = false, image: Bool = false) {
         self.pieces = pieces; self.hover = hover; self.label = label; self.help = help; self.hidden = hidden; self.image = image
@@ -74,6 +76,15 @@ public struct Line: Sendable {
 
     /// The line as plain text: bars become their glyph runs. Used by the golden tests.
     public var plain: String { pieces.map(\.text).joined() }
+    /// A row of tabs: the tab strip or the section switch. A tooltip never covers one.
+    public var isTabRow: Bool {
+        pieces.contains { p in
+            switch p.action {
+            case .tab?, .section?: return true
+            default: return false
+            }
+        }
+    }
     public var cells: Int { pieces.reduce(0) { $0 + $1.cells } }
 }
 

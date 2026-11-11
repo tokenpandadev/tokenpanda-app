@@ -20,10 +20,10 @@ enum DesignTokens {
         static let quiet = RGBA(hex: 0xb8b8b8)
         /// Used fill, selected tab, the rule under the header, the focus ring, links. Tokens.accent.
         static let accent = RGBA(hex: 0xb1b9f9)
-        /// The bar behind the fill: 3 to 1 or more on the glass (0.1.19; was #505370). Tokens.track.
-        static let track = RGBA(hex: 0x65698d)
+        /// The bar behind the fill, as in 0.1.18: the fill and the over pace segment keep their contrast to it (owner, 11.11). Tokens.track.
+        static let track = RGBA(hex: 0x505370)
         /// The track of a stale bar, at 35% alpha. Tokens.trackStale.
-        static let trackStale = RGBA(hex: 0x65698d, alpha: 0.35)
+        static let trackStale = RGBA(hex: 0x505370, alpha: 0.35)
         /// The fill of a stale bar: 3 to 1 or more on its faint track (0.1.19; it was the track colour). Tokens.staleFill.
         static let staleFill = RGBA(hex: 0x7e82b0)
         /// The fill past the tick when over pace, nothing else. Tokens.coral.
@@ -84,10 +84,10 @@ enum DesignTokens {
         static let quiet = RGBA(hex: 0x525257)
         /// Used fill, selected tab, the rule under the header, the focus ring, links. Tokens.accent.
         static let accent = RGBA(hex: 0x3b46b8)
-        /// The bar behind the fill: 3 to 1 or more on the glass (0.1.19; was #9ea4c8). Tokens.track.
-        static let track = RGBA(hex: 0x888dac)
+        /// The bar behind the fill, as in 0.1.18: the fill and the over pace segment keep their contrast to it (owner, 11.11). Tokens.track.
+        static let track = RGBA(hex: 0x9ea4c8)
         /// The track of a stale bar, at 35% alpha. Tokens.trackStale.
-        static let trackStale = RGBA(hex: 0x888dac, alpha: 0.35)
+        static let trackStale = RGBA(hex: 0x9ea4c8, alpha: 0.35)
         /// The fill of a stale bar: 3 to 1 or more on its faint track (0.1.19; it was the track colour). Tokens.staleFill.
         static let staleFill = RGBA(hex: 0x70748e)
         /// The fill past the tick when over pace, nothing else. Tokens.coral.

@@ -204,21 +204,21 @@ public enum Format {
     }
 
     /// Context figures: "405.6k", "88.4k", "1.2M"; the window size without a decimal: "1M", "200k". A figure that rounds
-    /// to 1000 in its unit takes the next one: 999,960 is "1M", never "1000k" (0.1.19).
+    /// to 1000 in its unit takes the next one: 999,960 is "1M", never "1000k" (0.1.19). The units run on to B and T as
+    /// the token figures do, and a figure past 999T reads ">999T", so even Int.max fits the session's figure column
+    /// (0.1.19; it ran on in millions, "9223372036854.8M", and was cut mid number).
     public static func contextTokens(_ n: Int, decimal: Bool = true) -> String {
         let d = Double(n)
         if d < 1e3 { return String(n) }
-        for (i, u) in [(1e3, "k"), (1e6, "M")].enumerated() {
-            let v = d / u.0
-            let last = i == 1
+        for u in units {
+            let v = d / u.div
             if decimal {
-                let r = (v * 10).rounded() / 10
-                if r < 1000 || last { return trim(String(format: "%.1f", v) + u.1) }
-            } else if v.rounded() < 1000 || last {
-                return String(format: "%.0f", v) + u.1
+                if (v * 10).rounded() / 10 < 1000 { return trim(String(format: "%.1f", v) + u.suffix) }
+            } else if v.rounded() < 1000 {
+                return String(format: "%.0f", v) + u.suffix
             }
         }
-        return String(n)
+        return ">999T"
     }
 
     private static func trim(_ s: String) -> String { s.replacingOccurrences(of: ".0", with: "") }

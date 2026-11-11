@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 tokenpanda
 // SPDX-License-Identifier: MIT
 // The token table of the style guide, section 1. One job per hex.
+import Foundation
 
 public struct RGBA: Sendable, Hashable {
     public var r: Double, g: Double, b: Double, a: Double
@@ -18,9 +19,10 @@ public enum Tokens {
     public static let dimmer = RGBA(hex: 0x949494)    // free cells in the memory grid: 3 to 1 even over white (0.1.14, was 888888)
     public static let quiet = RGBA(hex: 0xb8b8b8)     // key hints in the foot: 4.5 to 1 or more even over a white desktop
     public static let accent = RGBA(hex: 0xb1b9f9)    // used fill, selected tab, the rule
-    // the bar behind the fill: 3 to 1 or more on the glass (non-text contrast, 0.1.19; was 505370, 2.2 to 1)
-    public static let track = RGBA(hex: 0x65698d)
-    public static let trackStale = RGBA(hex: 0x65698d, alpha: 0.35)
+    // the bar behind the fill. Back at its 0.1.18 value in 0.1.19 (owner, 11.11): the lifted 65698d reached 3 to 1 on the
+    // glass but cut the accent fill to 2.8 and the coral over pace segment to 1.7 against it; here they keep 4.0 and 2.4
+    public static let track = RGBA(hex: 0x505370)
+    public static let trackStale = RGBA(hex: 0x505370, alpha: 0.35)
     // the fill of a stale bar: 3 to 1 or more on its faint track (0.1.19; it was the track colour itself, 1.7 to 1.9)
     public static let staleFill = RGBA(hex: 0x7e82b0)
     public static let coral = RGBA(hex: 0xd77757)     // the fill past the tick when over pace
@@ -67,14 +69,42 @@ public enum Tokens {
     /// The hue of a model family. A family not in the table takes the first unused hue of the palette.
     public static func hue(forFamily family: String) -> RGBA { knownHue(forFamily: family) ?? spare[0] }
 
+    /// Two hues closer than this (CIE76 colour difference in CIELAB, sRGB with a D65 white) read as one in a bar.
+    public static let closeHue = 20.0
+
+    /// The CIE76 colour difference of two colours: the distance of their CIELAB values.
+    public static func difference(_ a: RGBA, _ b: RGBA) -> Double {
+        func lab(_ c: RGBA) -> (Double, Double, Double) {
+            func lin(_ v: Double) -> Double { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+            let r = lin(c.r), g = lin(c.g), b = lin(c.b)
+            let x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047
+            let y = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            let z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883
+            func f(_ t: Double) -> Double { t > 0.008856 ? cbrt(t) : 7.787 * t + 16.0 / 116 }
+            return (116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z)))
+        }
+        let p = lab(a), q = lab(b)
+        return ((p.0 - q.0) * (p.0 - q.0) + (p.1 - q.1) * (p.1 - q.1) + (p.2 - q.2) * (p.2 - q.2)).squareRoot()
+    }
+
     /// The hues of several families at once: the known ones from the table, each other family the next unused hue of
     /// the palette in the order they come, so two unknown families do not share one (style guide section 1).
+    /// Each spare hue is the bright twin of one family's hue, so a spare closer than `closeHue` to a hue already on the
+    /// screen (a family in the list, or a spare given to an earlier unknown family) is skipped: with Opus in the list an
+    /// unknown family never takes the bright yellow (0.1.19). When every unused spare is that close (all four families
+    /// in the list), the next unused spare in palette order is taken, as before.
     public static func hues(forFamilies families: [String]) -> [String: RGBA] {
         var out: [String: RGBA] = [:]
-        var next = 0
+        let known = families.compactMap { knownHue(forFamily: $0) }
+        var taken: [RGBA] = []
         for f in families where out[f.lowercased()] == nil {
             if let h = knownHue(forFamily: f) { out[f.lowercased()] = h; continue }
-            out[f.lowercased()] = spare[next % spare.count]; next += 1
+            let unused = spare.filter { !taken.contains($0) }
+            let inUse = known + taken
+            let far = unused.first { s in inUse.allSatisfy { difference(s, $0) >= closeHue } }
+            let h = far ?? unused.first ?? spare[taken.count % spare.count]
+            out[f.lowercased()] = h
+            taken.append(h)
         }
         return out
     }
@@ -93,7 +123,7 @@ extension Tokens {
         0x949494: 0x6e6e73, // dimmer
         0xb8b8b8: 0x525257, // quiet
         0xb1b9f9: 0x3b46b8, // accent
-        0x65698d: 0x888dac, // track, track when stale: 3 to 1 on the light glass (0.1.19; was 9ea4c8, 2.3 to 1)
+        0x505370: 0x9ea4c8, // track, track when stale: shows over a white and a black desktop, the fill stays 3 to 1 from it
         0x7e82b0: 0x70748e, // the stale fill: 3 to 1 on its faint track (0.1.19)
         0xd77757: 0xb9502e, // coral
         0xffc107: 0x7a4e00, // warning

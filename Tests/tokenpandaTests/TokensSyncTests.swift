@@ -102,8 +102,9 @@ struct TokensSyncTests {
         let o = Self.literal(DesignTokens.Size.focusOffset), w = Self.literal(DesignTokens.Size.focusRing), g = Self.literal(DesignTokens.Size.tipGap)
         #expect(draw.contains("insetBy(dx: -\(o), dy: -\(o))"))
         #expect(draw.contains("path.lineWidth = \(w)"))
-        #expect(draw.contains("lineY(li) - h - \(g)"))
-        #expect(draw.contains("lineY(li) + LineView.lineHeight + \(g)"))
+        // the gap between a tooltip and its row: the box ends that far short of its lines on the row's side (0.1.19)
+        #expect(draw.contains("lineY(first + n) - \(g)"))
+        #expect(draw.contains("lineY(first) + \(g)"))
     }
 
     @Test func itemMeasuresAreTheImagesOwn() throws {

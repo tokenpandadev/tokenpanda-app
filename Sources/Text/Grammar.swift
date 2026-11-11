@@ -271,7 +271,9 @@ public enum Grammar {
             // the name and model are in the figure line's label; said once, there. A waiting session has no figure line
             // with a label, so its name line stays.
             let (name, model) = nameAndModel(s.name, s.model)
-            let nameLine = L(sp(" "), sp(name), sp("  "), sp(model, .dim))
+            // the name line and the bar line are one row: either one highlights both and shows the tooltip (0.1.19)
+            var nameLine = Line([sp(" "), sp(name), sp("  "), sp(model, .dim)], hover: true)
+            nameLine.joinsNext = true
             out.append(s.waiting ? nameLine : nameLine.silent)
             let bar = Bar.render(width: rowBar, used: s.waiting ? 0 : Double(s.used), elapsed: nil, options: BarOptions(color: s.hue, plain: true))
             if s.waiting {

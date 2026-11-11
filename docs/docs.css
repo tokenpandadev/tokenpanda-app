@@ -4,7 +4,7 @@
 .r6{
   --tint:rgba(25,29,39,.82);
   --txt:#e0e0e0; --bold:#ededed; --dim:#b3b3b3; --dimmer:#949494; --quiet:#b8b8b8;
-  --accent:#b1b9f9; --track:#65698d; --coral:#d77757; --warn:#ffc107; --box:#373737; --sel:rgb(39,61,76);
+  --accent:#b1b9f9; --track:#505370; --coral:#d77757; --warn:#ffc107; --box:#373737; --sel:rgb(39,61,76);
   --magenta:#bd7bcd; --yellow:#c4ac62; --cyan:#7ccbcd; --green:#6caa71; --blue:#6d96b4; --blue2:#67b5ed; --white:#dee5eb;
   --mono:"SF Mono",ui-monospace,Menlo,monospace;
   --sf:-apple-system,"SF Pro Text",system-ui,sans-serif;
@@ -67,7 +67,7 @@
 
 /* block bar from glyphs */
 .r6 .bar{position:relative;display:inline-block;height:var(--bh,12px);margin-top:var(--bt,3px);background:var(--track);vertical-align:top;white-space:pre;line-height:16px}
-.r6 .bar.stale{background:rgba(101,105,141,.35)}
+.r6 .bar.stale{background:rgba(80,83,112,.35)}
 .r6 .bar.plain{background:none}
 .r6 .bar .fl{display:block;margin-top:calc(-1 * var(--bt,3px))}
 .r6 .bar .tk{position:absolute;top:calc(-1 * var(--bt,3px));color:var(--txt)}
