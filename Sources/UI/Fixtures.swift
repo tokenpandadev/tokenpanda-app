@@ -61,7 +61,7 @@ public enum Fixtures {
                          TokenGroup(name: "c91e0a44", key: "c91e0a44-0000-4000-8000-000000000003", tokens: 12_600_000, share: 17),
                          TokenGroup(name: "other", key: "other", tokens: 10_600_000, share: 15)],
         agentShare7d: 44, listPrice7d: 1140, unpricedModels: 0,
-        tokensToday: 72_400_000, tokens7d: 2_100_000_000, tokens30d: 9_800_000_000, total7d: 2_100_000_000, totalToday: 72_400_000)
+        tokensToday: 72_400_000, tokens7d: 2_100_000_000, tokens30d: 9_800_000_000)
 
     public static let weeks: WeekRecords = {
         var w = WeekRecords()

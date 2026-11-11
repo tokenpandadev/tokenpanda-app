@@ -142,7 +142,7 @@ struct TranscriptsTests {
         let p2 = TokenRefresh.plan(lastDay: day, today: day, haveTokens: true, now: t1, nextEdge: s0.nextEdge)
         #expect(!p2.onlyIfChanged && TokenRefresh.rebuild(plan: p2, versionMoved: false))
         let s1 = Aggregator.summarize(records, now: t1, calendar: cal)
-        #expect(s1.tokens7d == 1 && s1.total7d == 1 && s1.tokens30d == 111)
+        #expect(s1.tokens7d == 1 && s1.tokens30d == 111)
         #expect(s1.byModel7d.map(\.key) == ["claude-fable-5-1"])
         #expect(s1.byProject7d.first?.tokens == 1)
         #expect(s1.listPrice7d < s0.listPrice7d)
@@ -261,8 +261,128 @@ struct TranscriptsTests {
 
     @Test func rootsFromEnvironment() {
         let home = URL(fileURLWithPath: "/Users/someone")
-        let roots = TranscriptLocator.roots(home: home, environment: ["CLAUDE_CONFIG_DIR": "/tmp/a, /tmp/b"])
-        #expect(roots.map(\.path) == ["/Users/someone/.claude/projects", "/Users/someone/.config/claude/projects", "/tmp/a/projects", "/tmp/b/projects"])
+        let roots = TranscriptLocator.roots(home: home, environment: ["CLAUDE_CONFIG_DIR": "/Users/someone/work"])
+        #expect(roots.map(\.path) == ["/Users/someone/.claude/projects", "/Users/someone/.config/claude/projects", "/Users/someone/work/projects"])
         #expect(TranscriptLocator.projectName(fromFolder: "-Users-someone-workspace") == "workspace")
+    }
+
+    /// Claude Code reads CLAUDE_CONFIG_DIR as one path; until 0.1.18 a comma split it into two wrong folders (audit F-66).
+    @Test func configDirWithACommaIsOnePath() {
+        let home = URL(fileURLWithPath: "/Users/someone")
+        let roots = TranscriptLocator.roots(home: home, environment: ["CLAUDE_CONFIG_DIR": "/Users/someone/a, b"])
+        #expect(roots.map(\.path).last == "/Users/someone/a, b/projects")
+        #expect(roots.count == 3)
+        #expect(TranscriptLocator.roots(home: home, environment: ["CLAUDE_CONFIG_DIR": " "]).count == 2)
+    }
+}
+
+/// Transcripts reached through a linked folder are read once (0.1.19). Until 0.1.18 ~/.config/claude linking to ~/.claude,
+/// or a CLAUDE_CONFIG_DIR pair of a folder and a link to it, made two roots for the same files and doubled every figure.
+/// Real links in a folder of the test run.
+struct LinkedRootsTests {
+    let fm = FileManager.default
+    let now = ISO8601DateFormatter().date(from: "2026-11-10T12:00:00Z")!
+
+    func line(id: String, tokens: Int) -> String {
+        #"{"type":"assistant","timestamp":"2026-11-10T10:00:00.000Z","cwd":"/Users/someone/work","sessionId":"s-1","message":{"id":"\#(id)","model":"claude-opus-5-5","usage":{"input_tokens":\#(tokens),"output_tokens":0}}}"#
+    }
+
+    /// A settings folder with one project and one session of the given lines.
+    func makeFolder(_ folder: URL, ids: [String], tokens: Int = 110) throws {
+        let project = folder.appendingPathComponent("projects/-Users-someone-work", isDirectory: true)
+        try fm.createDirectory(at: project, withIntermediateDirectories: true)
+        try (ids.map { line(id: $0, tokens: tokens) }.joined(separator: "\n") + "\n")
+            .write(to: project.appendingPathComponent("s-\(UUID().uuidString).jsonl"), atomically: true, encoding: .utf8)
+    }
+
+    func base() -> URL { TestTemp.root.appendingPathComponent("linked-\(UUID().uuidString)", isDirectory: true) }
+
+    @Test func xdgLinkToDotClaudeIsReadOnce() async throws {
+        let home = base()
+        try makeFolder(home.appendingPathComponent(".claude"), ids: ["m1"])
+        try fm.createDirectory(at: home.appendingPathComponent(".config"), withIntermediateDirectories: true)
+        try fm.createSymbolicLink(at: home.appendingPathComponent(".config/claude"), withDestinationURL: home.appendingPathComponent(".claude"))
+        let roots = TranscriptLocator.roots(home: home, environment: [:])
+        #expect(roots.count == 1)
+        // the controller adds the settings folders' projects too, the link among them: the store keeps one of each
+        let store = TranscriptStore(roots: roots + [home.appendingPathComponent(".config/claude/projects")])
+        #expect(await store.roots.count == 1)
+        let r = await store.refresh(now: now)
+        #expect(r.records.count == 1)
+        #expect(Aggregator.summarize(r.records, now: now).tokens7d == 110)
+    }
+
+    @Test func configDirPairOfFolderAndLinkIsReadOnce() async throws {
+        let b = base()
+        let real = b.appendingPathComponent("real"), alias = b.appendingPathComponent("alias")
+        try makeFolder(real, ids: ["m1", "m2"])
+        try fm.createSymbolicLink(at: alias, withDestinationURL: real)
+        let store = TranscriptStore(roots: [real.appendingPathComponent("projects"), alias.appendingPathComponent("projects")])
+        let r = await store.refresh(now: now)
+        #expect(r.records.count == 2)
+        #expect(r.fileCount == 1)
+        #expect(Aggregator.summarize(r.records, now: now).tokens7d == 220)
+    }
+
+    /// A root that was no link when the store was made and links to another root later: the roots stay two, the file is
+    /// still read once, because files are kept by device and inode.
+    @Test func rootLinkedAfterLaunchIsReadOnce() async throws {
+        let b = base()
+        let real = b.appendingPathComponent("real"), later = b.appendingPathComponent("later")
+        try makeFolder(real, ids: ["m1"])
+        let store = TranscriptStore(roots: [real.appendingPathComponent("projects"), later.appendingPathComponent("projects")])
+        #expect(await store.roots.count == 2)
+        #expect(await store.refresh(now: now).records.count == 1)
+        try fm.createSymbolicLink(at: later, withDestinationURL: real)
+        let r = await store.refresh(now: now)
+        #expect(r.records.count == 1)
+        #expect(r.fileCount == 1)
+    }
+
+    /// A settings folder made after launch joins with setRoots; the files already read keep their state (0.1.19).
+    @Test func setRootsAddsAFolderAndKeepsWhatWasRead() async throws {
+        let b = base()
+        let first = b.appendingPathComponent("first"), second = b.appendingPathComponent("second")
+        let both = [first.appendingPathComponent("projects"), second.appendingPathComponent("projects")]
+        try makeFolder(first, ids: ["m1", "m2"])
+        let store = TranscriptStore(roots: [both[0]])
+        let r1 = await store.refresh(now: now)
+        #expect(r1.records.count == 2)
+        try makeFolder(second, ids: ["m3"], tokens: 5)
+        #expect(await store.refresh(now: now).records.count == 2)      // not a root yet
+        #expect(await store.setRoots(both))
+        #expect(await store.setRoots(both) == false)
+        let r2 = await store.refresh(now: now)
+        #expect(r2.records.count == 3)
+        #expect(r2.version == r1.version + 1)                          // only the new file's record moved it: nothing read again
+        #expect(Aggregator.summarize(r2.records, now: now).tokens7d == 225)
+        // a root taken away drops its files at the next pass
+        await store.setRoots([both[1]])
+        let r3 = await store.refresh(now: now)
+        #expect(r3.records.count == 1 && r3.records.first?.usage.total == 5)
+    }
+
+    /// Two passes can overlap and the older one's summary arrive last; every result carries the order it ran in, and
+    /// RefreshOrder refuses an older one (0.1.19, review: the older summary replaced the newer one).
+    @Test func anOlderPassIsRefused() async throws {
+        let b = base()
+        try makeFolder(b, ids: ["m1"])
+        let store = TranscriptStore(roots: [b.appendingPathComponent("projects")])
+        let t = now
+        async let x = store.refresh(now: t)
+        async let y = store.refresh(now: t)
+        let (rx, ry) = await (x, y)
+        #expect(rx.sequence != ry.sequence)
+        let (older, newer) = rx.sequence < ry.sequence ? (rx, ry) : (ry, rx)
+        var order = RefreshOrder()
+        let tookNewer = order.accept(newer.sequence)       // the newer summary lands first
+        let tookOlder = order.accept(older.sequence)       // the older one, arriving last, is dropped
+        #expect(tookNewer && !tookOlder)
+        #expect(order.lastApplied == newer.sequence)
+        // an unchanged pass still moves the sequence, so a later day's summary is never taken for an older one
+        let r = await store.refresh(now: now, onlyIfChanged: true)
+        #expect(r.sequence == newer.sequence + 1 && r.records.isEmpty)
+        let tookLater = order.accept(r.sequence)
+        #expect(tookLater)
     }
 }

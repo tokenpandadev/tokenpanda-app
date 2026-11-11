@@ -10,6 +10,14 @@ public struct TranscriptFile: Sendable, Hashable {
     public var isAgent: Bool
     public var size: UInt64
     public var modified: Date
+    public var id = FileID(device: 0, inode: 0)   // the file itself, whatever path reached it (0.1.19)
+}
+
+/// A file's device and inode: the same file reached through a linked folder has one id under every path.
+public struct FileID: Sendable, Hashable {
+    public var device: UInt64
+    public var inode: UInt64
+    public init(device: UInt64, inode: UInt64) { self.device = device; self.inode = inode }
 }
 
 /// Finds the transcript roots and enumerates only the two patterns. Never walks a directory recursively,
@@ -21,18 +29,24 @@ public enum TranscriptLocator {
                              environment: [String: String] = ProcessInfo.processInfo.environment) -> [URL] {
         var out = [home.appendingPathComponent(".claude/projects", isDirectory: true),
                    home.appendingPathComponent(".config/claude/projects", isDirectory: true)]
-        if let dirs = environment["CLAUDE_CONFIG_DIR"] {
-            for d in dirs.split(separator: ",") {
-                let t = d.trimmingCharacters(in: .whitespaces)
-                if !t.isEmpty { out.append(URL(fileURLWithPath: t, isDirectory: true).appendingPathComponent("projects", isDirectory: true)) }
-            }
+        // one path, as Claude Code reads it: a comma is part of the path (0.1.19; until 0.1.18 it was split at commas)
+        if let dir = environment["CLAUDE_CONFIG_DIR"], !dir.trimmingCharacters(in: .whitespaces).isEmpty {
+            out.append(URL(fileURLWithPath: (dir as NSString).expandingTildeInPath, isDirectory: true).appendingPathComponent("projects", isDirectory: true))
         }
-        return out
+        return unique(out)
+    }
+
+    /// The roots with every folder reached through a link kept once, the first spelling wins: ~/.config/claude linking to
+    /// ~/.claude, or a CLAUDE_CONFIG_DIR that is a link to another root, read every file twice until 0.1.18.
+    public static func unique(_ roots: [URL]) -> [URL] {
+        var seen = Set<String>()
+        return roots.filter { seen.insert($0.resolvingSymlinksInPath().standardizedFileURL.path).inserted }
     }
 
     public static func files(under roots: [URL], now: Date = Date()) -> [TranscriptFile] {
         let fm = FileManager.default
         var out: [TranscriptFile] = []
+        var seen = Set<FileID>()   // a file reached twice (a linked project folder, a root linked after launch) is listed once
         let cutoff = now.addingTimeInterval(-keepDays)
         for root in roots {
             guard let projects = try? fm.contentsOfDirectory(atPath: root.path) else { continue }
@@ -43,7 +57,8 @@ public enum TranscriptLocator {
                     if entry == "memory" || entry.hasPrefix(".") { continue }
                     let url = projectURL.appendingPathComponent(entry)
                     if entry.hasSuffix(".jsonl") {
-                        if let f = describe(url, project: project, session: String(entry.dropLast(6)), agent: false, cutoff: cutoff) { out.append(f) }
+                        if let f = describe(url, project: project, session: String(entry.dropLast(6)), agent: false, cutoff: cutoff),
+                           seen.insert(f.id).inserted { out.append(f) }
                         continue
                     }
                     // a session folder: only its subagents/ is looked at, by name, without listing the folder itself
@@ -52,7 +67,8 @@ public enum TranscriptLocator {
                     guard fm.fileExists(atPath: sub.path, isDirectory: &isDir), isDir.boolValue,
                           let agents = try? fm.contentsOfDirectory(atPath: sub.path) else { continue }
                     for a in agents where a.hasSuffix(".jsonl") {
-                        if let f = describe(sub.appendingPathComponent(a), project: project, session: entry, agent: true, cutoff: cutoff) { out.append(f) }
+                        if let f = describe(sub.appendingPathComponent(a), project: project, session: entry, agent: true, cutoff: cutoff),
+                           seen.insert(f.id).inserted { out.append(f) }
                     }
                 }
             }
@@ -66,7 +82,8 @@ public enum TranscriptLocator {
         guard stat(url.path, &st) == 0, (st.st_mode & S_IFMT) == S_IFREG else { return nil }
         let mtime = Date(timeIntervalSince1970: Double(st.st_mtimespec.tv_sec) + Double(st.st_mtimespec.tv_nsec) / 1e9)
         guard mtime >= cutoff else { return nil }
-        return TranscriptFile(url: url, projectFolder: project, sessionId: session, isAgent: agent, size: UInt64(st.st_size), modified: mtime)
+        return TranscriptFile(url: url, projectFolder: project, sessionId: session, isAgent: agent, size: UInt64(st.st_size), modified: mtime,
+                              id: FileID(device: UInt64(UInt32(bitPattern: st.st_dev)), inode: UInt64(st.st_ino)))
     }
 
     /// The project folder's last dash segment, the fallback when no line carried a working directory.

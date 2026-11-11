@@ -5,6 +5,24 @@ import Foundation
 import Prices
 @testable import Transcripts
 
+/// Helpers only the tests use, moved out of the app in 0.1.19 (audit F-58): the grouping of records, as the reference
+/// below groups them, and the cost of one usage by model id.
+extension Aggregator {
+    /// Groups sorted by the figure, largest first; more than five becomes four and "other".
+    static func groups(_ records: [UsageRecord], key: (UsageRecord) -> String, name: (String) -> String) -> [TokenGroup] {
+        var sums: [String: Int] = [:]
+        for r in records { sums[key(r), default: 0] = sums[key(r), default: 0].saturatingAdd(r.usage.total) }
+        return groups(sums: sums, name: name)
+    }
+}
+
+extension PriceTable {
+    /// nil when the model has no row: counted in tokens, skipped in cost.
+    static func cost(model id: String, usage: Usage) -> Double? {
+        row(forModel: id)?.cost(usage)
+    }
+}
+
 /// The one pass summary of 0.1.18 gives exactly what the three filters of 0.1.17 gave: the old way is kept here as the
 /// reference and both run on random records, edges and odd values included.
 struct AggregatorOnePassTests {
@@ -34,7 +52,6 @@ struct AggregatorOnePassTests {
             listPrice7d: price, unpricedModels: unpriced.count,
             tokensToday: today.reduce(0) { $0.saturatingAdd($1.usage.total) }, tokens7d: total7,
             tokens30d: month.reduce(0) { $0.saturatingAdd($1.usage.total) },
-            total7d: total7, totalToday: today.reduce(0) { $0.saturatingAdd($1.usage.total) },
             nextEdge: edges.compactMap { $0 }.min())
     }
 

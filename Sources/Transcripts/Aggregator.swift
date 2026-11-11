@@ -21,17 +21,15 @@ public struct TokenSummary: Sendable, Equatable {
     public var tokensToday: Int
     public var tokens7d: Int
     public var tokens30d: Int
-    public var total7d: Int
-    public var totalToday: Int
     /// The first time after which these figures are out of date with no new record: a record leaves the 7 or the 30 day
     /// window, or one dated after now enters. nil when no record will ever cross an edge. (0.1.15, audit F-3)
     public var nextEdge: Date?
     public init(byModel7d: [TokenGroup], byProject7d: [TokenGroup], bySessionToday: [TokenGroup], agentShare7d: Int,
-                listPrice7d: Double, unpricedModels: Int, tokensToday: Int, tokens7d: Int, tokens30d: Int, total7d: Int, totalToday: Int,
+                listPrice7d: Double, unpricedModels: Int, tokensToday: Int, tokens7d: Int, tokens30d: Int,
                 nextEdge: Date? = nil) {
         self.byModel7d = byModel7d; self.byProject7d = byProject7d; self.bySessionToday = bySessionToday
         self.agentShare7d = agentShare7d; self.listPrice7d = listPrice7d; self.unpricedModels = unpricedModels
-        self.tokensToday = tokensToday; self.tokens7d = tokens7d; self.tokens30d = tokens30d; self.total7d = total7d; self.totalToday = totalToday
+        self.tokensToday = tokensToday; self.tokens7d = tokens7d; self.tokens30d = tokens30d
         self.nextEdge = nextEdge
     }
 }
@@ -39,14 +37,8 @@ public struct TokenSummary: Sendable, Equatable {
 public enum Aggregator {
     public static let maxRows = 5
 
-    /// Groups sorted by the figure, largest first; more than five becomes four and "other".
-    public static func groups(_ records: [UsageRecord], key: (UsageRecord) -> String, name: (String) -> String) -> [TokenGroup] {
-        var sums: [String: Int] = [:]
-        for r in records { sums[key(r), default: 0] = sums[key(r), default: 0].saturatingAdd(r.usage.total) }
-        return groups(sums: sums, name: name)
-    }
-
-    /// The same from sums already made, key to tokens.
+    /// Groups from sums, key to tokens, sorted by the figure, largest first; more than five becomes four and "other".
+    /// (The form that took records had no caller in the app and lives in the tests since 0.1.19.)
     static func groups(sums: [String: Int], name: (String) -> String) -> [TokenGroup] {
         let total = sums.values.reduce(0) { $0.saturatingAdd($1) }
         guard total > 0 else { return [] }
@@ -110,7 +102,6 @@ public enum Aggregator {
             agentShare7d: total7 > 0 ? Int((Double(agent7) / Double(total7) * 100).rounded()) : 0,
             listPrice7d: price, unpricedModels: unpriced.count,
             tokensToday: today, tokens7d: total7, tokens30d: month,
-            total7d: total7, totalToday: today,
             nextEdge: edges.compactMap { $0 }.min())
     }
 }
