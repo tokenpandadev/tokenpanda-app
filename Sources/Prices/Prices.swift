@@ -83,11 +83,6 @@ public enum PriceTable {
         }
     }
 
-    /// nil when the model has no row: counted in tokens, skipped in cost.
-    public static func cost(model id: String, usage: Usage) -> Double? {
-        row(forModel: id)?.cost(usage)
-    }
-
     /// "claude-fable-5-1" is "Fable 5.1", "claude-haiku-4-5-20251001" is "Haiku 4.5". An unknown id is shown as is.
     public static func displayName(forModel id: String) -> String {
         if let r = row(forModel: id) { return r.name }

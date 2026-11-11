@@ -26,10 +26,26 @@ public enum TokenRefresh {
     }
 }
 
+/// Which summary may replace the one on screen: two passes can overlap (launch, the popover opening and the timer each
+/// start one), and the older one's summary can arrive last. Give it every result's sequence before assigning the summary
+/// built from it; an older sequence is refused (0.1.19, review: the older summary replaced the newer one).
+public struct RefreshOrder: Sendable, Equatable {
+    public private(set) var lastApplied = -1
+    public init() {}
+    /// true when the result of this sequence is newer than the last one taken, and takes it.
+    public mutating func accept(_ sequence: Int) -> Bool {
+        guard sequence > lastApplied else { return false }
+        lastApplied = sequence
+        return true
+    }
+}
+
 /// Reads transcripts incrementally: every file remembers its byte offset and the message ids it has seen.
-/// A file that shrank is read again from the start. Nothing is ever loaded whole.
+/// A file that shrank is read again from the start. Nothing is ever loaded whole. Files are kept by device and inode,
+/// so a file reached through a linked folder is read once (0.1.19).
 public actor TranscriptStore {
     struct FileState {
+        var url: URL? = nil          // the path it was read through; another path for the same id starts over
         var offset: UInt64 = 0
         var ids: Set<String> = []
         var records: [UsageRecord] = []
@@ -39,13 +55,25 @@ public actor TranscriptStore {
     /// A transcript line longer than this is skipped. Claude Code's lines are kilobytes, a pasted image a few megabytes.
     public static let maxLine = 10 << 20
 
-    public let roots: [URL]
-    var files: [URL: FileState] = [:]
+    public private(set) var roots: [URL]
+    var files: [FileID: FileState] = [:]
     public private(set) var lastError: String?
     public private(set) var fileCount = 0
     public private(set) var version = 0      // moves when a record was added or a file was read again
 
-    public init(roots: [URL]) { self.roots = roots }
+    var sequence = 0
+
+    public init(roots: [URL]) { self.roots = TranscriptLocator.unique(roots) }
+
+    /// A new set of roots, for a settings folder made after launch. Files already read keep their offsets and records;
+    /// a file under no root any more drops out at the next refresh. Returns whether the set changed (0.1.19).
+    @discardableResult
+    public func setRoots(_ roots: [URL]) -> Bool {
+        let next = TranscriptLocator.unique(roots)
+        guard next != self.roots else { return false }
+        self.roots = next
+        return true
+    }
 
     public struct Result: Sendable {
         public var records: [UsageRecord]
@@ -54,6 +82,8 @@ public actor TranscriptStore {
         public var error: String?
         public var cause: (any Error)?   // the error itself, for the problem report's codes (never its text)
         public var version: Int
+        /// Strictly increasing per refresh call, also when nothing moved: the order the passes ran in (RefreshOrder).
+        public var sequence: Int
     }
 
     var lastReportedVersion = -1
@@ -61,27 +91,29 @@ public actor TranscriptStore {
     /// Enumerates the files and reads what is new. Returns every record kept; with onlyIfChanged the records
     /// come back empty when nothing moved since the last call, so the caller keeps its aggregate without a copy.
     public func refresh(now: Date = Date(), chunk: Int = 1 << 20, maxLine: Int = TranscriptStore.maxLine, onlyIfChanged: Bool = false) -> Result {
+        sequence += 1
         let fm = FileManager.default
         let rootsExist = roots.contains { fm.fileExists(atPath: $0.path) }
         let found = TranscriptLocator.files(under: roots, now: now)
-        let present = Set(found.map(\.url))
-        for url in files.keys where !present.contains(url) { files.removeValue(forKey: url); version += 1 }
+        let present = Set(found.map(\.id))
+        for id in files.keys where !present.contains(id) { files.removeValue(forKey: id); version += 1 }
         var error: String? = nil   // this pass only: a later pass without an error clears it
         var cause: (any Error)? = nil
         for f in found {
-            var st = files[f.url] ?? FileState()
-            if f.size < st.offset { st = FileState(); version += 1 }   // truncated or rewritten: start over
+            var st = files[f.id] ?? FileState(url: f.url)
+            // truncated or rewritten, or the id now names a file at another path: start over
+            if f.size < st.offset || st.url != f.url { st = FileState(url: f.url); version += 1 }
             if f.size > st.offset {
                 do { try read(f, into: &st, chunk: chunk, maxLine: maxLine) } catch let e { error = e.localizedDescription; cause = e }
             }
-            files[f.url] = st
+            files[f.id] = st
         }
         lastError = error
         fileCount = found.count
         let unchanged = onlyIfChanged && version == lastReportedVersion
         lastReportedVersion = version
         let all = unchanged ? [] : files.values.flatMap(\.records)
-        return Result(records: all, fileCount: found.count, rootsExist: rootsExist, error: error, cause: cause, version: version)
+        return Result(records: all, fileCount: found.count, rootsExist: rootsExist, error: error, cause: cause, version: version, sequence: sequence)
     }
 
     func read(_ f: TranscriptFile, into st: inout FileState, chunk: Int, maxLine: Int) throws {
