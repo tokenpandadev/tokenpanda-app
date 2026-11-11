@@ -153,11 +153,18 @@ struct BatteryHealthTests {
 
     /// A slow tool never holds a sample: the figures go on, and the word comes with the sample after the read.
     @Test func aSlowToolDoesNotHoldTheSamples() async {
+        // against two samples with a quick tool on the same machine, not a fixed second: a busy CI runner took 1.9 to 2.5 s
+        // for two full samples, the tool not counted (0.1.19 tag build)
+        let quick = MacSampler(healthReader: { BatteryHealthTests.output("Good") }, powerSource: { BatteryHealthTests.power() })
+        let q0 = Date()
+        _ = await quick.sample(full: true, readHealth: true)
+        _ = await quick.sample(full: true, readHealth: true)
+        let base = Date().timeIntervalSince(q0)
         let sampler = MacSampler(healthReader: { usleep(1_500_000); return BatteryHealthTests.output("Good") }, powerSource: { BatteryHealthTests.power() })
         let began = Date()
         #expect(await sampler.sample(full: true, readHealth: true).battery?.health == nil)
         #expect(await sampler.sample(full: true, readHealth: true).battery?.health == nil)
-        #expect(Date().timeIntervalSince(began) < 1)
+        #expect(Date().timeIntervalSince(began) < base + 1.0)   // waiting for the tool would add 1.5 s
         #expect(await sampler.refreshHealth() == HealthRead(word: .normal))
         #expect(await sampler.sample(full: true).battery?.health == .normal)
     }
