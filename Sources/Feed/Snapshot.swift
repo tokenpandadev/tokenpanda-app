@@ -66,8 +66,14 @@ public enum SnapshotParser {
             }
             s.rateLimitsCarriedWindows = r.contains { $0.key != "spend_limit" && $0.value is [String: Any] }
             // a renamed field would make every window vanish: say so instead of reading it as an account without limits.
-            // An entry that has used_percentage but no reset yet (null) is a known shape, not a format change.
-            let unknownShape = r.contains { k, v in k != "spend_limit" && (v as? [String: Any]).map { $0["used_percentage"] == nil } == true }
+            // The one known shape that reads as no window is used_percentage a number with resets_at null (no reset yet);
+            // a renamed field, a percentage or reset sent as text, or an entry that is not an object is a format change.
+            // A null entry is a window left out. Numbers outside the ranges keep the known shape: ignored, as spec 3 says.
+            let unknownShape = r.contains { k, v in
+                guard k != "spend_limit", !(v is NSNull) else { return false }
+                guard let w = v as? [String: Any], number(w["used_percentage"]) != nil else { return true }
+                return !(w["resets_at"] is NSNull || number(w["resets_at"]) != nil)
+            }
             if windows.isEmpty, unknownShape {
                 s.rateLimitsUnreadable = true
             } else {

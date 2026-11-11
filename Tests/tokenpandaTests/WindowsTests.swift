@@ -431,6 +431,27 @@ struct WindowsTests {
         #expect(spend?.rateLimitsUnreadable == false && spend?.rateLimits?.isEmpty == true)
     }
 
+    @Test func aRenamedResetOrAPercentAsTextSaysTheFormatChanged() throws {
+        func snap(_ rate: String) throws -> Snapshot {
+            try #require(SnapshotParser.parse(Data("{\"session_id\":\"s\",\"rate_limits\":\(rate)}".utf8), writtenAt: t0))
+        }
+        let changed = [#"{"seven_day":{"used_percentage":40,"reset_time":1800000000}}"#,
+                       #"{"seven_day":{"used_percentage":"40","resets_at":1800000000}}"#,
+                       #"{"seven_day":{"used_percentage":40,"resets_at":"1800000000"}}"#,
+                       #"{"seven_day":40}"#]
+        for raw in changed {
+            let s = try snap(raw)
+            #expect(s.rateLimitsUnreadable, "\(raw)")
+            #expect(s.rateLimits == nil, "\(raw)")
+        }
+        // the known shapes stay readable: a null reset, a window absent, a spend limit alone, one window read
+        for raw in [#"{"five_hour":{"used_percentage":0,"resets_at":null}}"#, #"{}"#, #"{"spend_limit":{"used":1}}"#,
+                    #"{"five_hour":null}"#,
+                    #"{"seven_day":{"used_percentage":40,"resets_at":1800000000},"five_hour":{"used_percentage":"9","resets_at":1}}"#] {
+            #expect(!(try snap(raw)).rateLimitsUnreadable, "\(raw)")
+        }
+    }
+
     @Test func disableAllHooksIsReported() throws {
         let dir = try tempDir()
         let settings = dir.appendingPathComponent("settings.json")
