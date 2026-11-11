@@ -862,7 +862,7 @@ public struct HookSet: Sendable {
 
     /// remove.sh in the data folder: Remove without the app, for brew's zap. Homebrew before 7.0.10 deletes the app before
     /// it runs a zap script, so the zap runs this file, which lives in the data folder until the zap's own trash step.
-    /// It needs only sh and plutil. Per settings file: only while statusLine still runs our script, it puts back the
+    /// It needs sh, osascript (the JSON edit, in JavaScript) and plutil as the fallback. Per settings file: only while statusLine still runs our script, it puts back the
     /// saved entry or removes the key, and deletes a settings.json that Install created and that is empty again.
     public var removeScriptPath: URL? { hooks.first.map { $0.dataDir.appendingPathComponent("remove.sh") } }
 

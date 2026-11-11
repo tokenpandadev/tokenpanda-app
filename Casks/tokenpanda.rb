@@ -22,7 +22,7 @@ cask "tokenpanda" do
   # The app's own Remove runs first, in zap only: uninstall directives also run on every upgrade and would strip
   # the status line entry each time. It is remove.sh, which the app writes into its data folder at Install and
   # Remove, not the app binary: Homebrew before 7.0.10 deletes the app before it runs a zap script. The script
-  # lives until the trash step below. It is the same Remove as `tokenpanda --remove-status-line`, in sh and plutil.
+  # lives until the trash step below. It is the same Remove as `tokenpanda --remove-status-line`, in sh, with osascript for the JSON edit and plutil as the fallback.
   zap script: {
         executable:   "/bin/sh",
         args:         ["-c", '[ ! -f "$0" ] || /bin/sh "$0"',
