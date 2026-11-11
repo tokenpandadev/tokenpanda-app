@@ -33,22 +33,29 @@ public struct Limits: Sendable, Equatable, Codable {
         }
     }
     public var windows: [String: Record]
+    /// The record's time: the newest reply that fed it. An idle session rewrites its cached figures every 5 s, so its file
+    /// time says nothing about how old they are; the stale rule, the pace and "as of" go by this time. A record made
+    /// before any reply was seen takes the file time of that first feed, and keeps it until a reply comes.
     public var asOf: Date
+    /// The newest file time applied: a scan applies only files newer than this. Not the record's age (see asOf).
+    /// A limits.json written before 0.1.19 has none; its asOf, which was the newest file time then, stands in for it.
+    public var fedAt: Date
     /// Keys a reply came without: the plan no longer has them, the row is hidden. A record stays for the length check.
     public var hidden: Set<String>
     /// The newest reply carried no plan windows at all (an API key, Bedrock, Vertex): the stored ones are not drawn.
     public var planless: Bool
-    public init(windows: [String: Record] = [:], asOf: Date, hidden: Set<String> = [], planless: Bool = false) {
-        self.windows = windows; self.asOf = asOf; self.hidden = hidden; self.planless = planless
+    public init(windows: [String: Record] = [:], asOf: Date, hidden: Set<String> = [], planless: Bool = false, fedAt: Date? = nil) {
+        self.windows = windows; self.asOf = asOf; self.hidden = hidden; self.planless = planless; self.fedAt = fedAt ?? asOf
     }
 
-    enum CodingKeys: String, CodingKey { case windows, asOf, hidden, planless }
+    enum CodingKeys: String, CodingKey { case windows, asOf, hidden, planless, fedAt }
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         windows = try c.decode([String: Record].self, forKey: .windows)
         asOf = try c.decode(Date.self, forKey: .asOf)
         hidden = try c.decodeIfPresent(Set<String>.self, forKey: .hidden) ?? []
         planless = try c.decodeIfPresent(Bool.self, forKey: .planless) ?? false
+        fedAt = try c.decodeIfPresent(Date.self, forKey: .fedAt) ?? asOf
     }
 
     /// The keys always drawn, in this order; any other key the feed carries follows them.
@@ -64,6 +71,8 @@ public struct Limits: Sendable, Equatable, Codable {
     /// has. Before its reset a missing window only goes quiet.
     /// `carriedWindows` says whether any raw feed had a window entry, before passed or unreadable ones were dropped;
     /// only a reply with none at all makes the limits planless.
+    /// `at` is the newest file time of the feeds applied. The record's time (asOf) becomes `repliedAt`; without a reply
+    /// it stays.
     public mutating func apply(_ rateLimits: [String: LimitWindow], at: Date, repliedAt: Date? = nil, carriedWindows: Bool? = nil) {
         for (key, w) in rateLimits {
             hidden.remove(key)
@@ -97,7 +106,8 @@ public struct Limits: Sendable, Equatable, Codable {
                 hidden.insert(key)
             }
         }
-        asOf = at
+        fedAt = at
+        if let r = repliedAt { asOf = r }
     }
 
     /// The record the eyes, the spoken label and the nudges may use: none for a retired or hidden window, or planless.
@@ -136,7 +146,7 @@ public struct OpenSession: Sendable, Equatable {
 public struct FeedState: Sendable, Equatable {
     public var limits: Limits?
     public var sessions: [OpenSession]       // open, sorted by context used, largest first
-    public var lastWriteAt: Date?            // the newest file's write time, for "Live from Claude Code"
+    public var lastWriteAt: Date?            // the newest file's write time, for "Live from Claude Code" only, never the record's age
     public var scanError: String?
     public var formatChanged: Bool           // a file's rate_limits had entries and none of them read as a window
     public init(limits: Limits? = nil, sessions: [OpenSession] = [], lastWriteAt: Date? = nil, scanError: String? = nil, formatChanged: Bool = false) {
@@ -232,7 +242,7 @@ public actor FeedReader {
         }
         figuresSeen = nextFigures
         parsed = nextParsed   // a deleted or vanished file leaves the cache with its scan
-        if let t = newestLimits, t > (limits?.asOf ?? .distantPast) {
+        if let t = newestLimits, t > (limits?.fedAt ?? .distantPast) {
             var l = limits ?? Limits(asOf: t)
             l.apply(Limits.merge(feeds, now: now), at: t, repliedAt: repliedAt, carriedWindows: carriedWindows)
             if l != limits {

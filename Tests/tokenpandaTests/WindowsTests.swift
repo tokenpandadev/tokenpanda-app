@@ -452,6 +452,57 @@ struct WindowsTests {
         }
     }
 
+    // MARK: the record time
+
+    @Test func anIdleSessionGoesStaleAnHourAfterItsLastReply() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        try write("s", feed("s", windows: ["seven_day": (30, week)], cost: 1), in: dir, at: t0)
+        _ = await reader.scan(now: t0)
+        // a reply at t0 + 5
+        let replied = t0.addingTimeInterval(5)
+        try write("s", feed("s", windows: ["seven_day": (31, week)], cost: 2), in: dir, at: replied)
+        var st = await reader.scan(now: replied)
+        #expect(st.limits?.asOf == replied)
+        // then the session idles: the hook writes the same cached figures every 5 s, the file time moves, the reply does not
+        var now = replied
+        for _ in 0..<62 {
+            now = now.addingTimeInterval(60)
+            try write("s", feed("s", windows: ["seven_day": (31, week)], cost: 2), in: dir, at: now)
+            st = await reader.scan(now: now)
+        }
+        let l = try #require(st.limits)
+        #expect(l.asOf == replied)                       // the record carries the reply's time
+        #expect(st.lastWriteAt == now)                   // the file time is kept for the live line only
+        #expect(st.isLive(now: now))
+        #expect(OpenSessionsRule.isStale(asOf: l.asOf, now: now))
+        guard case .stale = mode("seven_day", l, now) else { Issue.record("no stale form an hour after the last reply"); return }
+        // the next reply makes it live again, and the reply time is what is kept on disk
+        let next = now.addingTimeInterval(5)
+        try write("s", feed("s", windows: ["seven_day": (33, week)], cost: 3), in: dir, at: next)
+        let back = try #require(await reader.scan(now: next).limits)
+        #expect(back.asOf == next && isLive(mode("seven_day", back, next)))
+        #expect(await FeedReader(dataDir: dir).scan(now: next.addingTimeInterval(1)).limits?.asOf == next)
+    }
+
+    @Test func aLimitsFileFromBeforeTheReplyTimeIsStillRead() async throws {
+        // limits.json as 0.1.18 and earlier wrote it: asOf was the newest file time, no feed time of its own
+        let dir = try tempDir()
+        let stored = """
+        {"asOf":\(t0.timeIntervalSince1970 - 600),"hidden":[],"planless":false,"windows":{"seven_day":{"contradicts":false,"retired":false,"used":28,"resetsAt":\(week.timeIntervalSince1970)}}}
+        """
+        try Data(stored.utf8).write(to: dir.appendingPathComponent("limits.json"))
+        let reader = FeedReader(dataDir: dir)
+        let first = try #require(await reader.scan(now: t0).limits)
+        #expect(first.asOf == t0.addingTimeInterval(-600) && first.fedAt == first.asOf && first.windows["seven_day"]?.used == 28)
+        // an idle session seen for the first time is no reply: its figure is taken, the record time stays
+        try write("s", feed("s", windows: ["seven_day": (29, week)], cost: 5), in: dir, at: t0.addingTimeInterval(1))
+        let l = try #require(await reader.scan(now: t0.addingTimeInterval(1)).limits)
+        #expect(l.windows["seven_day"]?.used == 29)
+        #expect(l.asOf == t0.addingTimeInterval(-600))
+        #expect(l.fedAt == t0.addingTimeInterval(1))
+    }
+
     @Test func disableAllHooksIsReported() throws {
         let dir = try tempDir()
         let settings = dir.appendingPathComponent("settings.json")
