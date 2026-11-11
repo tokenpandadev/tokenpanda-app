@@ -454,6 +454,29 @@ struct WindowsTests {
 
     // MARK: the record time
 
+    /// While a session idles the hook moves only the feed time; limits.json is written at most once a minute then, and
+    /// at once when a figure changes (0.1.19, full pass: it was rewritten every 5 s).
+    @Test func limitsFileIsWrittenOnChangesAndAtMostOnceAMinuteOtherwise() async throws {
+        let dir = try tempDir()
+        let reader = FeedReader(dataDir: dir)
+        let file = dir.appendingPathComponent("limits.json")
+        var contents: [Data] = []
+        func record() { if let d = try? Data(contentsOf: file), d != contents.last { contents.append(d) } }
+        try write("s", feed("s", windows: ["seven_day": (30, week)], cost: 1), in: dir, at: t0)
+        _ = await reader.scan(now: t0); record()
+        var now = t0
+        for _ in 0..<24 {   // two minutes of idle hook runs, every 5 s
+            now = now.addingTimeInterval(5)
+            try write("s", feed("s", windows: ["seven_day": (30, week)], cost: 1), in: dir, at: now)
+            _ = await reader.scan(now: now); record()
+        }
+        #expect(contents.count <= 3, "written \(contents.count) times in two idle minutes")
+        now = now.addingTimeInterval(5)
+        try write("s", feed("s", windows: ["seven_day": (35, week)], cost: 2), in: dir, at: now)
+        _ = await reader.scan(now: now); let before = contents.count; record()
+        #expect(contents.count == before + 1, "a changed figure is written at once")
+    }
+
     @Test func anIdleSessionGoesStaleAnHourAfterItsLastReply() async throws {
         let dir = try tempDir()
         let reader = FeedReader(dataDir: dir)

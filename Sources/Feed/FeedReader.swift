@@ -250,11 +250,33 @@ public actor FeedReader {
             l.apply(Limits.merge(feeds, now: now), at: t, repliedAt: repliedAt, carriedWindows: carriedWindows)
             if l != limits {
                 limits = l
-                persist()
+                persistIfDue(now: now)
             }
         }
         sessions.sort { $0.usedPercentage > $1.usedPercentage }
         return FeedState(limits: limits, sessions: sessions, lastWriteAt: lastWrite, formatChanged: formatChanged)
+    }
+
+    /// limits.json is written when a figure, a hidden window or the plan changes, and otherwise at most once a minute:
+    /// every hook run moves only the feed time, which rewrote the file every 5 s while a session was open (0.1.19,
+    /// full pass). A restart loses at most a minute of that time; the stale rule counts in hours.
+    static let persistEvery: TimeInterval = 60
+    var lastPersisted: Limits?
+    var lastPersistAt: Date = .distantPast
+
+    func persistIfDue(now: Date) {
+        guard let limits else { return }
+        if let p = lastPersisted, Self.sameButTime(p, limits), now.timeIntervalSince(lastPersistAt) < Self.persistEvery { return }
+        persist()
+        lastPersisted = limits
+        lastPersistAt = now
+    }
+
+    static func sameButTime(_ a: Limits, _ b: Limits) -> Bool {
+        var x = a, y = b
+        x.asOf = .distantPast; y.asOf = .distantPast
+        x.fedAt = .distantPast; y.fedAt = .distantPast
+        return x == y
     }
 
     func persist() {
